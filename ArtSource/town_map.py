@@ -215,6 +215,32 @@ def build(preview):
     def near_place(p, margin):
         return any((Vector((l["x"], l["y"])) - p).length < margin for l in town["locations"])
 
+    # The town fabric, batched into one mesh per material (thousands of rectangles).
+    batches = {}
+
+    def add_rect(mat, c, w, h, z, ang):
+        ca, sa = math.cos(ang), math.sin(ang)
+        quad = [Vector((c.x + dx * ca - dy * sa, c.y + dx * sa + dy * ca, z))
+                for dx, dy in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))]
+        batches.setdefault(mat.name, (mat, []))[1].append(quad)
+
+    roof_cols = [block, block_dark, flat("roofSlate", "8C8578"), flat("roofWarm", "D29C74")]
+    shadow = flat("bldShadow", "B8A784")
+    garden = flat("garden", "C6CFA3")
+    sh = Vector((0.0022, -0.0026, 0))   # printed drop shadow, down and right
+
+    def building(p, w, h, ang, col=None):
+        """A roof (in town units at p) with its shadow; w, h in town units."""
+        c = P(p.x, p.y)
+        add_rect(shadow, c + sh, w * S, h * S, 0.0063, ang)
+        add_rect(col or rnd.choices(roof_cols, [5, 3, 2, 2])[0], c, w * S, h * S, 0.0065, ang)
+        # A ridge line along the long side reads as a pitched roof.
+        add_rect(flat("ridge", "9E6E50"), c, w * S * 0.86, 0.0011, 0.0066, ang if w >= h else ang + math.pi / 2)
+
+    def blocked(p, road_m, place_m):
+        return p.y < coast_y(p.x) + 0.7 or near_place(p, place_m) or near_road(p, road_m)
+
+    # 1. Terraces: continuous rows of narrow houses fronting every street, broken by alleys.
     for st_ in town["streets"]:
         a, b = locs[st_["a"]], locs[st_["b"]]
         pa, pb = Vector((a["x"], a["y"])), Vector((b["x"], b["y"]))
@@ -223,16 +249,72 @@ def build(preview):
         d.normalize()
         n = Vector((-d.y, d.x))
         ang = math.atan2(d.y, d.x)
-        steps = int(L / 1.15)
-        for i in range(1, steps):
-            for side in (-1, 1):
-                if rnd.random() < 0.2:
-                    continue
-                p = pa + d * (i * L / steps) + n * side * rnd.uniform(1.0, 1.35)
-                if p.y < coast_y(p.x) + 0.6 or near_place(p, 1.6) or near_road(p, 0.75):
-                    continue
-                rect("house", P(p.x, p.y), rnd.uniform(0.016, 0.026), rnd.uniform(0.012, 0.018),
-                     block if rnd.random() < 0.7 else block_dark, 0.0065, ang + rnd.uniform(-0.05, 0.05))
+        for side in (-1, 1):
+            t = 1.3
+            while t < L - 1.3:
+                run = rnd.uniform(1.6, 3.4)                      # one terrace
+                k = t
+                while k < min(t + run, L - 1.3):
+                    wdt = rnd.uniform(0.45, 0.7)
+                    depth = rnd.uniform(0.75, 1.0)
+                    p = pa + d * (k + wdt / 2) + n * side * (0.62 + depth / 2)
+                    if not blocked(p, 0.5, 1.3):
+                        building(p, wdt * 0.96, depth, ang)
+                    k += wdt
+                t = k + rnd.uniform(0.3, 0.8)                    # an alley
+
+    # 2. Back-fill: inside the built-up area, yards, sheds and back gardens on a loose grid.
+    hull_pts = sorted((l["x"], l["y"]) for l in town["locations"] if l["id"] not in ("lighthouse", "pier"))
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in hull_pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0:
+            lower.pop()
+        lower.append(q)
+    for q in reversed(hull_pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0:
+            upper.pop()
+        upper.append(q)
+    hull = lower[:-1] + upper[:-1]
+
+    def inside(p, grow=1.2):
+        cx = sum(q[0] for q in hull) / len(hull)
+        cy = sum(q[1] for q in hull) / len(hull)
+        for i in range(len(hull)):
+            a_, b_ = hull[i], hull[(i + 1) % len(hull)]
+            # Shrink-test against the hull grown outward by `grow`.
+            nx, ny = b_[1] - a_[1], -(b_[0] - a_[0])
+            ln = math.hypot(nx, ny)
+            nx, ny = nx / ln, ny / ln
+            if (cx - a_[0]) * nx + (cy - a_[1]) * ny > 0:
+                nx, ny = -nx, -ny
+            if (p.x - a_[0]) * nx + (p.y - a_[1]) * ny > grow:
+                return False
+        return True
+
+    gx = TOWN_MIN[0]
+    while gx < TOWN_MAX[0]:
+        gy = TOWN_MIN[1]
+        while gy < TOWN_MAX[1]:
+            p = Vector((gx + rnd.uniform(-0.3, 0.3), gy + rnd.uniform(-0.3, 0.3)))
+            if inside(p) and not blocked(p, 1.75, 1.4):
+                r = rnd.random()
+                if r < 0.42:
+                    building(p, rnd.uniform(0.5, 1.0), rnd.uniform(0.45, 0.8), rnd.uniform(-0.2, 0.2))
+                elif r < 0.7:
+                    add_rect(garden, P(p.x, p.y), rnd.uniform(0.6, 1.0) * S, rnd.uniform(0.6, 1.0) * S, 0.0021, rnd.uniform(-0.2, 0.2))
+                    if rnd.random() < 0.6:
+                        disc("tree", P(p.x + rnd.uniform(-0.2, 0.2), p.y + rnd.uniform(-0.2, 0.2)), rnd.uniform(0.0045, 0.0075), tree, 0.0031, 10)
+            gy += 1.05
+        gx += 1.05
+
+    for name, (mat, quads) in batches.items():
+        bm = bmesh.new()
+        for quad in quads:
+            bm.faces.new([bm.verts.new(v) for v in quad])
+        mesh_obj("fabric_" + name, bm, mat)
 
     # Landmarks.
     def lm(lid, kind):
