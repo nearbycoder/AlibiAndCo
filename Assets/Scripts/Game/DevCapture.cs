@@ -9,6 +9,32 @@ namespace AlibiCo
     /// </summary>
     public static class DevCapture
     {
+        /// <summary>Editor helper: play the open case to the accusation with the solver's moves.</summary>
+        public static string SolveAndAccuse()
+        {
+            var root = GameRoot.I;
+            if (root.Session == null) return "no session";
+            root.StartCoroutine(Solve(root.Session));
+            return "solving";
+        }
+
+        static System.Collections.IEnumerator Solve(CaseSession s)
+        {
+            for (int guard = 0; guard < 30; guard++)
+            {
+                foreach (var id in System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Where(s.Board.TrayCards, x => !x.IsUnknown), x => x.Id)))
+                    s.AutoPin(id);
+                yield return new WaitForSecondsRealtime(0.6f);
+                var path = AlibiCo.Logic.Solver.ShortestSolution(AlibiCo.Logic.Solver.Shadow(s.Board));
+                if (path == null || path.Count == 0) break;
+                var m = path[0];
+                if (m.Kind == "link") { s.AutoPin(m.A); s.AutoPin(m.B); s.AutoLink(m.A, m.B); }
+                else s.Confront(s.ViewOf(m.A));
+                yield return new WaitForSecondsRealtime(2.5f);
+            }
+            s.AutoAccuse(s.Case.Incident.Culprit);
+        }
+
         public static string Capture(string path, int width = 1920, int height = 1080)
         {
             var stage = Stage.I;

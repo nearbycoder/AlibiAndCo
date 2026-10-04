@@ -8,7 +8,12 @@ Wrenhaven, a harbour town in autumn 1986. You're the "& Co." at retired DI Conni
 two-desk agency. She teaches through short typed memos clipped to the board, and the board does
 the arithmetic. You do the doubting.
 
-![Case 2 mid-investigation](Screenshots/12_c2_linking.png)
+![Case 2 mid-investigation: the Lantern's clock is corrected and Marlow's story has gone red](docs/images/case2_board.jpg)
+
+| | |
+|---|---|
+| ![Title](docs/images/title.jpg) | ![The notebook (Tab)](docs/images/notebook.jpg) |
+| ![Reconstruction](docs/images/reconstruction.jpg) | ![Case closed](docs/images/closed.jpg) |
 
 ## Playing
 
@@ -30,6 +35,7 @@ automatically.
 | Click a pinned statement | open its panel: **Confront** or unpin |
 | Right-click a pinned card | send it back to the tray |
 | Drag the incident card | preview where the crime fits; drop it on a line to accuse |
+| Tab (or the Notes button) | the notebook: where the case stands, what each clock is known to do, and every memo, question and witness reply so far |
 | H or F1 | ask Connie for a hint (the case is marked "with Connie's help") |
 | Space or click | skip a memo, or the reconstruction |
 | Esc | pause (resume, settings, case files, quit) |
@@ -81,6 +87,15 @@ Three handcrafted cases on one shared town map, each introducing one idea:
 - **Autoplay self-test.** `Tools/autoplay.sh [outdir]` launches the built game, plays all three
   cases through the real session code using the solver's moves, saves a screenshot per step and
   prints PASS/FAIL. Current result: 3/3 cases passed with 0 errors.
+- **Real-input test.** `Tools/play.sh -alibiInputTest [outdir]` drives case 1 with simulated mouse
+  events through the Input System (drag, hover, right-click, click, the Confront button, the
+  incident drag) and logs `[AutoPilot] PASS input test` when every gesture lands.
+- **Gameplay recording.** `Tools/record.sh [out.mp4] [cases]` has the built game play the cases
+  with simulated mouse input at a watchable pace, captures every frame at a locked 30 fps through
+  ffmpeg, rebuilds the soundtrack offline from a per-frame voice log (`Tools/mix_recording.py`),
+  and muxes the two. The output goes to `Recordings/` (git-ignored). It needs `ffmpeg` on the
+  PATH. Automated runs (autoplay, input test, recording) use a blank in-memory save, so they never
+  touch your progress.
 
 ## Building
 
@@ -114,7 +129,7 @@ blender -b -P ArtSource/build_assets.py -- all
 finished with Python and Pillow (run with `.venv/bin/python`): `Tools/photo_finish.py portraits`
 and `Tools/photo_finish.py photos` give the portraits and press photos a 1980s print look, and
 `Tools/map_finish.py` adds the paper finish to the town map. `Tools/make_textures.py` generates
-every texture and icon procedurally, and `Tools/synth_audio.py` synthesizes all the music,
+every texture and icon procedurally, `Tools/make_icon.py` draws the app icon, and `Tools/synth_audio.py` synthesizes all the music,
 ambience and sound effects with numpy (no samples).
 
 ## Project layout
@@ -134,7 +149,7 @@ docs/PLAN.md            the design and technical plan
 
 ## Known gaps
 
-- The plan's Tab notebook and its resolution and text-size settings weren't built. Questions and
-  leads appear as memos on the desk instead.
+- The plan's resolution and text-size settings weren't built. The game runs at the desktop
+  resolution (or the window size) and the UI scales with it.
 - In a long-running headless Editor, the 3D scene sometimes renders magenta after several
   play-mode sessions. This hasn't happened in the standalone build.

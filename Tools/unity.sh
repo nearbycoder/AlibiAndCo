@@ -6,6 +6,7 @@
 # is `sudo pacman -S libxml2-legacy`).
 #
 #   Tools/unity.sh                 open the project in the editor (GUI)
+#   Tools/unity.sh player          batch: player settings and app icon only
 #   Tools/unity.sh setup           batch: materials, fonts, URP settings, scene (ProjectSetup.Apply)
 #   Tools/unity.sh validate        batch: run the case validator inside Unity
 #   Tools/unity.sh test            batch: EditMode tests (validator + solution replay)
@@ -20,8 +21,9 @@ batch() { "$UNITY" -batchmode -nographics -quit -projectPath "$PROJECT" -logFile
 case "${1:-open}" in
   open)        exec "$UNITY" -projectPath "$PROJECT" ;;
   setup)       batch -executeMethod AlibiCo.EditorTools.ProjectSetup.Apply ;;
+  player)      batch -executeMethod AlibiCo.EditorTools.ProjectSetup.ApplyPlayerSettings ;;
   validate)    batch -executeMethod AlibiCo.EditorTools.BuildScript.ValidateCases ;;
   test)        "$UNITY" -batchmode -nographics -projectPath "$PROJECT" -runTests -testPlatform EditMode -testResults "$PROJECT/Logs/editmode-results.xml" -logFile "$LOG" ;;
   build-linux) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -executeMethod AlibiCo.EditorTools.BuildScript.BuildLinux ;;
-  *) echo "usage: $0 [open|setup|validate|test|build-linux]" >&2; exit 2 ;;
+  *) echo "usage: $0 [open|setup|player|validate|test|build-linux]" >&2; exit 2 ;;
 esac

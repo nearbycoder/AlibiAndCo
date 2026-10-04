@@ -91,6 +91,33 @@ namespace AlibiCo
             v.pitch = pitch * (1 + Random.Range(-jitter, jitter));
             v.volume = volume * Settings.Effects;
             v.Play();
+            started.Add(v);
+        }
+
+        // ------------------------------------------------------------------ recording
+
+        readonly HashSet<AudioSource> started = new HashSet<AudioSource>();
+        AudioSource[] all;
+
+        /// <summary>
+        /// One line per sounding source for the video recorder. Recording runs slower than real time,
+        /// so playback positions are rebuilt offline from start flags rather than read back here.
+        /// </summary>
+        public void LogFrame(System.IO.TextWriter w, int frame)
+        {
+            if (all == null) all = GetComponents<AudioSource>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                var s = all[i];
+                bool start = started.Contains(s);
+                if (s.clip == null || (!start && s.loop && !s.isPlaying)) continue;
+                if (!start && !s.loop) continue;
+                w.Write(frame); w.Write(' '); w.Write(i); w.Write(' '); w.Write(s.clip.name); w.Write(' ');
+                w.Write(s.volume.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)); w.Write(' ');
+                w.Write(s.pitch.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)); w.Write(' ');
+                w.Write(s.loop ? '1' : '0'); w.Write(' '); w.Write(start ? '1' : '0'); w.Write('\n');
+            }
+            started.Clear();
         }
 
         public void PlayMusic(string name, float fade = 2.0f, float level = 1f)
@@ -104,7 +131,7 @@ namespace AlibiCo
             aActive = !aActive;
             to.clip = clip;
             to.volume = 0;
-            if (clip != null) to.Play();
+            if (clip != null) { to.Play(); started.Add(to); }
             float fromStart = from.volume;
             Tween.Run((this, "music"), fade, k =>
             {
@@ -118,9 +145,10 @@ namespace AlibiCo
         public void StartAmbience()
         {
             var r = Resources.Load<AudioClip>("Audio/amb_rain");
-            if (r != null && !rain.isPlaying) { rain.clip = r; rain.Play(); }
+            // A fresh looping source can report isPlaying on its first frame with no clip, so test the clip.
+            if (r != null && rain.clip != r) { rain.clip = r; rain.Play(); started.Add(rain); }
             var t = Resources.Load<AudioClip>("Audio/amb_clock");
-            if (t != null && !tick.isPlaying) { tick.clip = t; tick.Play(); }
+            if (t != null && tick.clip != t) { tick.clip = t; tick.Play(); started.Add(tick); }
             ApplyVolumes();
         }
 

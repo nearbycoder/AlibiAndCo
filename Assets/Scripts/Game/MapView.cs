@@ -181,16 +181,39 @@ namespace AlibiCo
             else pawn.MoveLocal(target, 0.8f, Ease.InOutCubic);
         }
 
-        public void SetZoom(bool on) => zoomTarget = on ? 1 : 0;
+        float zoomScale = 2.05f, zoomLift = 4f;
+        Vector2? zoomCorner;
+
+        /// <summary>
+        /// Lift the map toward the camera; scale and lift choose how big it ends up on screen. With a
+        /// corner (viewport coords) the map's bottom-right corner is held there even while the camera moves.
+        /// </summary>
+        public void SetZoom(bool on, float scale = 2.05f, float lift = 4f, Vector2? corner = null)
+        {
+            zoomTarget = on ? 1 : 0;
+            if (on) { zoomScale = scale; zoomLift = lift; zoomCorner = corner; }
+        }
 
         void Update()
         {
             zoom = Mathf.Lerp(zoom, zoomTarget, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 10f));
             // Lift toward the camera and slide up-left so the enlarged map stays on screen.
-            float s = Mathf.Lerp(1f, 2.05f, zoom);
+            float s = Mathf.Lerp(1f, zoomScale, zoom);
             var r = stage.Map;
             var view = stage.View;
-            var grownCenter = new Vector3(view.xMax - size.x * s / 2 - 0.3f, Mathf.Min(r.center.y + (size.y * s - size.y) / 2 + 0.2f, view.yMax - size.y * s / 2 - 0.2f), -0.06f - zoom * 4f);
+            var grownCenter = new Vector3(view.xMax - size.x * s / 2 - 0.3f, Mathf.Min(r.center.y + (size.y * s - size.y) / 2 + 0.2f, view.yMax - size.y * s / 2 - 0.2f), -0.06f - zoom * zoomLift);
+            if (zoomCorner.HasValue && transform.parent != null)
+            {
+                var cam = stage.Cam;
+                var parent = transform.parent;
+                var worldC = parent.TransformPoint(grownCenter);
+                float depth = Vector3.Dot(worldC - cam.transform.position, cam.transform.forward);
+                var corner = cam.ViewportToWorldPoint(new Vector3(zoomCorner.Value.x, zoomCorner.Value.y, depth));
+                var half = parent.TransformVector(new Vector3(size.x * s / 2, size.y * s / 2, 0));
+                var right = Vector3.Project(half, parent.right);
+                var up = Vector3.Project(half, parent.up);
+                grownCenter = parent.InverseTransformPoint(corner - right + up);
+            }
             transform.localPosition = Vector3.Lerp(basePos, grownCenter, zoom);
             transform.localRotation = Quaternion.Slerp(baseRot, Quaternion.identity, zoom);
             transform.localScale = Vector3.one * s;

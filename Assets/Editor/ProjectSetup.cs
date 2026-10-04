@@ -241,6 +241,14 @@ namespace AlibiCo.EditorTools
             if (File.Exists("Assets/Scenes/SampleScene.unity")) AssetDatabase.DeleteAsset("Assets/Scenes/SampleScene.unity");
         }
 
+        /// <summary>Just the player settings (name, window, icon), without touching materials or fonts.</summary>
+        [MenuItem("Alibi & Co/Apply Player Settings")]
+        public static void ApplyPlayerSettings()
+        {
+            Player();
+            AssetDatabase.SaveAssets();
+        }
+
         static void Player()
         {
             PlayerSettings.productName = "Alibi & Co.";

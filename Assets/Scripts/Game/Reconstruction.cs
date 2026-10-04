@@ -20,8 +20,8 @@ namespace AlibiCo
             var c = s.Case;
             var lane = s.View.LaneById[c.Incident.Culprit];
             AudioDirector.I.PlayMusic("music_reveal", 1.5f);
-            stage.SetPushTarget(stage.BoardToWorld(new Vector2((s.View.X0 + s.View.X1) / 2, (lane.Top + lane.Bottom) / 2)));
-            stage.PushIn(0.32f, 1.4f);
+            stage.SetPushTarget(stage.BoardToWorld(new Vector2((s.View.X0 + s.View.X1) / 2 - 0.5f, (lane.Top + lane.Bottom) / 2)));
+            stage.PushIn(0.2f, 1.4f);
             stage.DimLamp(0.75f, 1.2f);
 
             // Cursor across the culprit's lane.
@@ -37,16 +37,16 @@ namespace AlibiCo
             var cg = group.gameObject.AddComponent<CanvasGroup>();
             cg.alpha = 0;
             var band = UiKit.Panel(group, "band", new Color(0.03f, 0.03f, 0.04f, 0.82f), false);
-            band.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 230));
-            var head = UiKit.Text(band.transform, "RECONSTRUCTION", Art.SansBold, 22, Pal.Lamp, TextAlignmentOptions.Center);
-            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -22), new Vector2(0, 30));
+            band.rectTransform.Place(new Vector2(0, 0), new Vector2(0.66f, 0), new Vector2(0, 0), Vector2.zero, new Vector2(0, 250));
+            var head = UiKit.Text(band.transform, "RECONSTRUCTION", Art.SansBold, 22, Pal.Lamp, TextAlignmentOptions.Left);
+            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(70, -26), new Vector2(-140, 30));
             head.characterSpacing = 8;
-            var text = UiKit.Text(band.transform, "", Art.Typewriter, 36, Pal.Hex("F1E6CF"), TextAlignmentOptions.Center);
-            text.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(1500, 130));
+            var text = UiKit.Text(band.transform, "", Art.Typewriter, 34, Pal.Hex("F1E6CF"), TextAlignmentOptions.TopLeft);
+            text.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, 0), new Vector2(70, 30), new Vector2(-140, -90));
             UiKit.Fade(cg, true, 0.6f);
             var map = s.Map;
             map.Clear();
-            map.SetZoom(true);
+            map.SetZoom(true, 1.08f, 1.5f, new Vector2(0.985f, 0.03f));
             var stops = c.Itineraries.TryGetValue(c.Incident.Culprit, out var st) ? st : new System.Collections.Generic.List<Stop>();
             string pawnAt = stops.Count > 0 ? stops[0].Location : c.Incident.Location;
             map.PawnAt(pawnAt, true);

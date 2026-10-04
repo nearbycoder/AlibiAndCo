@@ -236,6 +236,15 @@ namespace AlibiCo
                     }
                     yield return Wait(1.2f);
                     yield return Shot($"{c.Id}_step{++step}_{m.Kind}");
+                    if (step == 2)
+                    {
+                        GameRoot.I.Screens.ToggleNotebook();
+                        yield return Wait(0.7f);
+                        if (!GameRoot.I.Screens.NotebookOpen) { Debug.LogError($"[AutoPilot] FAIL {c.Id}: notebook didn't open"); ok = false; }
+                        yield return Shot(c.Id + "_notebook");
+                        GameRoot.I.Screens.ToggleNotebook();
+                        yield return Wait(0.5f);
+                    }
                     if (step > 20) { ok = false; Debug.LogError("[AutoPilot] FAIL too many steps"); break; }
                 }
                 if (ok)

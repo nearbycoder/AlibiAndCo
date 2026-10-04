@@ -16,6 +16,7 @@ namespace AlibiCo
         TextMeshProUGUI actionsTitle, actionsInfo;
         Button actionsConfront, actionsUnpin;
         CardView actionsCard;
+        Notebook notebook;
 
         static readonly Color Cream = Pal.Hex("F1E6CF");
         static readonly Color CreamDim = Pal.Hex("C9BFA8");
@@ -49,6 +50,7 @@ namespace AlibiCo
         public bool CloseTopOverlay()
         {
             if (confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.5f) { Hide(confirm); return true; }
+            if (notebook != null && notebook.Open) { notebook.Hide(); return true; }
             if (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.5f) { Hide(settings); return true; }
             if (actions != null && actions.gameObject.activeSelf) { CaseSession.Current?.Deselect(); return true; }
             return false;
@@ -310,6 +312,7 @@ namespace AlibiCo
         public void HideHud()
         {
             Hide(hud);
+            notebook?.Hide();
             HideActions();
             hudSession = null;
         }
@@ -318,19 +321,34 @@ namespace AlibiCo
         {
             hud = Group("HUD");
             var pill = UiKit.Panel(hud.transform, "pill", new Color(0.06f, 0.07f, 0.08f, 0.78f));
-            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -14), new Vector2(196, 58));
+            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -14), new Vector2(290, 58));
             var hint = UiKit.Button(pill.transform, "Hint", () => hudSession?.Hint(), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)hint.transform).Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(86, 42));
+            var notes = UiKit.Button(pill.transform, "Notes", ToggleNotebook, Pal.Hex("2B3540"), Cream, 22);
+            ((RectTransform)notes.transform).Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(86, 42));
             var menu = UiKit.Button(pill.transform, "Menu", () => root.SetPaused(true), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
             var help = UiKit.Text(hud.transform,
-                "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront   ·   <b>right-click</b> sends it back   ·   <b>H</b> hint",
+                "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront   ·   <b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint",
                 Art.Sans, 19, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Center);
             help.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(0, 30));
 
             BuildActions();
         }
+
+        /// <summary>Tab / the Notes button: open the notebook on the current case, or close it.</summary>
+        public void ToggleNotebook()
+        {
+            if (notebook == null) notebook = new Notebook();
+            if (notebook.Open) { notebook.Hide(); return; }
+            if (hudSession == null || hudSession.Solved) return;
+            hudSession.Deselect();
+            HideActions();
+            notebook.Show(hudSession);
+        }
+
+        public bool NotebookOpen => notebook != null && notebook.Open;
 
         void RefreshBadges(bool animate)
         {
@@ -451,6 +469,7 @@ namespace AlibiCo
         public void ShowPause()
         {
             if (pause == null) BuildPause();
+            notebook?.Hide();
             Show(pause);
             HideActions();
             Sfx.Play("folder", 0.5f);

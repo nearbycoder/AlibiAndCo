@@ -85,6 +85,8 @@ namespace AlibiCo
 
             View = new BoardView(stage, c);
             Memos = MemoDesk.Create(stage);
+            if (snap != null && snap.caseId == c.Id)
+                foreach (var m in snap.memoLog) Memos.History.Add(MemoDesk.Memo.Unpack(m));
             Map = MapView.Create(stage, c);
             cardsRoot = new GameObject("Cards").transform;
             cardsRoot.SetParent(stage.transform, false);
@@ -168,6 +170,7 @@ namespace AlibiCo
             foreach (var kv in Board.Hypotheses) { s.hypKeys.Add(kv.Key); s.hypVals.Add(kv.Value); }
             foreach (var kv in Board.Links) { s.linkA.Add(kv.Key); s.linkB.Add(kv.Value); }
             s.seenMemos.AddRange(seenMemos);
+            foreach (var m in Memos.History) s.memoLog.Add(m.Pack());
             SaveData.Current.inProgress = s;
             SaveData.Write();
         }
@@ -655,7 +658,7 @@ namespace AlibiCo
             float down = chipWorld.z - CardView.ChipSize.y / 2 - size.y * scale / 2 - 0.15f;
             float z = up + size.y * scale / 2 < view.yMax - 0.1f ? up : down;
             float x = Mathf.Clamp(chipWorld.x, view.xMin + size.x * scale / 2 + 0.1f, view.xMax - size.x * scale / 2 - 0.1f);
-            var pos = new Vector3(x, 4.5f, z);
+            var pos = KeepOnScreen(stage.Cam, new Vector3(x, 4.5f, z), size * scale / 2);
             if (snap)
             {
                 ins.transform.position = Vector3.Lerp(chipWorld, pos, 0.35f);
@@ -666,6 +669,27 @@ namespace AlibiCo
             }
             else if (!Tween.Running((ins.transform, "pos"))) ins.transform.position = Vector3.Lerp(ins.transform.position, pos, 0.4f);
             ins.LiftTarget = 0;
+        }
+
+        /// <summary>The inspector floats well above the board, so perspective can push it past the frame edge; nudge it back.</summary>
+        static Vector3 KeepOnScreen(Camera cam, Vector3 pos, Vector2 half, float margin = 0.012f)
+        {
+            float height = pos.y;
+            for (int i = 0; i < 3; i++)
+            {
+                var a = cam.WorldToViewportPoint(pos + new Vector3(-half.x, 0, -half.y));
+                var b = cam.WorldToViewportPoint(pos + new Vector3(half.x, 0, half.y));
+                float minX = Mathf.Min(a.x, b.x), maxX = Mathf.Max(a.x, b.x), minY = Mathf.Min(a.y, b.y), maxY = Mathf.Max(a.y, b.y);
+                float dx = minX < margin ? margin - minX : (maxX > 1 - margin ? 1 - margin - maxX : 0);
+                float dy = minY < margin ? margin - minY : (maxY > 1 - margin ? 1 - margin - maxY : 0);
+                if (Mathf.Approximately(dx, 0) && Mathf.Approximately(dy, 0)) break;
+                float depth = Vector3.Dot(pos - cam.transform.position, cam.transform.forward);
+                var w0 = cam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, depth));
+                var w1 = cam.ViewportToWorldPoint(new Vector3(0.5f + dx, 0.5f + dy, depth));
+                pos += w1 - w0;
+                pos.y = height;
+            }
+            return pos;
         }
 
         void HideInspector()
@@ -1061,7 +1085,7 @@ namespace AlibiCo
                         i++;
                     }
                     Memos.Post(MemoKind.Notice, o.NewCards.Count == 1 ? "NEW EVIDENCE" : "NEW EVIDENCE ×" + o.NewCards.Count,
-                        string.Join("\n", o.NewCards.Select(id => "• " + Case.CardById[id].Title + " — " + Case.CardById[id].SourceName)));
+                        string.Join("\n", o.NewCards.Select(id => "• " + NewCardLine(Case.CardById[id]))));
                 });
             }
             CheckMilestones();
@@ -1076,6 +1100,16 @@ namespace AlibiCo
                 PostCaseMemo("allCovered", "Everyone's covered. Then somebody's cover is false. Look harder at the cards holding the alibis up.");
             if (clean && fits.Count == 1 && !seenMemos.Contains("incidentHint"))
                 PostCaseMemo("incidentHint", "Only one alibi has a hole in it. Drag the incident card (top left) into that line.");
+        }
+
+        /// <summary>"Card authorisation (Rolf Abernethy) — Wrenhaven Savings Bank": name who it's about when the title alone doesn't.</summary>
+        string NewCardLine(CardDef c)
+        {
+            string who = "";
+            var names = c.Subjects.Where(id => Case.PersonById.ContainsKey(id)).Select(id => Case.PersonById[id].Name).ToList();
+            if (c.IsRecord && !c.Town && names.Count > 0 && !c.Title.Contains(names[0].Split(' ').Last()))
+                who = " (" + string.Join(", ", names) + ")";
+            return c.Title + who + " — " + c.SourceName;
         }
 
         void PostCaseMemo(string when, string fallback)

@@ -171,6 +171,7 @@ namespace AlibiCo
             public List<string> linkA = new List<string>();
             public List<string> linkB = new List<string>();
             public List<string> seenMemos = new List<string>();
+            public List<string> memoLog = new List<string>();
             public List<string> seenCards = new List<string>();
             public int mistakes;
             public float elapsed;
@@ -198,8 +199,18 @@ namespace AlibiCo
             }
         }
 
+        /// <summary>Automated runs play on a blank in-memory save so they never touch the player's progress.</summary>
+        public static void UseVolatile()
+        {
+            Volatile = true;
+            current = new SaveData();
+        }
+
+        public static bool Volatile { get; private set; }
+
         public static void Write()
         {
+            if (Volatile) return;
             try { File.WriteAllText(PathOnDisk, JsonUtility.ToJson(Current, true)); }
             catch (System.Exception e) { Debug.LogWarning("[Save] couldn't write save: " + e.Message); }
         }

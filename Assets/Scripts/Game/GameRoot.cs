@@ -65,7 +65,17 @@ namespace AlibiCo
             int autoArg = Array.IndexOf(args, "-alibiAutoplay");
             int capArg = Array.IndexOf(args, "-alibiCapture");
             int inputArg = Array.IndexOf(args, "-alibiInputTest");
+            int recordArg = Array.IndexOf(args, "-alibiRecord");
+            if (inputArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0) SaveData.UseVolatile();
             yield return null;
+            if (recordArg >= 0)
+            {
+                string dir = recordArg + 1 < args.Length && !args[recordArg + 1].StartsWith("-") ? args[recordArg + 1] : "/tmp/alibi-record";
+                int casesArg = Array.IndexOf(args, "-alibiRecordCases");
+                int maxCases = casesArg >= 0 && casesArg + 1 < args.Length && int.TryParse(args[casesArg + 1], out var n) ? n : 99;
+                gameObject.AddComponent<Showcase>().Run(dir, maxCases);
+                yield break;
+            }
             if (inputArg >= 0)
             {
                 string dir = inputArg + 1 < args.Length && !args[inputArg + 1].StartsWith("-") ? args[inputArg + 1] : "/tmp/alibi-input";
@@ -129,6 +139,7 @@ namespace AlibiCo
             if (Flow == Flow.Playing && !Paused && Session != null)
             {
                 if (kb.f1Key.wasPressedThisFrame || kb.hKey.wasPressedThisFrame) Session.Hint();
+                if (kb.tabKey.wasPressedThisFrame) Screens.ToggleNotebook();
             }
             if (kb.f11Key.wasPressedThisFrame) Settings.Fullscreen = !Settings.Fullscreen;
             if (kb.f12Key.wasPressedThisFrame) Capture(null);

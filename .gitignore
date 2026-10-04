@@ -34,3 +34,6 @@ Tools/CaseValidator/bin/
 Tools/CaseValidator/obj/
 ArtSource/*.blend1
 ArtSource/renders/
+
+# Gameplay recordings (Tools/record.sh)
+/Recordings/

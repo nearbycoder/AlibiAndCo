@@ -12,10 +12,20 @@ namespace AlibiCo
     /// </summary>
     public sealed class MemoDesk : MonoBehaviour
     {
-        sealed class Memo
+        public sealed class Memo
         {
             public MemoKind Kind;
             public string Title, Text;
+
+            /// <summary>"kind|title|text" for the save file.</summary>
+            public string Pack() => (int)Kind + "|" + (Title ?? "") + "|" + Text;
+
+            public static Memo Unpack(string s)
+            {
+                var p = s.Split(new[] { '|' }, 3);
+                if (p.Length < 3 || !int.TryParse(p[0], out int k)) return new Memo { Kind = MemoKind.Notice, Text = s };
+                return new Memo { Kind = (MemoKind)k, Title = p[1].Length > 0 ? p[1] : null, Text = p[2] };
+            }
         }
 
         readonly Queue<Memo> queue = new Queue<Memo>();
@@ -26,7 +36,8 @@ namespace AlibiCo
         float typeTimer, holdTimer;
         bool typing;
         public bool Busy => typing || queue.Count > 0;
-        public readonly List<string> History = new List<string>();
+        /// <summary>Every memo posted this case, oldest first; the notebook reads it.</summary>
+        public readonly List<Memo> History = new List<Memo>();
 
         public static MemoDesk Create(Stage stage)
         {
@@ -40,8 +51,9 @@ namespace AlibiCo
         public void Post(MemoKind kind, string title, string text)
         {
             if (string.IsNullOrEmpty(text)) return;
-            queue.Enqueue(new Memo { Kind = kind, Title = title, Text = text });
-            History.Add((title != null ? title + ": " : "") + text);
+            var m = new Memo { Kind = kind, Title = title, Text = text };
+            queue.Enqueue(m);
+            History.Add(m);
             if (!typing && (current == null || holdTimer > 2.2f)) Next();
         }
 
