@@ -1,0 +1,1062 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using AlibiCo.Logic;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace AlibiCo
+{
+    /// <summary>
+    /// One case in play: owns the rules (Board), the board view, every card object and the desk
+    /// interactions. Every player action goes through here and comes back out as feedback.
+    /// </summary>
+    public sealed class CaseSession : MonoBehaviour
+    {
+        public static CaseSession Current { get; private set; }
+
+        public CaseDef Case { get; private set; }
+        public Board Board { get; private set; }
+        public BoardView View { get; private set; }
+        public MemoDesk Memos { get; private set; }
+        public float Elapsed { get; private set; }
+        public int Badges => Mathf.Max(1, 3 - Board.Mistakes);
+        public bool Solved => Board.Solved;
+        public bool UsedHints { get; private set; }
+        public bool InputLocked;
+        public event Action<CaseSession> SolvedEvent;
+        public event Action BadgeLost;
+        public Action<CardView, Vector2> ShowActions;   // card, screen position
+        public Action HideActions;
+
+        Stage stage;
+        Transform cardsRoot;
+        readonly Dictionary<string, CardView> views = new Dictionary<string, CardView>();
+        readonly Dictionary<string, List<CardView>> echoes = new Dictionary<string, List<CardView>>();
+        readonly Dictionary<CardView, string> echoOf = new Dictionary<CardView, string>();
+        readonly Dictionary<string, CardView> inspectors = new Dictionary<string, CardView>();
+        readonly List<string> trayOrder = new List<string>();
+        readonly HashSet<string> seenMemos = new HashSet<string>();
+        readonly HashSet<string> freshCards = new HashSet<string>();
+        readonly HashSet<string> knownConflicts = new HashSet<string>();
+        Dictionary<string, BoardView.ChipPlace> chips = new Dictionary<string, BoardView.ChipPlace>();
+        CardView incident;
+        Transform staples;
+
+        // interaction
+        CardView hover, pressed, dragging, selected, linkTarget, inspecting;
+        string inspectingId;
+        Vector2 pressScreen;
+        float hoverTime;
+        Vector3 dragVel, dragPrev;
+        string dropLane;
+        int hintLevel;
+        string hintState;
+
+        // ------------------------------------------------------------------ lifecycle
+
+        public static CaseSession Begin(Stage stage, CaseDef c, SaveData.Snapshot snap)
+        {
+            var go = new GameObject("CaseSession_" + c.Id);
+            var s = go.AddComponent<CaseSession>();
+            Current = s;
+            s.Init(stage, c, snap);
+            return s;
+        }
+
+        public void End()
+        {
+            if (Current == this) Current = null;
+            View?.Destroy();
+            if (cardsRoot) Destroy(cardsRoot.gameObject);
+            if (Memos) Destroy(Memos.gameObject);
+            HideActions?.Invoke();
+            Destroy(gameObject);
+        }
+
+        void Init(Stage stage, CaseDef c, SaveData.Snapshot snap)
+        {
+            this.stage = stage;
+            Case = c;
+            Board = new Board(c, Locations.Map);
+            if (snap != null && snap.caseId == c.Id) Restore(snap);
+
+            View = new BoardView(stage, c);
+            Memos = MemoDesk.Create(stage);
+            cardsRoot = new GameObject("Cards").transform;
+            cardsRoot.SetParent(stage.transform, false);
+            staples = new GameObject("Staples").transform;
+            staples.SetParent(cardsRoot, false);
+
+            foreach (var card in c.Cards)
+            {
+                var v = CardView.Create(card, c, cardsRoot);
+                views[card.Id] = v;
+                v.gameObject.SetActive(false);
+                if (!card.Town && card.Subjects.Count > 1)
+                {
+                    var list = new List<CardView>();
+                    for (int i = 1; i < card.Subjects.Count; i++)
+                    {
+                        var e = CardView.Create(card, c, cardsRoot);
+                        e.name += "_echo_" + card.Subjects[i];
+                        e.gameObject.SetActive(false);
+                        echoOf[e] = card.Id;
+                        list.Add(e);
+                    }
+                    echoes[card.Id] = list;
+                }
+                if (Board.Unlocked.Contains(card.Id) && !Board.Pinned.Contains(card.Id)) trayOrder.Add(card.Id);
+            }
+            incident = CardView.CreateIncident(c, cardsRoot);
+            incident.SetCompact(true, false);
+            incident.transform.localScale = Vector3.one * 1.25f;
+            incident.SetTimes(Board.IncidentFrom, Board.IncidentTo, Board);
+            incident.transform.position = stage.BoardToWorld(View.IncidentSlot, 0.05f);
+            incident.SetGlow(GlowKind.Incident);
+
+            foreach (var v in views.Values)
+            {
+                if (!Board.Unlocked.Contains(v.Id)) continue;
+                v.gameObject.SetActive(true);
+                PlaceInstant(v);
+            }
+            foreach (var kv in knownConflictsSeed()) knownConflicts.Add(kv);
+            Relayout(false);
+
+            if (snap == null || snap.caseId != c.Id)
+            {
+                Deal();
+                Tween.Delay(1.1f, () => PostCaseMemo("start", null));
+            }
+            else Memos.Post(MemoKind.Notice, "CASE REOPENED", "Right where you left it. Every pin is still in place.");
+            AudioDirector.I?.PlayMusic("music_board", 3f);
+        }
+
+        IEnumerable<string> knownConflictsSeed() => Board.EstablishedConflicts.Select(k => k.Key);
+
+        void Restore(SaveData.Snapshot s)
+        {
+            Board.Unlocked.Clear();
+            Board.Unlocked.UnionWith(s.unlocked);
+            Board.Pinned.UnionWith(s.pinned);
+            Board.Calibrated.UnionWith(s.calibrated);
+            Board.Struck.UnionWith(s.struck);
+            Board.Fired.UnionWith(s.fired);
+            for (int i = 0; i < s.confirmedKeys.Count; i++) Board.Confirmed[s.confirmedKeys[i]] = s.confirmedVals[i];
+            for (int i = 0; i < s.hypKeys.Count; i++) Board.Hypotheses[s.hypKeys[i]] = s.hypVals[i];
+            for (int i = 0; i < s.linkA.Count; i++) Board.Links.Add(new KeyValuePair<string, string>(s.linkA[i], s.linkB[i]));
+            Board.Mistakes = s.mistakes;
+            Elapsed = s.elapsed;
+            seenMemos.UnionWith(s.seenMemos);
+            Board.Refresh();
+        }
+
+        public void SaveProgress()
+        {
+            if (Solved) { SaveData.Current.inProgress = null; SaveData.Write(); return; }
+            var s = new SaveData.Snapshot { caseId = Case.Id, mistakes = Board.Mistakes, elapsed = Elapsed };
+            s.unlocked.AddRange(Board.Unlocked);
+            s.pinned.AddRange(Board.Pinned);
+            s.calibrated.AddRange(Board.Calibrated);
+            s.struck.AddRange(Board.Struck);
+            s.fired.AddRange(Board.Fired);
+            foreach (var kv in Board.Confirmed) { s.confirmedKeys.Add(kv.Key); s.confirmedVals.Add(kv.Value); }
+            foreach (var kv in Board.Hypotheses) { s.hypKeys.Add(kv.Key); s.hypVals.Add(kv.Value); }
+            foreach (var kv in Board.Links) { s.linkA.Add(kv.Key); s.linkB.Add(kv.Value); }
+            s.seenMemos.AddRange(seenMemos);
+            SaveData.Current.inProgress = s;
+            SaveData.Write();
+        }
+
+        /// <summary>Cards slide in from the bottom edge of the desk one after another.</summary>
+        void Deal()
+        {
+            int i = 0;
+            foreach (var id in trayOrder)
+            {
+                var v = views[id];
+                var target = v.transform.position;
+                v.transform.position = target + new Vector3(UnityEngine.Random.Range(-1f, 1f), 2f, -9f);
+                float delay = 0.15f + i * 0.09f;
+                v.transform.MoveWorld(target, 0.55f, Ease.OutCubic, null, delay);
+                Tween.Delay(delay, () => Sfx.Play("paper_deal", 0.45f, 1f, 0.1f));
+                i++;
+            }
+        }
+
+        // ------------------------------------------------------------------ layout
+
+        List<(CardDef card, string lane)> PlacedChips()
+        {
+            var r = new List<(CardDef, string)>();
+            foreach (var card in Case.Cards)
+            {
+                if (!Board.Unlocked.Contains(card.Id) || !Board.Pinned.Contains(card.Id)) continue;
+                if (Board.Struck.Contains(card.Id)) continue;
+                if (dragging != null && dragging.Id == card.Id) continue;
+                foreach (var lane in Board.LanesOf(card)) r.Add((card, lane));
+            }
+            return r;
+        }
+
+        Vector3 TraySlot(string id, out float rotZ, out int order)
+        {
+            var tray = trayOrder.Where(t => Board.Unlocked.Contains(t) && !Board.Pinned.Contains(t) && !Board.Struck.Contains(t) && (dragging == null || dragging.Id != t)).ToList();
+            int i = tray.IndexOf(id);
+            int n = tray.Count;
+            order = i;
+            var r = stage.Tray;
+            if (Board.Struck.Count > 0) r = Rect.MinMaxRect(r.xMin + 3.3f, r.yMin, r.xMax, r.yMax);
+            float w = CardView.FullSize.x;
+            bool twoRows = n > 7;
+            int perRow = twoRows ? Mathf.CeilToInt(n / 2f) : n;
+            int row = twoRows ? i / perRow : 0;
+            int col = twoRows ? i % perRow : i;
+            int rowCount = twoRows ? (row == 0 ? perRow : n - perRow) : n;
+            float span = r.width - w;
+            float step = rowCount > 1 ? Mathf.Min(w + 0.2f, span / (rowCount - 1)) : 0;
+            float total = step * (rowCount - 1);
+            float x = r.center.x - total / 2 + col * step + (twoRows && row == 1 ? step * 0.5f : 0);
+            float y = twoRows ? r.center.y + (row == 0 ? 0.62f : -0.62f) : r.center.y;
+            int h = id.GetHashCode();
+            rotZ = ((h & 0xFF) / 255f - 0.5f) * 5f;
+            float lift = 0.05f + i * 0.09f + (twoRows && row == 1 ? 0.6f : 0);
+            return stage.DeskToWorld(new Vector2(x, y), lift);
+        }
+
+        /// <summary>Struck statements come off the timeline and go on the spike, stamped.</summary>
+        Vector3 SpikeSlot(string id, out Quaternion rot)
+        {
+            var struck = Case.Cards.Where(c => Board.Struck.Contains(c.Id)).Select(c => c.Id).ToList();
+            int k = Mathf.Max(0, struck.IndexOf(id));
+            var r = stage.Tray;
+            int h = id.GetHashCode();
+            rot = Quaternion.Euler(90, 0, 0) * Quaternion.Euler(0, 0, ((h & 0xFF) / 255f - 0.5f) * 16f);
+            return stage.DeskToWorld(new Vector2(r.xMin + 1.55f + k * 0.12f, r.center.y + 0.15f - k * 0.1f), 0.25f + k * 0.12f);
+        }
+
+        readonly HashSet<string> justStruck = new HashSet<string>();
+
+        void PlaceInstant(CardView v) => Place(v, false);
+
+        void Place(CardView v, bool animate, float dur = 0.38f)
+        {
+            if (v == dragging) return;
+            var card = v.Def;
+            bool pinned = Board.Pinned.Contains(card.Id) && Board.Unlocked.Contains(card.Id);
+            Vector3 target;
+            Quaternion rot;
+            if (Board.Struck.Contains(card.Id))
+            {
+                target = SpikeSlot(card.Id, out rot);
+                float delay = justStruck.Remove(card.Id) ? 1.0f : 0f;
+                if (animate)
+                {
+                    Tween.Delay(delay, () =>
+                    {
+                        if (!v) return;
+                        v.SetCompact(false, true);
+                        v.transform.MoveWorld(target, 0.55f, Ease.InOutCubic);
+                        v.transform.RotateLocal(rot, 0.5f, Ease.OutCubic);
+                        v.transform.ScaleTo(Vector3.one * 0.62f, 0.5f, Ease.OutCubic);
+                        Sfx.Play("paper_slide", 0.5f);
+                    }, (v, "spike"));
+                }
+                else
+                {
+                    v.SetCompact(false, false);
+                    v.transform.SetPositionAndRotation(target, rot);
+                    v.transform.localScale = Vector3.one * 0.62f;
+                }
+                return;
+            }
+            if (pinned)
+            {
+                var lanes = Board.LanesOf(card);
+                if (lanes.Count == 0 || !chips.TryGetValue(card.Id + "@" + lanes[0], out var place))
+                {
+                    pinned = false;
+                    target = TraySlot(card.Id, out var rz, out _);
+                    rot = Quaternion.Euler(90, 0, 0) * Quaternion.Euler(0, 0, rz);
+                }
+                else
+                {
+                    target = stage.BoardToWorld(place.Pos, 0.05f + place.Order * 0.07f);
+                    int h = card.Id.GetHashCode();
+                    rot = Quaternion.Euler(90, 0, 0) * Quaternion.Euler(0, 0, ((h >> 8 & 0xFF) / 255f - 0.5f) * 3f);
+                }
+            }
+            else
+            {
+                target = TraySlot(card.Id, out var rz, out _);
+                rot = Quaternion.Euler(90, 0, 0) * Quaternion.Euler(0, 0, rz);
+            }
+            v.SetCompact(pinned, animate);
+            v.EnableCollider(true);
+            var scale = Vector3.one * (pinned ? View.ChipScale : 1f);
+            if (animate)
+            {
+                v.transform.MoveWorld(target, dur, Ease.OutCubic);
+                v.transform.RotateLocal(rot, dur, Ease.OutCubic);
+                v.transform.ScaleTo(scale, dur, Ease.OutCubic);
+            }
+            else
+            {
+                Tween.Kill((v.transform, "pos"));
+                v.transform.SetPositionAndRotation(target, rot);
+                v.transform.localScale = scale;
+            }
+        }
+
+        void PlaceEchoes(bool animate)
+        {
+            foreach (var kv in echoes)
+            {
+                var card = Case.CardById[kv.Key];
+                bool pinned = Board.Pinned.Contains(card.Id) && Board.Unlocked.Contains(card.Id) && !Board.Struck.Contains(card.Id) && (dragging == null || dragging.Id != card.Id);
+                for (int i = 0; i < kv.Value.Count; i++)
+                {
+                    var e = kv.Value[i];
+                    string lane = card.Subjects[i + 1];
+                    bool show = pinned && chips.TryGetValue(card.Id + "@" + lane, out var place);
+                    if (!show)
+                    {
+                        if (e.gameObject.activeSelf && Board.Struck.Contains(card.Id) && animate)
+                        {
+                            e.SetStruck(true, card.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE", false);
+                            var ee = e;
+                            Tween.Delay(0.9f, () => { if (ee) ee.Body.ScaleTo(Vector3.one * 0.01f, 0.25f, Ease.InBack, () => { if (ee) { ee.gameObject.SetActive(false); ee.Body.localScale = Vector3.one; } }); }, (e, "hide"));
+                        }
+                        else if (!Tween.Running((e, "hide"))) e.gameObject.SetActive(false);
+                        continue;
+                    }
+                    chips.TryGetValue(card.Id + "@" + lane, out place);
+                    bool wasActive = e.gameObject.activeSelf;
+                    e.gameObject.SetActive(true);
+                    e.SetCompact(true, false);
+                    e.transform.localScale = Vector3.one * View.ChipScale;
+                    var target = stage.BoardToWorld(place.Pos, 0.05f + place.Order * 0.07f);
+                    if (animate && wasActive) e.transform.MoveWorld(target, 0.38f);
+                    else e.transform.SetPositionAndRotation(target, Quaternion.Euler(90, 0, 0));
+                    if (!wasActive && animate) { e.Body.localScale = Vector3.one * 0.2f; e.Body.ScaleTo(Vector3.one, 0.35f, Ease.OutBack); }
+                }
+            }
+        }
+
+        /// <summary>Recompute everything visible from the rules and move cards where they belong.</summary>
+        public void Relayout(bool animate, float dur = 0.38f, string slowClock = null)
+        {
+            Board.Refresh();
+            chips = View.LayoutChips(Board, PlacedChips());
+            foreach (var v in views.Values)
+            {
+                bool unlocked = Board.Unlocked.Contains(v.Id);
+                if (!unlocked) { v.gameObject.SetActive(false); continue; }
+                if (!v.gameObject.activeSelf) v.gameObject.SetActive(true);
+                bool slow = slowClock != null && v.Def.Clock == slowClock;
+                Place(v, animate, slow ? 1.25f : dur);
+                v.SetTimes(Board.BoardFrom(v.Def), Board.BoardTo(v.Def), Board);
+                v.SetStruck(Board.Struck.Contains(v.Id), v.Def.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE", false);
+                v.SetHypothesis(v.Def.IsUnknown && !Board.Confirmed.ContainsKey(v.Id) && Board.Pinned.Contains(v.Id));
+                v.SetNew(freshCards.Contains(v.Id) && !Board.Pinned.Contains(v.Id));
+                if (v.Def.IsUnknown) v.SetCandidates(Candidates(v.Def), animate);
+            }
+            foreach (var list in echoes.Values)
+                foreach (var e in list)
+                {
+                    e.SetTimes(Board.BoardFrom(e.Def), Board.BoardTo(e.Def), Board);
+                    e.SetStruck(Board.Struck.Contains(e.Id), e.Def.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE", false);
+                }
+            PlaceEchoes(animate);
+            if (slowClock != null)
+                Tween.Delay(1.3f, () => { if (this) RefreshVisuals(true); }, (this, "slowRefresh"));
+            else RefreshVisuals(animate);
+        }
+
+        List<string> Candidates(CardDef c)
+        {
+            if (Board.Confirmed.TryGetValue(c.Id, out var who)) return new List<string> { who };
+            return Board.CandidatesLeft.TryGetValue(c.Id, out var l) ? l : new List<string>(c.Candidates);
+        }
+
+        void RefreshVisuals(bool animate)
+        {
+            View.RefreshDynamic(Board, chips, Board.Struck, hover != null ? hover.Id : null);
+            View.RefreshClocks(Board);
+            var opened = View.RefreshLocks(Board, animate);
+            foreach (var lane in opened)
+            {
+                Sfx.Play("lock_break", 0.9f);
+                AudioDirector.I?.Duck(0.5f, 1.5f);
+                stage.Shake(0.12f, 0.35f);
+            }
+            // Strings between multi-person echoes.
+            foreach (var kv in echoes)
+            {
+                var card = Case.CardById[kv.Key];
+                if (!Board.Pinned.Contains(card.Id) || Board.Struck.Contains(card.Id)) continue;
+                if (!chips.TryGetValue(card.Id + "@" + card.Subjects[0], out var a)) continue;
+                for (int i = 1; i < card.Subjects.Count; i++)
+                    if (chips.TryGetValue(card.Id + "@" + card.Subjects[i], out var b))
+                        View.DrawString(a.Pos + new Vector2(-View.ChipSize.x / 2 + 0.2f, View.ChipSize.y / 2 - 0.1f), b.Pos + new Vector2(-View.ChipSize.x / 2 + 0.2f, View.ChipSize.y / 2 - 0.1f));
+            }
+            UpdateGlows();
+            DrawStaples();
+        }
+
+        void DrawStaples()
+        {
+            for (int i = staples.childCount - 1; i >= 0; i--) Destroy(staples.GetChild(i).gameObject);
+            foreach (var l in Board.Links)
+            {
+                if (!views.TryGetValue(l.Key, out var a) || !views.TryGetValue(l.Value, out var b)) continue;
+                if (!a.Compact || !b.Compact) continue;
+                // A little paper clip on each linked card.
+                foreach (var v in new[] { a, b })
+                {
+                    var clip = Shapes.Icon(v.Body, "clip", 0.32f, Pal.Hex("8C96A0"), new Vector3(-CardView.ChipSize.x / 2 + 0.2f, CardView.ChipSize.y / 2 - 0.02f, -0.08f), 12);
+                    clip.transform.SetParent(v.Body, true);
+                }
+            }
+        }
+
+        void UpdateGlows()
+        {
+            var conflictCards = new HashSet<string>();
+            foreach (var k in Board.Conflicts) { conflictCards.Add(k.A.Card.Id); conflictCards.Add(k.B.Card.Id); }
+            foreach (var v in AllViews())
+            {
+                GlowKind g = GlowKind.None;
+                if (conflictCards.Contains(v.Id)) g = GlowKind.Conflict;
+                if (v == selected) g = GlowKind.Selected;
+                if (v == linkTarget) g = GlowKind.LinkTarget;
+                if (v == hover && g == GlowKind.None && v != dragging) g = GlowKind.Hover;
+                v.SetGlow(g);
+            }
+            bool ready = Board.CheckAccusation(Case.Incident.Culprit).Ok;
+            incident.SetGlow(ready ? GlowKind.LinkTarget : (incident == hover ? GlowKind.Hover : GlowKind.Incident));
+        }
+
+        IEnumerable<CardView> AllViews()
+        {
+            foreach (var v in views.Values) if (v.gameObject.activeSelf) yield return v;
+            foreach (var l in echoes.Values) foreach (var e in l) if (e.gameObject.activeSelf) yield return e;
+        }
+
+        CardView Primary(CardView v) => v != null && echoOf.TryGetValue(v, out var id) ? views[id] : v;
+
+        // ------------------------------------------------------------------ input
+
+        void Update()
+        {
+            if (!Solved && !InputLocked && !GameRoot.Paused) Elapsed += Time.unscaledDeltaTime;
+            if (GameRoot.Paused || InputLocked) { EndHover(); return; }
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+            Vector2 mp = mouse.position.ReadValue();
+            stage.SetParallax(new Vector2(mp.x / Screen.width, mp.y / Screen.height));
+            bool overUi = UiKit.PointerOverUi();
+
+            if (dragging != null) { UpdateDrag(mp, mouse); return; }
+
+            // Hover.
+            var hit = overUi ? null : Pick(mp, null);
+            if (hit != hover)
+            {
+                var old = hover;
+                hover = hit;
+                hoverTime = 0;
+                if (old != null && old != selected && !old.Compact) old.LiftTarget = 0;
+                if (hover != null)
+                {
+                    if (!hover.Compact) hover.LiftTarget = 0.9f;
+                    Sfx.Play("paper_touch", 0.18f, 1f, 0.15f);
+                }
+                UpdateGlows();
+            }
+            hoverTime += Time.unscaledDeltaTime;
+            UpdateInspector();
+
+            if (mouse.leftButton.wasPressedThisFrame && !overUi)
+            {
+                pressed = hit;
+                pressScreen = mp;
+                if (hit == null) { Deselect(); Memos.Skip(); }
+            }
+            if (mouse.rightButton.wasPressedThisFrame && !overUi && hit != null)
+            {
+                var p = Primary(hit);
+                if (!p.IsIncident && Board.Pinned.Contains(p.Id) && !Board.Struck.Contains(p.Id) && !Solved) Unpin(p);
+            }
+            if (pressed != null && mouse.leftButton.isPressed && (mp - pressScreen).magnitude > 7f && !Solved && !Board.Struck.Contains(Primary(pressed).Id))
+            {
+                var p = Primary(pressed);
+                pressed = null;
+                StartDrag(p, mp);
+                return;
+            }
+            if (pressed != null && mouse.leftButton.wasReleasedThisFrame)
+            {
+                var p = Primary(pressed);
+                pressed = null;
+                Click(p, mp);
+            }
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) Memos.Skip();
+        }
+
+        CardView Pick(Vector2 mp, CardView ignore)
+        {
+            var ray = stage.Cam.ScreenPointToRay(mp);
+            var hits = Physics.RaycastAll(ray, 200f);
+            CardView best = null;
+            float bestH = float.MinValue;
+            foreach (var h in hits)
+            {
+                var v = h.collider.GetComponentInParent<CardView>();
+                if (v == null || v == ignore || (ignore != null && Primary(v) == ignore) || !v.gameObject.activeInHierarchy) continue;
+                // Highest card wins (closest to the camera).
+                float y = h.point.y + v.CurrentLift * 0.1f;
+                if (y > bestH) { bestH = y; best = v; }
+            }
+            return best;
+        }
+
+        void EndHover()
+        {
+            if (hover != null && hover != dragging && !hover.Compact) hover.LiftTarget = 0;
+            hover = null;
+            HideInspector();
+        }
+
+        // ------------------------------------------------------------------ inspector (hovered chips)
+
+        void UpdateInspector()
+        {
+            var target = hover != null && hover.Compact && hoverTime > 0.12f ? hover : null;
+            string id = target != null ? (target.IsIncident ? "incident" : target.Id) : null;
+            if (id == inspectingId)
+            {
+                if (inspecting != null && target != null) PositionInspector(target);
+                return;
+            }
+            HideInspector();
+            if (target == null) return;
+            inspectingId = id;
+            if (!inspectors.TryGetValue(id, out var ins) || ins == null)
+            {
+                ins = target.IsIncident ? CardView.CreateIncident(Case, cardsRoot) : CardView.Create(target.Def, Case, cardsRoot);
+                ins.EnableCollider(false);
+                ins.name = "inspector_" + id;
+                inspectors[id] = ins;
+            }
+            ins.gameObject.SetActive(true);
+            inspecting = ins;
+            if (target.IsIncident) ins.SetTimes(Board.IncidentFrom, Board.IncidentTo, Board);
+            else
+            {
+                ins.SetTimes(Board.BoardFrom(target.Def), Board.BoardTo(target.Def), Board);
+                ins.SetStruck(Board.Struck.Contains(id), target.Def.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE", false);
+                if (target.Def.IsUnknown) ins.SetCandidates(Candidates(target.Def), false);
+            }
+            PositionInspector(target, true);
+            Sfx.Play("paper_lift", 0.25f, 1.1f);
+        }
+
+        void PositionInspector(CardView chip, bool snap = false)
+        {
+            var ins = inspecting;
+            if (ins == null) return;
+            var view = stage.View;
+            var chipWorld = chip.transform.position;
+            var size = CardView.FullSize;
+            float scale = 1.08f;
+            // Above the chip if there's room on screen, else below; clamped to the view.
+            float up = chipWorld.z + CardView.ChipSize.y / 2 + size.y * scale / 2 + 0.15f;
+            float down = chipWorld.z - CardView.ChipSize.y / 2 - size.y * scale / 2 - 0.15f;
+            float z = up + size.y * scale / 2 < view.yMax - 0.1f ? up : down;
+            float x = Mathf.Clamp(chipWorld.x, view.xMin + size.x * scale / 2 + 0.1f, view.xMax - size.x * scale / 2 - 0.1f);
+            var pos = new Vector3(x, 4.5f, z);
+            if (snap)
+            {
+                ins.transform.position = Vector3.Lerp(chipWorld, pos, 0.35f);
+                ins.transform.rotation = Quaternion.Euler(90, 0, 0);
+                ins.transform.localScale = Vector3.one * 0.4f;
+                ins.transform.ScaleTo(Vector3.one * scale, 0.22f, Ease.OutBack);
+                ins.transform.MoveWorld(pos, 0.2f, Ease.OutCubic);
+            }
+            else if (!Tween.Running((ins.transform, "pos"))) ins.transform.position = Vector3.Lerp(ins.transform.position, pos, 0.4f);
+            ins.LiftTarget = 0;
+        }
+
+        void HideInspector()
+        {
+            if (inspecting != null) inspecting.gameObject.SetActive(false);
+            inspecting = null;
+            inspectingId = null;
+        }
+
+        // ------------------------------------------------------------------ click & select
+
+        void Click(CardView v, Vector2 mp)
+        {
+            if (Solved) return;
+            if (v.IsIncident)
+            {
+                Memos.Post(MemoKind.Notice, "THE INCIDENT", "Drag this card onto the one line it fits. If it fits more than one, or none, keep working.");
+                v.Body.Punch(0.08f);
+                return;
+            }
+            bool pinned = Board.Pinned.Contains(v.Id);
+            if (Board.Struck.Contains(v.Id))
+            {
+                v.Body.Punch(0.06f);
+                Memos.Post(MemoKind.Notice, "ON THE SPIKE", $"“{v.Def.Title}” was struck off. It's no longer part of the timeline.");
+                return;
+            }
+            if (!pinned)
+            {
+                // Click-to-pin for cards that know where they go.
+                if (!v.Def.IsUnknown) { PinCard(v, null); return; }
+                Select(v, mp);
+                Memos.Post(MemoKind.Notice, "WHO WAS IT?", "This card doesn't say who. Drag it onto a line to try it there. The faces on it cross out as the paper rules people out.");
+                return;
+            }
+            Select(v, mp);
+        }
+
+        void Select(CardView v, Vector2 mp)
+        {
+            if (selected != null && selected != v) selected.LiftTarget = 0;
+            selected = v;
+            v.Body.Punch(0.06f, 0.25f);
+            Sfx.Play("paper_touch", 0.35f);
+            UpdateGlows();
+            ShowActions?.Invoke(v, stage.WorldToScreen(v.transform.position));
+        }
+
+        public void Deselect()
+        {
+            if (selected == null) return;
+            selected = null;
+            HideActions?.Invoke();
+            UpdateGlows();
+        }
+
+        public CardView Selected => selected;
+
+        // ------------------------------------------------------------------ drag
+
+        void StartDrag(CardView v, Vector2 mp)
+        {
+            Deselect();
+            HideInspector();
+            dragging = v;
+            v.EnableCollider(false);
+            v.LiftTarget = 0;
+            dragPrev = v.transform.position;
+            dragVel = Vector3.zero;
+            Sfx.Play("paper_lift", 0.6f);
+            if (!v.IsIncident && Board.Pinned.Contains(v.Id))
+            {
+                // Lift it off the board: the rest of the lane re-flows without it.
+                Relayout(true);
+            }
+            v.transform.SetAsLastSibling();
+        }
+
+        void UpdateDrag(Vector2 mp, Mouse mouse)
+        {
+            var v = dragging;
+            const float dragHeight = 3.2f;
+            stage.MouseOnPlane(mp, Stage.BoardHeight + dragHeight, out var world);
+            var cur = v.transform.position;
+            var next = Vector3.Lerp(cur, world, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 22f));
+            dragVel = Vector3.Lerp(dragVel, (next - cur) / Mathf.Max(0.001f, Time.unscaledDeltaTime), 0.2f);
+            v.transform.position = next;
+            float tiltX = Mathf.Clamp(dragVel.z * 0.9f, -14, 14);
+            float tiltZ = Mathf.Clamp(-dragVel.x * 0.9f, -14, 14);
+            v.transform.rotation = Quaternion.Euler(90 + tiltX, 0, 0) * Quaternion.Euler(0, tiltZ * 0.6f, -dragVel.x * 0.25f);
+
+            var local = stage.MouseBoard(mp);
+            bool onBoard = View.OnBoard(local);
+            View.ClearPreview();
+            var oldLink = linkTarget;
+            linkTarget = null;
+            dropLane = null;
+
+            if (v.IsIncident)
+            {
+                var lane = onBoard ? View.LaneAt(local) : null;
+                if (lane != null && lane.LockRoot != null)
+                {
+                    dropLane = lane.Id;
+                    View.PreviewIncident(Board, lane.Id);
+                }
+            }
+            else
+            {
+                var target = Primary(Pick(mp, v));
+                if (target != null && target != v && !target.IsIncident) linkTarget = target;
+                if (linkTarget == null && onBoard)
+                {
+                    var lane = View.LaneAt(local);
+                    var card = v.Def;
+                    if (card.Town) dropLane = Board.TownLane;
+                    else if (!card.IsUnknown) dropLane = card.Subjects[0];
+                    else if (Board.Confirmed.TryGetValue(card.Id, out var who)) dropLane = who;
+                    else if (lane != null && card.Candidates.Contains(lane.Id)) dropLane = lane.Id;
+                    if (dropLane != null)
+                    {
+                        View.HighlightLane(dropLane, Pal.Lamp);
+                        if (!card.Town && !card.IsUnknown)
+                            foreach (var s in card.Subjects) View.PreviewMarker(s, Board.BoardFrom(card), Board.BoardTo(card), Pal.Lamp);
+                        else View.PreviewMarker(dropLane, Board.BoardFrom(card), Board.BoardTo(card), Pal.Lamp);
+                    }
+                }
+                bool wantCompact = onBoard && linkTarget == null;
+                if (v.Compact != wantCompact) v.SetCompact(wantCompact, true);
+                var wantScale = Vector3.one * (wantCompact ? View.ChipScale : 1f);
+                v.transform.localScale = Vector3.Lerp(v.transform.localScale, wantScale, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 12f));
+            }
+            if (oldLink != linkTarget)
+            {
+                if (linkTarget != null) Sfx.Play("paper_touch", 0.4f, 1.3f);
+                UpdateGlows();
+            }
+
+            if (!mouse.leftButton.isPressed) EndDrag();
+        }
+
+        void EndDrag()
+        {
+            var v = dragging;
+            dragging = null;
+            View.ClearPreview();
+            v.EnableCollider(true);
+            var link = linkTarget;
+            linkTarget = null;
+            if (v.IsIncident)
+            {
+                if (dropLane != null) Accuse(dropLane);
+                else ReturnIncident();
+                return;
+            }
+            if (link != null) { LinkCards(v, link); return; }
+            if (dropLane != null) { PinCard(v, dropLane); return; }
+            // Dropped on the desk: back to the tray.
+            if (Board.Pinned.Contains(v.Id)) Unpin(v);
+            else { Sfx.Play("paper_drop", 0.4f); Relayout(true); }
+        }
+
+        void ReturnIncident()
+        {
+            incident.transform.MoveWorld(stage.BoardToWorld(View.IncidentSlot, 0.05f), 0.4f, Ease.OutBack);
+            incident.transform.RotateLocal(Quaternion.Euler(90, 0, 0), 0.3f);
+            incident.SetCompact(true, true);
+            Sfx.Play("paper_drop", 0.4f);
+        }
+
+        // ------------------------------------------------------------------ actions
+
+        void PinCard(CardView v, string lane)
+        {
+            Deselect();
+            var before = ConflictKeys();
+            bool wasPinned = Board.Pinned.Contains(v.Id);
+            var o = Board.PinAndSettle(v.Id, lane);
+            freshCards.Remove(v.Id);
+            Relayout(true);
+            // Landing: pin thunk, dust and a little punch.
+            Tween.Delay(0.3f, () =>
+            {
+                if (!v) return;
+                Sfx.Play("pin", 0.75f);
+                v.Body.Punch(0.12f, 0.3f);
+                Fx.Dust(v.transform.position);
+            });
+            AfterAction(o, before, v);
+            if (!wasPinned && !seenMemos.Contains("firstPin")) PostCaseMemo("firstPin", null);
+            if (v.Def.IsUnknown && !Board.Confirmed.ContainsKey(v.Id))
+                Memos.Post(MemoKind.Notice, "A HUNCH", "Pinned there on a hunch. It counts as a guess, not evidence, until the paper rules everyone else out.");
+            SaveProgress();
+        }
+
+        public void Unpin(CardView v)
+        {
+            Deselect();
+            if (!trayOrder.Contains(v.Id)) trayOrder.Add(v.Id);
+            Board.Unpin(v.Id);
+            Sfx.Play("paper_lift", 0.5f, 0.9f);
+            Relayout(true);
+            SaveProgress();
+        }
+
+        void LinkCards(CardView a, CardView b)
+        {
+            Deselect();
+            var before = ConflictKeys();
+            var o = Board.Link(a.Id, b.Id);
+            if (o.Accepted && !Board.Pinned.Contains(a.Id) && !a.Def.IsUnknown) Board.Pin(a.Id);
+            if (o.CalibratedClock != null)
+            {
+                // The trailer moment: every card on that clock glides to its true time.
+                var clock = Case.ClockById[o.CalibratedClock];
+                Sfx.Play("link_clip", 0.9f);
+                AudioDirector.I?.Duck(0.45f, 2.2f);
+                Tween.Delay(0.25f, () => Sfx.Play("clock_ratchet", 0.75f));
+                stage.Shake(0.05f, 0.2f);
+                Relayout(true, 0.38f, o.CalibratedClock);
+                foreach (var v in AllViews().Where(x => x.Def.Clock == o.CalibratedClock)) Tween.Delay(1.2f, () => { if (v) v.Body.Punch(0.08f, 0.25f); });
+                int m = Mathf.Abs(o.Shift);
+                Memos.Post(MemoKind.Notice, "CLOCK CORRECTED",
+                    $"{clock.Name}: {m} minutes {(o.Shift < 0 ? "fast" : "slow")}. Every card timed by it has moved {m} minutes {(o.Shift < 0 ? "earlier" : "later")}." + (string.IsNullOrEmpty(clock.Note) ? "" : "\n\n" + clock.Note));
+                Tween.Delay(1.35f, () => { if (this) AfterAction(o, before, a); });
+            }
+            else if (o.CostBadge)
+            {
+                Sfx.Play("wrong", 0.8f);
+                a.Body.Shake(0.15f, 0.4f);
+                b.Body.Shake(0.1f, 0.35f);
+                Memos.Post(MemoKind.Notice, "NOT THE SAME MOMENT", "Those two cards describe different things. Linking cards claims they're one moment seen on two clocks." + (Badges <= 1 ? "" : ""));
+                BadgeLost?.Invoke();
+                Relayout(true);
+            }
+            else
+            {
+                if (o.Accepted) Sfx.Play("link_clip", 0.6f);
+                else Sfx.Play("nope", 0.5f);
+                Memos.Post(MemoKind.Notice, o.Accepted ? "LINKED" : "HMM", o.Message);
+                Relayout(true);
+            }
+            SaveProgress();
+        }
+
+        public void Confront(CardView v)
+        {
+            if (!Board.CanConfront(v.Id, out var reason))
+            {
+                Sfx.Play("nope", 0.5f);
+                Memos.Post(MemoKind.Notice, "NOT YET", reason);
+                return;
+            }
+            Deselect();
+            var before = ConflictKeys();
+            var o = Board.Confront(v.Id);
+            var who = v.Def.Title;
+            InputLocked = true;
+            v.Body.Shake(0.08f, 0.5f, 30f);
+            Sfx.Play("confront", 0.7f);
+            Tween.Delay(0.55f, () =>
+            {
+                InputLocked = false;
+                if (!this) return;
+                if (o.Accepted)
+                {
+                    string label = v.Def.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE";
+                    justStruck.Add(v.Id);
+                    v.SetStruck(true, label, true);
+                    if (echoes.TryGetValue(v.Id, out var list)) foreach (var e in list) e.SetStruck(true, label, true);
+                    Sfx.Play("stamp", 0.95f);
+                    stage.Shake(0.09f, 0.22f);
+                    Fx.Ink(v.transform.position);
+                    Memos.Post(MemoKind.Witness, who, o.Reply);
+                    Relayout(true);
+                    AfterAction(o, before, v);
+                    if (!seenMemos.Contains("firstStrike")) PostCaseMemo("firstStrike", null);
+                }
+                else if (o.CostBadge)
+                {
+                    Sfx.Play("firm", 0.85f);
+                    v.Body.Shake(0.2f, 0.45f, 20f);
+                    Memos.Post(MemoKind.Firm, who, o.Reply);
+                    BadgeLost?.Invoke();
+                    Relayout(true);
+                }
+                SaveProgress();
+            });
+        }
+
+        void Accuse(string lane)
+        {
+            var chk = Board.CheckAccusation(lane);
+            if (!chk.Ok)
+            {
+                Sfx.Play("nope", 0.7f);
+                incident.Body.Shake(0.15f, 0.35f);
+                Memos.Post(MemoKind.Notice, "NOT YET", chk.Message);
+                ReturnIncident();
+                return;
+            }
+            Board.Accuse(lane);
+            InputLocked = true;
+            Deselect();
+            var fit = Board.Fits[lane];
+            var laneView = View.LaneById[lane];
+            var slot = new Vector2(View.TimeToX(fit.EarliestStart + Case.Incident.Duration / 2f), laneView.Track + 0.55f);
+            incident.SetCompact(true, true);
+            incident.transform.MoveWorld(stage.BoardToWorld(slot, 0.08f), 0.35f, Ease.OutBack);
+            incident.transform.RotateLocal(Quaternion.Euler(90, 0, 0) * Quaternion.Euler(0, 0, -4), 0.3f);
+            View.PreviewIncident(Board, lane);
+            Tween.Delay(0.35f, () =>
+            {
+                Sfx.Play("pin", 1f, 0.8f);
+                Sfx.Play("lock_break", 0.8f);
+                stage.Shake(0.14f, 0.3f);
+                incident.Body.Punch(0.2f, 0.4f);
+                Fx.Dust(incident.transform.position);
+            });
+            SaveData.Current.inProgress = null;
+            SaveData.Write();
+            Tween.Delay(1.1f, () => SolvedEvent?.Invoke(this));
+        }
+
+        HashSet<string> ConflictKeys() => new HashSet<string>(Board.EstablishedConflicts.Select(k => k.Key));
+
+        /// <summary>Shared feedback for whatever an action changed.</summary>
+        void AfterAction(Outcome o, HashSet<string> conflictsBefore, CardView actor)
+        {
+            if (!this) return;
+            // New contradictions.
+            var now = ConflictKeys();
+            var fresh = now.Where(k => !conflictsBefore.Contains(k) && !knownConflicts.Contains(k)).ToList();
+            if (fresh.Count > 0)
+            {
+                Tween.Delay(0.35f, () =>
+                {
+                    Sfx.Play("conflict", 0.75f);
+                    stage.Shake(0.07f, 0.25f);
+                });
+                foreach (var k in fresh) knownConflicts.Add(k);
+                if (!seenMemos.Contains("firstConflict")) PostCaseMemo("firstConflict", "Red means impossible. Records don't lie, but people do. Click a statement in the red and confront them.");
+            }
+            else if (conflictsBefore.Count > now.Count)
+            {
+                Tween.Delay(0.3f, () => Sfx.Play("resolve", 0.6f));
+            }
+            foreach (var q in o.Questions) Memos.Post(MemoKind.Question, null, q);
+            foreach (var m in o.Memos) Memos.Post(MemoKind.Connie, null, m);
+            foreach (var id in o.Confirmed)
+            {
+                var v = views[id];
+                var who = Board.Confirmed[id];
+                Tween.Delay(0.4f, () =>
+                {
+                    if (!v) return;
+                    v.Stamp("ONLY " + Portraits.FirstName(Case, who).ToUpperInvariant(), Pal.Hex("2F6B4F"), true);
+                    Sfx.Play("stamp", 0.8f, 1.15f);
+                    Tween.Delay(1.6f, () => { if (v && !Board.Struck.Contains(v.Id)) v.ClearStamp(); });
+                });
+            }
+            if (o.NewCards.Count > 0)
+            {
+                foreach (var id in o.NewCards)
+                {
+                    if (!trayOrder.Contains(id)) trayOrder.Add(id);
+                    freshCards.Add(id);
+                    if (Case.CardById[id].IsUnknown && !seenMemos.Contains("unknown")) PostCaseMemo("unknown", null);
+                }
+                Tween.Delay(0.5f, () =>
+                {
+                    if (!this) return;
+                    Relayout(true);
+                    int i = 0;
+                    foreach (var id in o.NewCards)
+                    {
+                        var v = views[id];
+                        var target = v.transform.position;
+                        v.transform.position = target + new Vector3(0, 2f, -8f);
+                        v.transform.MoveWorld(target, 0.6f, Ease.OutCubic, null, i * 0.12f);
+                        Tween.Delay(i * 0.12f, () => Sfx.Play("paper_deal", 0.6f));
+                        i++;
+                    }
+                    Memos.Post(MemoKind.Notice, o.NewCards.Count == 1 ? "NEW EVIDENCE" : "NEW EVIDENCE ×" + o.NewCards.Count,
+                        string.Join("\n", o.NewCards.Select(id => "• " + Case.CardById[id].Title + " — " + Case.CardById[id].SourceName)));
+                });
+            }
+            CheckMilestones();
+        }
+
+        void CheckMilestones()
+        {
+            bool trayEmpty = !Board.TrayCards.Any();
+            bool clean = trayEmpty && Board.CandidatesLeft.Count == 0 && !Board.EstablishedConflicts.Any();
+            var fits = Board.FittingLanes();
+            if (trayEmpty && !Board.EstablishedConflicts.Any() && fits.Count == 0 && !seenMemos.Contains("allCovered"))
+                PostCaseMemo("allCovered", "Everyone's covered. Then somebody's cover is false. Look harder at the cards holding the alibis up.");
+            if (clean && fits.Count == 1 && !seenMemos.Contains("incidentHint"))
+                PostCaseMemo("incidentHint", "Only one alibi has a hole in it. Drag the incident card (top left) into that line.");
+        }
+
+        void PostCaseMemo(string when, string fallback)
+        {
+            if (seenMemos.Contains(when)) return;
+            seenMemos.Add(when);
+            var m = Case.Memos.FirstOrDefault(x => x.When == when);
+            var text = m != null ? m.Text : fallback;
+            if (!string.IsNullOrEmpty(text)) Memos.Post(MemoKind.Connie, null, text);
+        }
+
+        // ------------------------------------------------------------------ hints
+
+        public void Hint()
+        {
+            UsedHints = true;
+            string state = Board.StateKey() + "|" + string.Join(",", Board.Pinned.OrderBy(x => x));
+            if (state != hintState) { hintState = state; hintLevel = 0; }
+            hintLevel++;
+            var tray = Board.TrayCards.ToList();
+            if (tray.Count > 0 && tray.Any(x => !x.IsUnknown))
+            {
+                Memos.Post(MemoKind.Connie, null, $"Get everything on the board first. {tray.Count} card{(tray.Count == 1 ? " is" : "s are")} still in the tray. Click one to pin it.");
+                return;
+            }
+            var shadow = Solver.Shadow(Board);
+            var path = Solver.ShortestSolution(shadow);
+            if (path == null)
+            {
+                Memos.Post(MemoKind.Connie, null, "Something on the board is a guess. Take any hunches back to the tray and let the paper decide.");
+                return;
+            }
+            if (path.Count == 0)
+            {
+                Memos.Post(MemoKind.Connie, null, "It's all there. One suspect's lock is open. Drag the incident card (top left) into that line.");
+                return;
+            }
+            var m = path[0];
+            if (m.Kind == "link")
+            {
+                var a = Case.CardById[m.A];
+                var b = Case.CardById[m.B];
+                var untrusted = Board.IsTrusted(a.Clock) ? b : a;
+                if (hintLevel == 1)
+                    Memos.Post(MemoKind.Connie, null, $"Somebody's clock is wrong. Look at cards timed by the {Case.ClockById[untrusted.Clock].Name}. Is one of them the same moment as a card on a reliable clock?");
+                else
+                    Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other.");
+            }
+            else
+            {
+                var c = Case.CardById[m.A];
+                if (hintLevel == 1)
+                    Memos.Post(MemoKind.Connie, null, "One of the statements in the red can't be true. Which one is the paper against?");
+                else
+                    Memos.Post(MemoKind.Connie, null, $"{c.Title}'s statement doesn't hold up. Click it and confront them.");
+            }
+        }
+
+        // ------------------------------------------------------------------ automation (autopilot & tests)
+
+        public CardView ViewOf(string id) => views.TryGetValue(id, out var v) ? v : null;
+        public CardView IncidentView => incident;
+        public void AutoPin(string id) { var v = views[id]; if (!Board.Pinned.Contains(id)) PinCard(v, null); }
+        public void AutoLink(string a, string b) => LinkCards(views[a], views[b]);
+        public void AutoAccuse(string lane) => Accuse(lane);
+
+        public bool CanConfrontSelected(out string reason)
+        {
+            reason = null;
+            if (selected == null || selected.IsIncident) return false;
+            return Board.CanConfront(selected.Id, out reason);
+        }
+    }
+}
