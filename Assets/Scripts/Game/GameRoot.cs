@@ -66,7 +66,15 @@ namespace AlibiCo
             int capArg = Array.IndexOf(args, "-alibiCapture");
             int inputArg = Array.IndexOf(args, "-alibiInputTest");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            if (inputArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0) SaveData.UseVolatile();
+            bool automated = inputArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            int textArg = Array.IndexOf(args, "-alibiTextSize");
+            if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
+            if (automated) SaveData.UseVolatile();
+            // A saved resolution choice; automated runs keep the size they were launched with.
+            else if (PlayerPrefs.HasKey("resolution")) Settings.ApplyResolution();
+            int resArg = Array.IndexOf(args, "-alibiResolution");
+            if (resArg >= 0 && resArg + 1 < args.Length) Settings.ApplyResolution(args[resArg + 1]);
+            UiKit.ApplyScale();
             yield return null;
             if (recordArg >= 0)
             {

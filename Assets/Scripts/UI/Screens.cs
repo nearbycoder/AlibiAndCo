@@ -76,7 +76,9 @@ namespace AlibiCo
             shade.rectTransform.Place(new Vector2(0, 0), new Vector2(0.7f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
 
             var col = UiKit.Rect(title.transform, "col");
-            col.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(150, 0), new Vector2(1100, 0));
+            // A fixed 1080-tall column (the reference height) so a larger text size can shrink it to fit.
+            col.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(150, 0), new Vector2(1100, 1080));
+            UiKit.FitInCanvas(col, 0, 0);
 
             var small = UiKit.Text(col, "A  WRENHAVEN  MYSTERY  ·  1986", Art.SansBold, 26, Pal.Lamp, TextAlignmentOptions.Left);
             small.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(4, -200), new Vector2(0, 40));
@@ -141,6 +143,7 @@ namespace AlibiCo
 
             var row = UiKit.Rect(select.transform, "row");
             row.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(1560, 640));
+            UiKit.FitInCanvas(row, 70, 205);   // keep clear of the heading
             var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 40; hl.childControlWidth = true; hl.childControlHeight = true; hl.childForceExpandWidth = true;
 
@@ -220,6 +223,7 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var paper = UiKit.Panel(intro.transform, "paper", Pal.Hex("F2EAD6"));
             paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240, 900));
+            UiKit.FitInCanvas(paper.rectTransform, 20);
             paper.transform.localRotation = Quaternion.Euler(0, 0, -0.6f);
             var p = paper.rectTransform;
             int idx = Cases.IndexOf(c.Id) + 1;
@@ -336,6 +340,10 @@ namespace AlibiCo
             // Between the memo slip (left) and the town map (right), so it never sits on paper.
             help.rectTransform.Place(new Vector2(0.2f, 0), new Vector2(0.75f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(0, 56));
             help.lineSpacing = 6;
+            // Stays two lines at every text size; it's a reminder, not something to read closely.
+            help.enableAutoSizing = true;
+            help.fontSizeMin = 12;
+            help.fontSizeMax = 18;
 
             BuildActions();
         }
@@ -514,16 +522,21 @@ namespace AlibiCo
             var shade = UiKit.Panel(settings.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.55f), false);
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760, 860));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 900));
+            UiKit.FitInCanvas(panel.rectTransform);
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
             var col = UiKit.Rect(panel.transform, "col");
-            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(640, 600));
+            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 640));
             var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 16; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
             Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
             Row(UiKit.Slider(col, "Music", Settings.Music, v => Settings.Music = v));
             Row(UiKit.Slider(col, "Sound effects", Settings.Effects, v => { Settings.Effects = v; Sfx.Play("pin", 0.6f); }));
+            var resChoices = Settings.ResolutionChoices();
+            Row(UiKit.Stepper(col, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
+                resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
+            Row(UiKit.Stepper(col, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
             Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
             Row(UiKit.Toggle(col, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
             Row(UiKit.Toggle(col, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));
@@ -533,7 +546,8 @@ namespace AlibiCo
             ((RectTransform)close.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(220, 60));
         }
 
-        static void Row(Component c) => ((RectTransform)c.transform).sizeDelta = new Vector2(0, 52);
+        /// <summary>Row height for a settings control (a Slider lives on the bar inside its row, so size the row).</summary>
+        static void Row(Component c) => ((RectTransform)(c is Slider ? c.transform.parent : c.transform)).sizeDelta = new Vector2(0, 52);
 
         void Confirm(string question, System.Action yes)
         {
@@ -565,6 +579,7 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var paper = UiKit.Panel(closed.transform, "paper", Pal.Hex("F2EAD6"));
             paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180, 820));
+            UiKit.FitInCanvas(paper.rectTransform, 20);
             paper.transform.localRotation = Quaternion.Euler(0, 0, 0.5f);
             var p = paper.rectTransform;
             var culprit = c.PersonById[c.Incident.Culprit];

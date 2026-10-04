@@ -185,6 +185,11 @@ namespace AlibiCo
                 root.ShowTitle(true);
                 yield return Wait(3.5f);
                 yield return Shot("title");
+                root.Screens.ShowSettings();
+                yield return Wait(0.8f);
+                yield return Shot("settings");
+                root.Screens.CloseTopOverlay();
+                yield return Wait(0.5f);
                 root.ShowSelect();
                 yield return Wait(1.5f);
                 yield return Shot("case_files");

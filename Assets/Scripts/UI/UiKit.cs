@@ -19,6 +19,37 @@ namespace AlibiCo
         public static readonly Color ButtonDark = Pal.Hex("232A31");
         public static readonly Color ButtonHover = Pal.Hex("33404B");
 
+        static CanvasScaler scaler;
+
+        /// <summary>Text size setting: a smaller reference resolution makes every UI element larger.</summary>
+        public static void ApplyScale()
+        {
+            if (scaler != null) scaler.referenceResolution = new Vector2(1920, 1080) / Settings.TextScale;
+        }
+
+        /// <summary>Big panels are laid out for 1920x1080; shrink them back to fit when the UI is enlarged.</summary>
+        public static void FitInCanvas(RectTransform panel, float margin = 20f, float marginY = -1f)
+        {
+            var f = panel.gameObject.AddComponent<FitToCanvas>();
+            f.Margin = margin;
+            f.MarginY = marginY >= 0 ? marginY : margin;
+        }
+
+        public sealed class FitToCanvas : MonoBehaviour
+        {
+            public float Margin, MarginY;
+
+            void LateUpdate()
+            {
+                var rt = (RectTransform)transform;
+                var c = Root.rect.size;
+                var r = rt.rect.size;
+                if (r.x <= 0 || r.y <= 0) return;
+                float s = Mathf.Min(1f, (c.x - 2 * Margin) / r.x, (c.y - 2 * MarginY) / r.y);
+                rt.localScale = new Vector3(s, s, 1);
+            }
+        }
+
         public static void Init()
         {
             if (Canvas != null) return;
@@ -27,10 +58,10 @@ namespace AlibiCo
             Canvas = go.AddComponent<Canvas>();
             Canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             Canvas.sortingOrder = 10;
-            var scaler = go.AddComponent<CanvasScaler>();
+            scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
+            ApplyScale();
             go.AddComponent<GraphicRaycaster>();
             Root = (RectTransform)go.transform;
 
@@ -261,6 +292,36 @@ namespace AlibiCo
             tg.isOn = value;
             tg.onValueChanged.AddListener(v => { Sfx.Play("ui_click", 0.5f); onChange?.Invoke(v); });
             return tg;
+        }
+
+        /// <summary>A labelled "‹ value ›" picker that cycles through choices.</summary>
+        public static RectTransform Stepper(Transform parent, string label, string[] choices, int index, Action<int> onChange)
+        {
+            var row = Rect(parent, "stepper_" + label);
+            var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
+            t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.4f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            var box = Panel(row, "box", Pal.Hex("2A3138"), true, true);
+            box.raycastTarget = false;
+            box.rectTransform.Place(new Vector2(0.42f, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0, -6));
+            var value = Text(box.transform, "", Art.Sans, 26, Pal.Paper, TextAlignmentOptions.Center);
+            value.rectTransform.Stretch();
+            value.rectTransform.offsetMin = new Vector2(52, 0);
+            value.rectTransform.offsetMax = new Vector2(-52, 0);
+            int i = Mathf.Clamp(index, 0, choices.Length - 1);
+            void Show() => value.text = choices[i];
+            void Step(int d)
+            {
+                if (choices.Length < 2) return;
+                i = (i + d + choices.Length) % choices.Length;
+                Show();
+                onChange?.Invoke(i);
+            }
+            var prev = Button(box.transform, "‹", () => Step(-1), Pal.Hex("3A434C"), Pal.Paper, 30);
+            ((RectTransform)prev.transform).Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(4, 0), new Vector2(44, 38));
+            var next = Button(box.transform, "›", () => Step(1), Pal.Hex("3A434C"), Pal.Paper, 30);
+            ((RectTransform)next.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-4, 0), new Vector2(44, 38));
+            Show();
+            return row;
         }
 
         /// <summary>Fade a CanvasGroup in or out.</summary>

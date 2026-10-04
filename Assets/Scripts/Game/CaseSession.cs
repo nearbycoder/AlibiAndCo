@@ -652,7 +652,7 @@ namespace AlibiCo
             var view = stage.View;
             var chipWorld = chip.transform.position;
             var size = CardView.FullSize;
-            float scale = 1.08f;
+            float scale = 1.08f * Settings.TextScale;
             // Above the chip if there's room on screen, else below; clamped to the view.
             float up = chipWorld.z + CardView.ChipSize.y / 2 + size.y * scale / 2 + 0.15f;
             float down = chipWorld.z - CardView.ChipSize.y / 2 - size.y * scale / 2 - 0.15f;

@@ -134,6 +134,74 @@ namespace AlibiCo
         }
         public static bool ShowTimer { get => PlayerPrefs.GetInt("show_timer", 1) == 1; set => PlayerPrefs.SetInt("show_timer", value ? 1 : 0); }
 
+        // ------------------------------------------------------------------ text size
+
+        public static readonly string[] TextSizeNames = { "Normal", "Large", "Larger" };
+        static readonly float[] TextScales = { 1f, 1.15f, 1.3f };
+
+        /// <summary>Index into TextSizeNames. Automated runs always use Normal so captures are comparable.</summary>
+        public static int TextSize
+        {
+            get => Mathf.Clamp(TextSizeOverride >= 0 ? TextSizeOverride : SaveData.Volatile ? 0 : PlayerPrefs.GetInt("text_size", 0), 0, TextScales.Length - 1);
+            set { PlayerPrefs.SetInt("text_size", value); UiKit.ApplyScale(); }
+        }
+
+        /// <summary>-alibiTextSize n on the command line (for capturing the larger sizes).</summary>
+        public static int TextSizeOverride = -1;
+
+        /// <summary>Scales the screen-space UI and the hovered-card inspector.</summary>
+        public static float TextScale => TextScales[TextSize];
+
+        // ------------------------------------------------------------------ resolution
+
+        /// <summary>"desktop" (the display's own size) or "WIDTHxHEIGHT".</summary>
+        public static string Resolution
+        {
+            get => PlayerPrefs.GetString("resolution", "desktop");
+            set { PlayerPrefs.SetString("resolution", value); ApplyResolution(); }
+        }
+
+        public static Vector2Int DesktopSize => new Vector2Int(Display.main.systemWidth, Display.main.systemHeight);
+
+        /// <summary>
+        /// "desktop" first, then every distinct display mode of at least 1280x720, largest first. Some
+        /// platforms (Wayland) report only the current mode, so common 16:9 sizes that fit are added.
+        /// </summary>
+        public static List<string> ResolutionChoices()
+        {
+            var desk = DesktopSize;
+            var sizes = new List<Vector2Int>();
+            foreach (var r in Screen.resolutions) sizes.Add(new Vector2Int(r.width, r.height));
+            foreach (var h in new[] { 720, 900, 1080, 1440, 2160 }) sizes.Add(new Vector2Int(h * 16 / 9, h));
+            var list = new List<string> { "desktop" };
+            var seen = new HashSet<Vector2Int>();
+            sizes.Sort((a, b) => b.x * b.y - a.x * a.y);
+            foreach (var v in sizes)
+            {
+                if (v.x < 1280 || v.y < 720 || v.x > desk.x || v.y > desk.y || v == desk || !seen.Add(v)) continue;
+                list.Add(v.x + "x" + v.y);
+            }
+            var cur = Resolution;
+            if (!list.Contains(cur)) list.Insert(1, cur);
+            return list;
+        }
+
+        public static string ResolutionLabel(string choice)
+        {
+            if (choice == "desktop") { var d = DesktopSize; return $"Desktop ({d.x} × {d.y})"; }
+            return choice.Replace("x", " × ");
+        }
+
+        /// <summary>Apply the saved choice, or the given one without saving it (-alibiResolution for testing).</summary>
+        public static void ApplyResolution(string choice = null)
+        {
+            if (Application.isEditor) return;
+            var size = DesktopSize;
+            var p = (choice ?? Resolution).Split('x');
+            if (p.Length == 2 && int.TryParse(p[0], out int w) && int.TryParse(p[1], out int h)) size = new Vector2Int(w, h);
+            Screen.SetResolution(size.x, size.y, Screen.fullScreenMode);
+        }
+
         public static void Apply()
         {
             AudioListener.volume = Master;

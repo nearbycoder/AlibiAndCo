@@ -243,7 +243,7 @@ namespace AlibiCo
             var b = stage.Board;
             clockLegend = new GameObject("clocks").transform;
             clockLegend.SetParent(root, false);
-            clockLegend.localPosition = new Vector3(b.xMax - 6.6f, b.yMax - 0.5f, ZLabel);
+            clockLegend.localPosition = new Vector3(b.xMax - 7.4f, b.yMax - 0.5f, ZLabel);   // clear of the HUD pill at every text size
             float h = 0.34f + clocks.Count * 0.3f;
             Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, -h / 2 + 0.22f, 0.03f))
                 .transform.localRotation = Quaternion.Euler(0, 0, -0.8f);

@@ -39,6 +39,7 @@ namespace AlibiCo
 
             var panel = UiKit.Panel(r, "panel", UiKit.PanelPaper).rectTransform;
             panel.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(1320, 820));
+            UiKit.FitInCanvas(panel);
             var margin = UiKit.Panel(panel, "margin", new Color(0.72f, 0.22f, 0.2f, 0.55f), false);
             margin.raycastTarget = false;
             margin.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(44, 0), new Vector2(2, -24));

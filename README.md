@@ -24,6 +24,10 @@ Tools/play.sh          # runs Builds/Linux/AlibiAndCo.x86_64 (uses native Waylan
 The Linux standalone build is in `Builds/Linux/` (about 130 MB). Progress and settings are saved
 automatically.
 
+Settings: master, music and effects volume; resolution (the desktop size or any display mode
+down to 1280 × 720); text size (Normal, Large, Larger), which scales the menus, HUD, notebook and
+the enlarged card you see on hover; fullscreen; reduced motion; and the case timer.
+
 ### Controls
 
 | Input | Action |
@@ -152,7 +156,9 @@ docs/images/            README screenshots (from the autoplay run)
 
 ## Known gaps
 
-- The plan's resolution and text-size settings weren't built. The game runs at the desktop
-  resolution (or the window size) and the UI scales with it.
+- Text size doesn't enlarge the small chips pinned on the board or the memo slips on the desk;
+  their text is read by hovering a chip (which brings up the scaled full card) or in the
+  notebook. Large panels (case files, case intro, case closed, settings, notebook) are shrunk back
+  to fit the screen at the larger sizes, so they stay about the same size.
 - In a long-running headless Editor, the 3D scene sometimes renders magenta after several
   play-mode sessions. This hasn't happened in the standalone build.
