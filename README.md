@@ -81,9 +81,10 @@ Three handcrafted cases on one shared town map, each introducing one idea:
   never possible. All three cases currently pass with 0 errors and 0 warnings. It runs:
   - inside Unity: `Tools/unity.sh validate` or `Tools/unity.sh test` (EditMode tests in
     `Assets/Tests/EditMode`);
-  - outside Unity: `dotnet run --project Tools/CaseValidator [-- --verbose]`. This compiles the same
-    `Logic/` files the game uses. It needs the .NET 8 SDK, which is no longer installed on this
-    machine, so it was last run here through Unity.
+  - outside Unity: `Tools/validate.sh [--verbose]`. This compiles the same `Logic/` files the game
+    uses into a console app (`Tools/CaseValidator`) and exits non-zero if any case isn't airtight.
+    It uses a system `dotnet` if there is one, and otherwise the .NET 8 SDK bundled inside the
+    Unity Editor, so it needs nothing extra installed. `--verbose` walks through each solution.
 - **Autoplay self-test.** `Tools/autoplay.sh [outdir]` launches the built game, plays all three
   cases through the real session code using the solver's moves, saves a screenshot per step and
   prints PASS/FAIL. Current result: 3/3 cases passed with 0 errors.
@@ -144,7 +145,7 @@ Assets/Resources/       Data (case and town JSON), Models, Portraits, Photos, Au
 Assets/Editor/          build script and project setup
 Assets/Tests/EditMode/  validator tests
 ArtSource/              Blender generator scripts and .blend sources
-Tools/                  build, play, autoplay, record, validator and asset scripts
+Tools/                  build, play, autoplay, record, validate and asset scripts
 docs/PLAN.md            the design and technical plan
 docs/images/            README screenshots (from the autoplay run)
 ```
