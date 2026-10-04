@@ -6,6 +6,18 @@ namespace AlibiCo
 {
     public enum Ease { Linear, InSine, OutSine, InOutSine, InCubic, OutCubic, InOutCubic, OutQuint, OutBack, OutBackSoft, OutElastic, InBack }
 
+    /// <summary>
+    /// The time base for UI, tweens and memos: real (unscaled) time, so they keep moving while the
+    /// game is paused. While VideoRecorder runs (Time.captureDeltaTime set) every frame is exactly one
+    /// capture step instead, so a recording plays at true speed however fast the machine renders it.
+    /// </summary>
+    public static class Clock
+    {
+        static bool Capturing => Time.captureDeltaTime > 0;
+        public static float Dt => Capturing ? Time.captureDeltaTime : Time.unscaledDeltaTime;
+        public static float Now => Capturing ? Time.frameCount * Time.captureDeltaTime : Time.unscaledTime;
+    }
+
     public static class Easing
     {
         public static float Apply(Ease e, float t)
@@ -102,7 +114,7 @@ namespace AlibiCo
             {
                 var j = jobs[i];
                 if (j.Dead) continue;
-                float dt = j.Unscaled ? Time.unscaledDeltaTime : Time.deltaTime;
+                float dt = j.Unscaled ? Clock.Dt : Time.deltaTime;
                 if (j.Delay > 0) { j.Delay -= dt; if (j.Delay > 0) continue; }
                 j.T += dt / j.Duration;
                 float k = Easing.Apply(j.Ease, j.T);

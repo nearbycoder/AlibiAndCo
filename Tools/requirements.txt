@@ -1,0 +1,5 @@
+# Python tooling: textures, icons, newspapers, photo/map finishing, audio synthesis and QA, trailer.
+#   python3 -m venv .venv && .venv/bin/pip install -r Tools/requirements.txt
+numpy>=2.0
+pillow>=11.0
+scipy>=1.14

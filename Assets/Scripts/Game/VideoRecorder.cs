@@ -122,7 +122,7 @@ namespace AlibiCo
             cursor.anchoredPosition = Mouse.current.position.ReadValue();
             bool down = Mouse.current.leftButton.isPressed;
             float target = down ? 0.86f : 1f;
-            float s = Mathf.Lerp(cursor.localScale.x, target, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 25f));
+            float s = Mathf.Lerp(cursor.localScale.x, target, 1 - Mathf.Exp(-Clock.Dt * 25f));
             cursor.localScale = Vector3.one * s;
         }
 

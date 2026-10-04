@@ -81,7 +81,7 @@ namespace AlibiCo
                 int last = 0;
                 while (text.maxVisibleCharacters < l.Length)
                 {
-                    tt += Time.unscaledDeltaTime;
+                    tt += Clock.Dt;
                     int n = Mathf.FloorToInt(tt * 55f);
                     if (n / 3 != last / 3) Sfx.Play("type", 0.2f, 1f, 0.15f);
                     last = n;
@@ -90,7 +90,7 @@ namespace AlibiCo
                     yield return null;
                 }
                 float hold = 1.6f + l.Length * 0.025f;
-                while (hold > 0 && !Clicked()) { hold -= Time.unscaledDeltaTime; yield return null; }
+                while (hold > 0 && !Clicked()) { hold -= Clock.Dt; yield return null; }
                 yield return null;
             }
             UiKit.Fade(cg, false, 0.5f, () => UnityEngine.Object.Destroy(group.gameObject));
@@ -111,7 +111,7 @@ namespace AlibiCo
 
         static IEnumerator Wait(float s)
         {
-            while (s > 0) { s -= Time.unscaledDeltaTime; yield return null; }
+            while (s > 0) { s -= Clock.Dt; yield return null; }
         }
     }
 }

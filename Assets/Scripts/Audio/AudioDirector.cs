@@ -82,8 +82,8 @@ namespace AlibiCo
             var l = Clips(name);
             if (l.Count == 0) return;
             // Don't stack the same sound within a couple of frames.
-            if (lastPlayed.TryGetValue(name, out var t) && Time.unscaledTime - t < 0.035f) return;
-            lastPlayed[name] = Time.unscaledTime;
+            if (lastPlayed.TryGetValue(name, out var t) && Clock.Now - t < 0.035f) return;
+            lastPlayed[name] = Clock.Now;
             AudioSource v = null;
             foreach (var s in voices) if (!s.isPlaying) { v = s; break; }
             if (v == null) v = voices[Random.Range(0, voices.Count)];
@@ -166,7 +166,7 @@ namespace AlibiCo
 
         void Update()
         {
-            duck = Mathf.Lerp(duck, duckTarget, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 5f));
+            duck = Mathf.Lerp(duck, duckTarget, 1 - Mathf.Exp(-Clock.Dt * 5f));
             if (!Tween.Running((this, "music")))
             {
                 var active = aActive ? musicA : musicB;

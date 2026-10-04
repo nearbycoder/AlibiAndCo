@@ -477,7 +477,7 @@ namespace AlibiCo
 
         void Update()
         {
-            if (!Solved && !InputLocked && !GameRoot.Paused) Elapsed += Time.unscaledDeltaTime;
+            if (!Solved && !InputLocked && !GameRoot.Paused) Elapsed += Clock.Dt;
             if (GameRoot.Paused || InputLocked) { EndHover(); return; }
             var mouse = Mouse.current;
             if (mouse == null) return;
@@ -506,7 +506,7 @@ namespace AlibiCo
                 }
                 UpdateGlows();
             }
-            hoverTime += Time.unscaledDeltaTime;
+            hoverTime += Clock.Dt;
             UpdateInspector();
             bool overMap = (!overUi && hit == null && Map != null && MapHit(mp)) || DebugMapZoom;
             Map.SetZoom(overMap);
@@ -777,8 +777,8 @@ namespace AlibiCo
             const float dragHeight = 3.2f;
             stage.MouseOnPlane(mp, Stage.BoardHeight + dragHeight, out var world);
             var cur = v.transform.position;
-            var next = Vector3.Lerp(cur, world, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 22f));
-            dragVel = Vector3.Lerp(dragVel, (next - cur) / Mathf.Max(0.001f, Time.unscaledDeltaTime), 0.2f);
+            var next = Vector3.Lerp(cur, world, 1 - Mathf.Exp(-Clock.Dt * 22f));
+            dragVel = Vector3.Lerp(dragVel, (next - cur) / Mathf.Max(0.001f, Clock.Dt), 0.2f);
             v.transform.position = next;
             float tiltX = Mathf.Clamp(dragVel.z * 0.9f, -14, 14);
             float tiltZ = Mathf.Clamp(-dragVel.x * 0.9f, -14, 14);
@@ -834,7 +834,7 @@ namespace AlibiCo
                 bool wantCompact = onBoard && linkTarget == null;
                 if (v.Compact != wantCompact) v.SetCompact(wantCompact, true);
                 var wantScale = Vector3.one * (wantCompact ? View.ChipScale : 1f);
-                v.transform.localScale = Vector3.Lerp(v.transform.localScale, wantScale, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 12f));
+                v.transform.localScale = Vector3.Lerp(v.transform.localScale, wantScale, 1 - Mathf.Exp(-Clock.Dt * 12f));
             }
             if (oldLink != linkTarget)
             {

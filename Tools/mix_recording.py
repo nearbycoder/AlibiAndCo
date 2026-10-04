@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Rebuild a recording's soundtrack from the per-frame voice log written by VideoRecorder.
 
-    mix_recording.py <recording dir>      reads audio.log, writes audio.wav next to it
+    mix_recording.py <recording dir>                 reads audio.log, writes audio.wav next to it
+    mix_recording.py <recording dir> --stem sfx      only effects and ambience -> audio_sfx.wav
+    mix_recording.py <recording dir> --stem music    only the music cues -> audio_music.wav
 
 Each log line is "frame source clip volume pitch loop started". Recording runs slower than real
 time, so playback positions are reconstructed here: a voice starts at the frame it was triggered
@@ -68,7 +70,8 @@ class Voice:
         return out * gain
 
 
-def main(rec_dir):
+def main(rec_dir, stem="all"):
+    keep = {"all": lambda n: True, "sfx": lambda n: not n.startswith("music_"), "music": lambda n: n.startswith("music_")}[stem]
     fps, master = 30, 1.0
     frames = defaultdict(list)
     last = 0
@@ -81,8 +84,10 @@ def main(rec_dir):
                 continue
             fr, src, name, vol, pitch, loop, start = line.split()
             fr = int(fr)
-            frames[fr].append((int(src), name, float(vol), float(pitch), loop == "1", start == "1"))
             last = max(last, fr)
+            if not keep(name):
+                continue
+            frames[fr].append((int(src), name, float(vol), float(pitch), loop == "1", start == "1"))
     spf = SR / fps
     total = int(round(last * spf)) + SR
     mix = np.zeros((total, 2), np.float32)
@@ -111,7 +116,7 @@ def main(rec_dir):
     knee = 0.8
     over = np.abs(mix) > knee
     mix[over] = np.sign(mix[over]) * (knee + (1 - knee) * np.tanh((np.abs(mix[over]) - knee) / (1 - knee)))
-    out_path = os.path.join(rec_dir, "audio.wav")
+    out_path = os.path.join(rec_dir, "audio.wav" if stem == "all" else f"audio_{stem}.wav")
     with wave.open(out_path, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
@@ -122,4 +127,9 @@ def main(rec_dir):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "/tmp/alibi-record")
+    args = sys.argv[1:]
+    stem = "all"
+    if "--stem" in args:
+        stem = args[args.index("--stem") + 1]
+        del args[args.index("--stem"):args.index("--stem") + 2]
+    main(args[0] if args else "/tmp/alibi-record", stem)

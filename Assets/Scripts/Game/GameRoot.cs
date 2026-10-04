@@ -84,7 +84,7 @@ namespace AlibiCo
                 string dir = recordArg + 1 < args.Length && !args[recordArg + 1].StartsWith("-") ? args[recordArg + 1] : "/tmp/alibi-record";
                 int casesArg = Array.IndexOf(args, "-alibiRecordCases");
                 int maxCases = casesArg >= 0 && casesArg + 1 < args.Length && int.TryParse(args[casesArg + 1], out var n) ? n : 99;
-                gameObject.AddComponent<Showcase>().Run(dir, maxCases);
+                gameObject.AddComponent<Showcase>().Run(dir, maxCases, args.Contains("-alibiTrailer"));
                 yield break;
             }
             if (inputArg >= 0)
@@ -114,7 +114,7 @@ namespace AlibiCo
         void CheckAspect()
         {
             if (Application.isBatchMode) return;
-            aspectCheck -= Time.unscaledDeltaTime;
+            aspectCheck -= Clock.Dt;
             if (aspectCheck > 0) return;
             aspectCheck = 0.5f;
             float a = Stage.LayoutAspect;

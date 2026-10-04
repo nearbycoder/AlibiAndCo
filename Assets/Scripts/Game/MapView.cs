@@ -196,7 +196,7 @@ namespace AlibiCo
 
         void Update()
         {
-            zoom = Mathf.Lerp(zoom, zoomTarget, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 10f));
+            zoom = Mathf.Lerp(zoom, zoomTarget, 1 - Mathf.Exp(-Clock.Dt * 10f));
             // Lift toward the camera and slide up-left so the enlarged map stays on screen.
             float s = Mathf.Lerp(1f, zoomScale, zoom);
             var r = stage.Map;

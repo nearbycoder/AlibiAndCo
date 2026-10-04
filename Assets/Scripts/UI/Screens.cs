@@ -464,7 +464,7 @@ namespace AlibiCo
             if (helpGroup != null)
             {
                 bool show = hudSession != null && !hudSession.Solved && hudSession.TrayCount <= 7;
-                helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, Time.unscaledDeltaTime * 3f);
+                helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, AlibiCo.Clock.Dt * 3f);
             }
             if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {
@@ -770,8 +770,8 @@ namespace AlibiCo
         void Update()
         {
             if (t == null) return;
-            if (delay > 0) { delay -= Time.unscaledDeltaTime; return; }
-            time += Time.unscaledDeltaTime;
+            if (delay > 0) { delay -= AlibiCo.Clock.Dt; return; }
+            time += AlibiCo.Clock.Dt;
             int n = Mathf.FloorToInt(time * cps);
             if (n != last && n / 4 != last / 4 && n < t.text.Length) Sfx.Play("type", 0.12f, 1, 0.15f);
             last = n;

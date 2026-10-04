@@ -143,7 +143,7 @@ namespace AlibiCo
             var target = Screen(Stage.I.BoardToWorld(new Vector2(s.View.TimeToX(fit.EarliestStart), lane.Track + 0.5f)));
             yield return Drag(Screen(s.IncidentView.transform.position), target, "input_accuse_drag");
             float t = 0;
-            while (root.Flow != Flow.Closed && t < 60) { t += Time.unscaledDeltaTime; yield return null; }
+            while (root.Flow != Flow.Closed && t < 60) { t += Clock.Dt; yield return null; }
             yield return Wait(2f);
             yield return Shot("input_closed");
             if (root.Flow != Flow.Closed) { Debug.LogError("[AutoPilot] FAIL input: accusation by drag didn't close the case"); ok = false; }
@@ -171,7 +171,7 @@ namespace AlibiCo
 
         static IEnumerator Wait(float s)
         {
-            while (s > 0) { s -= Time.unscaledDeltaTime; yield return null; }
+            while (s > 0) { s -= Clock.Dt; yield return null; }
         }
 
         IEnumerator Go()
@@ -265,7 +265,7 @@ namespace AlibiCo
                     float t = 0;
                     yield return Wait(4f);
                     yield return Shot(c.Id + "_reconstruction");
-                    while (root.Flow != Flow.Closed && t < 90) { t += Time.unscaledDeltaTime; yield return null; }
+                    while (root.Flow != Flow.Closed && t < 90) { t += Clock.Dt; yield return null; }
                     if (root.Flow != Flow.Closed) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: never reached Case Closed"); }
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_closed");

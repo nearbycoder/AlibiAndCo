@@ -353,11 +353,11 @@ namespace AlibiCo
             void Update()
             {
                 float goal = Interactable && over ? 1f : 0f;
-                k = Mathf.MoveTowards(k, goal, Time.unscaledDeltaTime * 8f);
+                k = Mathf.MoveTowards(k, goal, Clock.Dt * 8f);
                 float e = k * k * (3 - 2 * k);
                 if (Target && Interactable) Target.color = Color.Lerp(Normal, Hot, e);
                 float scale = 1f + 0.025f * e - (down ? 0.035f : 0f);
-                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * scale, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 20f));
+                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * scale, 1 - Mathf.Exp(-Clock.Dt * 20f));
             }
         }
 

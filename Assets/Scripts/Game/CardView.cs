@@ -501,7 +501,7 @@ namespace AlibiCo
 
         void Update()
         {
-            float dt = Time.unscaledDeltaTime;
+            float dt = Clock.Dt;
             lift = Mathf.Lerp(lift, liftTarget, 1 - Mathf.Exp(-dt * 14f));
             Body.localPosition = new Vector3(Body.localPosition.x, Body.localPosition.y, -lift);
             // Soft shadow grows and fades with height, offset away from the lamp (top-left).

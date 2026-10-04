@@ -389,14 +389,14 @@ namespace AlibiCo
 
         void LateUpdate()
         {
-            float t = Time.unscaledTime;
+            float t = Clock.Now;
             // Lamp: gentle filament breathing plus the occasional flicker.
             float flicker = 1f + 0.015f * Mathf.Sin(t * 7.1f) + 0.01f * Mathf.Sin(t * 13.3f + 1.3f);
             if (Mathf.PerlinNoise(t * 0.7f, 3.3f) > 0.86f) flicker *= 0.92f + 0.08f * Mathf.PerlinNoise(t * 30f, 1f);
             if (Lamp) Lamp.intensity = lampBase * flicker * lampDim;
 
             var cam = Cam.transform;
-            var smooth = Vector2.Lerp(parallaxNow, parallax, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3f));
+            var smooth = Vector2.Lerp(parallaxNow, parallax, 1 - Mathf.Exp(-Clock.Dt * 3f));
             parallaxNow = smooth;
             var pos = camBasePos + new Vector3(smooth.x * 0.35f, 0, smooth.y * 0.25f);
             if (pushIn > 0.001f)
@@ -406,7 +406,7 @@ namespace AlibiCo
             }
             if (shakeTime > 0)
             {
-                shakeTime -= Time.unscaledDeltaTime;
+                shakeTime -= Clock.Dt;
                 float a = shakeAmount * Mathf.Clamp01(shakeTime / 0.25f);
                 pos += new Vector3(Mathf.PerlinNoise(t * 40, 0) - 0.5f, 0, Mathf.PerlinNoise(0, t * 40) - 0.5f) * a * 2;
                 if (shakeTime <= 0) shakeAmount = 0;

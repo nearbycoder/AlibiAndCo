@@ -159,7 +159,7 @@ namespace AlibiCo
         {
             if (typing && body != null)
             {
-                typeTimer += Time.unscaledDeltaTime;
+                typeTimer += Clock.Dt;
                 float cps = 70f;
                 int target = Mathf.Min(total, Mathf.FloorToInt(typeTimer * cps));
                 if (target > visible)
@@ -177,7 +177,7 @@ namespace AlibiCo
             }
             else
             {
-                holdTimer += Time.unscaledDeltaTime;
+                holdTimer += Clock.Dt;
                 // Let each memo be read before the next one replaces it.
                 if (queue.Count > 0 && holdTimer > 2.2f) Next();
             }

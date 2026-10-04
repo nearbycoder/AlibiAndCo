@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using AlibiCo.Logic;
 using TMPro;
@@ -13,22 +15,114 @@ namespace AlibiCo
     /// Launched with -alibiRecord dir: plays every case start to finish with simulated mouse input
     /// (glides, drags, hovers, button clicks) at a watchable pace while VideoRecorder captures it.
     /// The solver picks the moves; if a gesture ever misses, the move is applied directly and logged.
+    /// With -alibiTrailer it also stages the beats the solver never plays (a hover route, the map
+    /// zoom, a witness standing firm, a wrong link, a hint, the notebook, pause and settings), logs a
+    /// frame-numbered marker for every beat to markers.txt and saves cursor-free stills to stills/.
+    /// Tools/make_trailer.py cuts the trailer from those markers.
     /// </summary>
     public sealed class Showcase : MonoBehaviour
     {
         VideoRecorder rec;
         Vector2 mouse;
         int misses, maxCases;
+        bool trailer, shownUnknown;
+        StreamWriter markers;
+        string stillsDir;
 
-        public void Run(string dir, int caseCount = 99)
+        public void Run(string dir, int caseCount = 99, bool trailerMode = false)
         {
             maxCases = caseCount;
+            trailer = trailerMode;
             SaveData.UnlockAll = false;
             rec = gameObject.AddComponent<VideoRecorder>();
             mouse = new Vector2(Screen.width * 0.62f, Screen.height * 0.42f);
             Send(mouse);
             rec.Begin(dir);
+            if (trailer)
+            {
+                markers = new StreamWriter(Path.Combine(dir, "markers.txt"));
+                stillsDir = Path.Combine(dir, "stills");
+                StartCoroutine(Watch());
+            }
             StartCoroutine(Go());
+        }
+
+        // ------------------------------------------------------------------ trailer markers and stills
+
+        void Mark(string label)
+        {
+            if (markers == null) return;
+            markers.WriteLine($"{rec.Frames} {label}");
+            markers.Flush();
+        }
+
+        void Still(string name)
+        {
+            if (!trailer) return;
+            DevCapture.Capture(Path.Combine(stillsDir, name + ".png"));
+        }
+
+        IEnumerator StillAfter(string name, float delay)
+        {
+            yield return Wait(delay);
+            Still(name);
+        }
+
+        /// <summary>Logs a marker whenever the board or the screen flow changes in a way worth cutting to.</summary>
+        IEnumerator Watch()
+        {
+            var root = GameRoot.I;
+            var flow = Flow.Boot;
+            CaseSession session = null;
+            int conflicts = 0, mistakes = 0;
+            bool anyPinned = false;
+            var struck = new HashSet<string>();
+            var clocks = new HashSet<string>();
+            var confirmed = new HashSet<string>();
+            var open = new HashSet<string>();
+            while (true)
+            {
+                var s = root.Session;
+                if (s != session)
+                {
+                    session = s;
+                    conflicts = mistakes = 0;
+                    anyPinned = false;
+                    struck.Clear(); clocks.Clear(); confirmed.Clear(); open.Clear();
+                    if (s != null) Mark("case " + s.Case.Id);
+                }
+                if (root.Flow != flow)
+                {
+                    flow = root.Flow;
+                    Mark("flow " + flow);
+                    if (flow == Flow.Closing && s != null) StartCoroutine(StillAfter(s.Case.Id + "-reconstruction", 3.2f));
+                }
+                if (s != null)
+                {
+                    var b = s.Board;
+                    string id = s.Case.Id;
+                    if (!anyPinned && b.Pinned.Count > 0) { anyPinned = true; Mark("first-pin"); }
+                    int c = b.EstablishedConflicts.Count();
+                    if (c > conflicts) Mark("conflict " + c);
+                    conflicts = c;
+                    foreach (var x in b.Struck)
+                        if (struck.Add(x)) { Mark("struck " + x); StartCoroutine(StillAfter($"{id}-struck-{x}", 1.4f)); }
+                    foreach (var x in b.Calibrated)
+                        if (clocks.Add(x)) { Mark("clock " + x); StartCoroutine(StillAfter($"{id}-clock-{x}", 1.9f)); }
+                    foreach (var kv in b.Confirmed)
+                        if (confirmed.Add(kv.Key)) { Mark($"confirmed {kv.Key} {kv.Value}"); StartCoroutine(StillAfter($"{id}-only-{kv.Value}", 1.0f)); }
+                    if (b.Mistakes > mistakes) Mark("badge-lost");
+                    mistakes = b.Mistakes;
+                    // A lane opening after the tray is empty is an alibi breaking, not the empty board at the deal.
+                    bool settled = !b.TrayCards.Any();
+                    foreach (var kv in b.Fits)
+                    {
+                        if (!kv.Value.Fits) { open.Remove(kv.Key); continue; }
+                        if (open.Add(kv.Key) && settled) { Mark("open " + kv.Key); StartCoroutine(StillAfter($"{id}-open-{kv.Key}", 1.2f)); }
+                    }
+                }
+                yield return null;
+            }
         }
 
         // ------------------------------------------------------------------ input
@@ -38,6 +132,15 @@ namespace AlibiCo
             var st = new MouseState { position = p };
             if (left) st = st.WithButton(MouseButton.Left, true);
             InputSystem.QueueStateEvent(Mouse.current, st);
+        }
+
+        IEnumerator PressKey(Key key)
+        {
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+            yield return null;
+            yield return null;
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+            yield return null;
         }
 
         /// <summary>Move the cursor along a slightly curved, eased path (speed scales with distance).</summary>
@@ -69,13 +172,14 @@ namespace AlibiCo
             yield return Wait(0.15f);
         }
 
-        IEnumerator Drag(Vector2 from, Vector2 to, float hold = 0f)
+        IEnumerator Drag(Vector2 from, Vector2 to, float hold = 0f, string still = null)
         {
             yield return MoveTo(from);
             yield return Wait(0.18f);
             Send(mouse, true);
             yield return Wait(0.1f);
             yield return MoveTo(Vector2.Lerp(from, to, 0.88f), true, 0.85f);
+            if (still != null) Still(still);
             if (hold > 0) yield return Wait(hold);
             yield return MoveTo(to, true, 1.6f);
             yield return Wait(0.18f);
@@ -85,7 +189,7 @@ namespace AlibiCo
 
         IEnumerator Wait(float s)
         {
-            while (s > 0) { s -= Time.unscaledDeltaTime; yield return null; }
+            while (s > 0) { s -= Clock.Dt; yield return null; }
         }
 
         static Vector2 ScreenOf(Vector3 world) => Stage.I.Cam.WorldToScreenPoint(world);
@@ -165,9 +269,13 @@ namespace AlibiCo
         {
             var root = GameRoot.I;
             root.ShowTitle(true);
-            yield return Wait(5f);
+            Mark("title");
+            yield return Wait(4.6f);
+            Still("title");
+            yield return Wait(0.4f);
             yield return Press("Case Files", root.ShowSelect);
             yield return Wait(2.2f);
+            Still("case-files");
             foreach (var c in Cases.All.Take(maxCases))
             {
                 if (root.Flow == Flow.Select)
@@ -178,16 +286,24 @@ namespace AlibiCo
                     yield return Wait(0.6f);
                 }
                 if (root.Flow != Flow.Intro) { Miss("intro " + c.Id); root.ShowIntro(c); }
+                Mark("intro " + c.Id);
                 yield return Wait(6.5f);
+                Still(c.Id + "-intro");
                 yield return Press("Open the board", () => root.StartCase(c, false));
                 yield return PlayCase(root, c);
                 bool last = Cases.IndexOf(c.Id) == Mathf.Min(maxCases, Cases.All.Count) - 1;
-                yield return Wait(6f);
+                yield return Wait(3f);
+                Still(c.Id + "-closed");
+                yield return Wait(3f);
                 if (!last) yield return Press("Next case", () => root.NextCase(c));
                 else yield return Press(Cases.IndexOf(c.Id) == Cases.All.Count - 1 ? "Back to the case files" : "Case files", root.ShowSelect);
+                if (last) Mark("case-files-final");
                 yield return Wait(last ? 4f : 0.8f);
+                if (last) Still("case-files-final");
             }
+            Mark("end");
             rec.End();
+            markers?.Close();
             Debug.Log($"[Showcase] done: {rec.Frames} frames ({rec.Seconds:0.0}s), {misses} missed gestures");
             yield return null;
             Application.Quit(0);
@@ -196,11 +312,16 @@ namespace AlibiCo
         IEnumerator PlayCase(GameRoot root, CaseDef c)
         {
             float t = 0;
-            while ((root.Session == null || root.Session.Case != c) && t < 5) { t += Time.unscaledDeltaTime; yield return null; }
+            while ((root.Session == null || root.Session.Case != c) && t < 5) { t += Clock.Dt; yield return null; }
             var s = root.Session;
-            yield return Wait(3.2f);
+            Mark("dealt " + c.Id);
+            yield return Wait(2.4f);
+            Still(c.Id + "-dealt");
+            yield return Wait(0.8f);
+            yield return Extras(root, s, "dealt");
             yield return PinTray(s);
             yield return Wait(1.5f);
+            yield return Extras(root, s, "pinned");
 
             for (int step = 0; step < 20; step++)
             {
@@ -213,13 +334,114 @@ namespace AlibiCo
                 yield return Wait(1.2f);
                 yield return PinTray(s);
                 yield return Wait(1.2f);
+                yield return Extras(root, s, "step");
             }
+            yield return Extras(root, s, "solved");
             yield return Accuse(root, s, c);
+        }
+
+        /// <summary>Trailer-only beats the solver never plays, staged at fixed points in each case.</summary>
+        IEnumerator Extras(GameRoot root, CaseSession s, string phase)
+        {
+            if (!trailer) yield break;
+            string id = s.Case.Id;
+            if (id == "case1" && phase == "pinned")
+            {
+                // Hover a card at the far end of a red ribbon: the map draws the walk that can't be made.
+                var k = s.Board.EstablishedConflicts.FirstOrDefault(x => !x.Overlap) ?? s.Board.EstablishedConflicts.FirstOrDefault();
+                var v = k != null ? s.ViewOf(k.B.Card.Id) : null;
+                if (v != null)
+                {
+                    Mark("hover " + v.Id);
+                    yield return MoveTo(ScreenOf(v.transform.position));
+                    yield return Wait(2.6f);
+                    Still("case1-hover-route");
+                    yield return Wait(0.6f);
+                }
+            }
+            else if (id == "case2" && phase == "pinned")
+            {
+                // Sid's statement is true; his clock is what's wrong. Confronting him costs a badge.
+                Mark("firm i_sid");
+                yield return Confront(root, s, "i_sid", firm: true);
+                Still("case2-stands-firm");
+                yield return Wait(0.8f);
+            }
+            else if (id == "case2" && phase == "solved")
+            {
+                Mark("map");
+                yield return MoveTo(ScreenOf(s.Map.transform.position));
+                yield return Wait(2.4f);
+                Still("case2-map-zoom");
+                yield return Wait(0.8f);
+                yield return MoveTo(new Vector2(Screen.width * 0.62f, Screen.height * 0.5f));
+                Mark("notebook");
+                yield return PressKey(Key.Tab);
+                yield return Wait(3.2f);
+                Still("case2-notebook");
+                yield return Wait(1.0f);
+                yield return PressKey(Key.Tab);
+                yield return Wait(0.8f);
+            }
+            else if (id == "case3" && phase == "dealt")
+            {
+                Mark("pause");
+                yield return PressKey(Key.Escape);
+                yield return Wait(1.4f);
+                Still("case3-pause");
+                Mark("settings");
+                yield return Press("Settings", root.Screens.ShowSettings);
+                yield return Wait(2.6f);
+                Still("case3-settings");
+                yield return Wait(0.4f);
+                yield return PressKey(Key.Escape);
+                yield return Wait(0.6f);
+                yield return Press("Resume", () => root.SetPaused(false));
+                yield return Wait(0.8f);
+            }
+            else if (id == "case3" && phase == "step" && !shownUnknown && s.Board.Unlocked.Contains("u_photo") && !s.Board.Confirmed.ContainsKey("u_photo"))
+            {
+                // The figure in the photograph: lift it so its candidate faces (some already crossed out) read.
+                shownUnknown = true;
+                var v = s.ViewOf("u_photo");
+                Mark("unknown u_photo");
+                yield return MoveTo(Grab(v));
+                yield return Wait(2.8f);
+                Still("case3-unknown-faces");
+                yield return Wait(0.8f);
+                yield return MoveTo(new Vector2(Screen.width * 0.62f, Screen.height * 0.5f));
+                yield return Wait(0.6f);
+            }
+            else if (id == "case3" && phase == "pinned")
+            {
+                // Two cards that aren't one moment: Connie says so, and it costs a badge.
+                if (s.Board.Pinned.Contains("n_kiosk") && s.Board.Pinned.Contains("x_coast"))
+                {
+                    Mark("wrong-link");
+                    var a = s.ViewOf("n_kiosk");
+                    var b = s.ViewOf("x_coast");
+                    int before = s.Board.Mistakes;
+                    yield return MoveTo(ScreenOf(a.transform.position));
+                    yield return Wait(0.6f);
+                    yield return Drag(ScreenOf(a.transform.position), ScreenOf(b.transform.position), 0.4f);
+                    if (s.Board.Mistakes == before) { Miss("wrong link"); s.AutoLink("n_kiosk", "x_coast"); }
+                    yield return MoveTo(mouse + new Vector2(0, -Screen.height * 0.16f));
+                    yield return Wait(1.6f);
+                    Still("case3-wrong-link");
+                    yield return Wait(1.6f);
+                }
+                Mark("hint");
+                yield return PressKey(Key.H);
+                yield return Wait(2.6f);
+                Still("case3-hint");
+                yield return Wait(1.0f);
+            }
         }
 
         /// <summary>Drag each tray card to its own lane, near its printed time.</summary>
         IEnumerator PinTray(CaseSession s)
         {
+            bool first = s.Board.Pinned.Count == 0;
             while (true)
             {
                 var next = s.Board.TrayCards.FirstOrDefault(x => !x.IsUnknown);
@@ -233,7 +455,9 @@ namespace AlibiCo
                 // Arrive first, then re-aim: the camera parallaxes with the cursor.
                 yield return MoveTo(Grab(v));
                 yield return Wait(0.1f);
-                yield return Drag(Grab(v), to);
+                if (first) Mark("drag " + next.Id);
+                yield return Drag(Grab(v), to, 0f, first ? s.Case.Id + "-drag" : null);
+                first = false;
                 yield return Wait(0.45f);
                 if (!s.Board.Pinned.Contains(next.Id)) { Miss("pin " + next.Id); s.AutoPin(next.Id); yield return Wait(0.4f); }
             }
@@ -291,19 +515,23 @@ namespace AlibiCo
             return false;
         }
 
-        IEnumerator Confront(GameRoot root, CaseSession s, string id)
+        /// <summary>Confront a statement. firm: it's true, so the witness should stand firm (and cost a badge).</summary>
+        IEnumerator Confront(GameRoot root, CaseSession s, string id, bool firm = false)
         {
             var v = s.ViewOf(id);
+            int mistakes = s.Board.Mistakes;
+            Mark("confront " + id);
             yield return MoveTo(ScreenOf(v.transform.position));
             yield return Wait(1.6f);
             yield return Click(ScreenOf(v.transform.position));
             yield return Wait(0.7f);
             var btn = root.Screens.ConfrontButtonScreen();
             if (btn != null) yield return Click(btn.Value);
-            if (!s.Board.Struck.Contains(id))
+            System.Func<bool> landed = () => firm ? s.Board.Mistakes > mistakes : s.Board.Struck.Contains(id);
+            if (!landed())
             {
                 yield return Wait(0.3f);
-                if (!s.Board.Struck.Contains(id)) { Miss("confront " + id); s.Confront(v); }
+                if (!landed()) { Miss("confront " + id); s.Confront(v); }
             }
             yield return MoveTo(mouse + new Vector2(Screen.width * 0.06f, -Screen.height * 0.14f));
             yield return Wait(3.4f);
@@ -316,6 +544,7 @@ namespace AlibiCo
             yield return Wait(0.5f);
             var va = s.ViewOf(a);
             var vb = s.ViewOf(b);
+            Mark($"link {a} {b}");
             yield return MoveTo(ScreenOf(va.transform.position));
             yield return Wait(1.0f);
             string before = s.Board.StateKey();
@@ -338,20 +567,26 @@ namespace AlibiCo
             yield return Wait(0.1f);
             // Sweep across an innocent lane first so the refusal preview shows, then settle on the culprit.
             var other = s.View.Lanes.FirstOrDefault(l => !l.IsTown && l.Id != c.Incident.Culprit);
+            Mark("accuse " + c.Id);
             if (other != null)
             {
                 var o = ScreenOf(Stage.I.BoardToWorld(new Vector2(s.View.TimeToX(fit.EarliestStart), other.Track + 0.5f)));
                 yield return MoveTo(o, true, 0.8f);
-                yield return Wait(1.3f);
+                yield return Wait(1.0f);
+                Still(c.Id + "-incident-refused");
+                yield return Wait(0.3f);
             }
             yield return MoveTo(target, true, 0.7f);
-            yield return Wait(1.4f);
+            yield return Wait(1.1f);
+            Still(c.Id + "-incident-fits");
+            yield return Wait(0.3f);
+            Mark("pin-incident " + c.Id);
             Send(mouse, false);
             yield return Wait(1.0f);
             if (root.Flow == Flow.Playing && !s.InputLocked) { Miss("accuse " + c.Id); s.AutoAccuse(c.Incident.Culprit); }
             yield return MoveTo(new Vector2(Screen.width * 0.985f, Screen.height * 0.64f), false, 0.5f);
             float t = 0;
-            while (root.Flow != Flow.Closed && t < 120) { t += Time.unscaledDeltaTime; yield return null; }
+            while (root.Flow != Flow.Closed && t < 120) { t += Clock.Dt; yield return null; }
         }
     }
 }
