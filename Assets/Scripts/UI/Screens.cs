@@ -330,9 +330,12 @@ namespace AlibiCo
             ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
             var help = UiKit.Text(hud.transform,
-                "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront   ·   <b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint",
-                Art.Sans, 19, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Center);
-            help.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(0, 30));
+                "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront\n" +
+                "<b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Esc</b> menu",
+                Art.Sans, 18, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Bottom);
+            // Between the memo slip (left) and the town map (right), so it never sits on paper.
+            help.rectTransform.Place(new Vector2(0.2f, 0), new Vector2(0.75f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(0, 56));
+            help.lineSpacing = 6;
 
             BuildActions();
         }

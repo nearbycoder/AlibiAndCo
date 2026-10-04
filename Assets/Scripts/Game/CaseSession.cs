@@ -1078,7 +1078,9 @@ namespace AlibiCo
                     foreach (var id in o.NewCards)
                     {
                         var v = views[id];
-                        var target = v.transform.position;
+                        // Its tray slot, not where Relayout's tween is starting it from: two cards
+                        // unlocked together would otherwise land on the same spot.
+                        var target = Board.Pinned.Contains(id) ? v.transform.position : TraySlot(id, out _, out _);
                         v.transform.position = target + new Vector3(0, 2f, -8f);
                         v.transform.MoveWorld(target, 0.6f, Ease.OutCubic, null, i * 0.12f);
                         Tween.Delay(i * 0.12f, () => Sfx.Play("paper_deal", 0.6f));

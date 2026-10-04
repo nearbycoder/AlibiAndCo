@@ -90,8 +90,41 @@ namespace AlibiCo
 
         static Vector2 ScreenOf(Vector3 world) => Stage.I.Cam.WorldToScreenPoint(world);
 
-        static Vector2 Grab(CardView v) => v.Compact ? ScreenOf(v.transform.position)
-            : ScreenOf(v.transform.TransformPoint(new Vector3(-CardView.FullSize.x / 2 + 0.45f, 0.3f, 0)));
+        /// <summary>
+        /// A point on the card that's on screen and where this card is the topmost one under the
+        /// cursor (tray cards overlap, and the second tray row runs off the bottom edge).
+        /// </summary>
+        static Vector2 Grab(CardView v)
+        {
+            var size = v.Compact ? CardView.ChipSize : CardView.FullSize;
+            float[] fxs = { -0.38f, -0.2f, 0f, 0.2f, 0.38f };
+            float[] fys = { 0.3f, 0.1f, -0.1f, 0.38f };
+            foreach (var fy in fys)
+                foreach (var fx in fxs)
+                {
+                    var p = ScreenOf(v.transform.TransformPoint(new Vector3(size.x * fx, size.y * fy, 0)));
+                    float m = Screen.height * 0.03f;
+                    if (p.x < m || p.y < m || p.x > Screen.width - m || p.y > Screen.height - m) continue;
+                    if (TopCard(p) == v) return p;
+                }
+            return v.Compact ? ScreenOf(v.transform.position)
+                : ScreenOf(v.transform.TransformPoint(new Vector3(-CardView.FullSize.x / 2 + 0.45f, 0.3f, 0)));
+        }
+
+        /// <summary>Same rule as CaseSession.Pick: the highest card under the point wins.</summary>
+        static CardView TopCard(Vector2 screen)
+        {
+            CardView best = null;
+            float bestH = float.MinValue;
+            foreach (var h in Physics.RaycastAll(Stage.I.Cam.ScreenPointToRay(screen), 200f))
+            {
+                var c = h.collider.GetComponentInParent<CardView>();
+                if (c == null || !c.gameObject.activeInHierarchy) continue;
+                float y = h.point.y + c.CurrentLift * 0.1f;
+                if (y > bestH) { bestH = y; best = c; }
+            }
+            return best;
+        }
 
         /// <summary>Screen centre of the active button whose label contains the text.</summary>
         static Vector2? ButtonAt(string label)
@@ -123,7 +156,7 @@ namespace AlibiCo
         void Miss(string what)
         {
             misses++;
-            Debug.LogWarning("[Showcase] gesture missed, applying directly: " + what);
+            Debug.LogWarning($"[Showcase] gesture missed at frame {rec.Frames}, applying directly: " + what);
         }
 
         // ------------------------------------------------------------------ script
@@ -197,6 +230,9 @@ namespace AlibiCo
                 if (s.View.LaneById.TryGetValue(laneId, out var lane))
                     to = ClearSpot(s, v, lane, s.View.TimeToX((next.From + next.To) / 2f));
                 else to = ScreenOf(Stage.I.BoardToWorld(Vector2.zero));
+                // Arrive first, then re-aim: the camera parallaxes with the cursor.
+                yield return MoveTo(Grab(v));
+                yield return Wait(0.1f);
                 yield return Drag(Grab(v), to);
                 yield return Wait(0.45f);
                 if (!s.Board.Pinned.Contains(next.Id)) { Miss("pin " + next.Id); s.AutoPin(next.Id); yield return Wait(0.4f); }
@@ -209,22 +245,43 @@ namespace AlibiCo
         /// </summary>
         static Vector2 ClearSpot(CaseSession s, CardView dragged, BoardView.Lane lane, float x)
         {
-            float mid = (lane.Top + lane.Bottom) / 2;
-            float[] dys = { 0.15f, 0.45f, -0.2f };
-            for (int k = 0; k < 14; k++)
+            float h = lane.Top - lane.Bottom;
+            float[] fy = { 0.55f, 0.3f, 0.75f };
+            // Right of the moment first (cards to the left are usually earlier and already pinned),
+            // then left, but never into the portrait column at the lane's start.
+            for (int k = 0; k < 24; k++)
             {
-                float dx = (k + 1) / 2 * 0.9f * (k % 2 == 0 ? 1 : -1);
-                float px = Mathf.Clamp(x + dx, s.View.X0 + 0.3f, s.View.X1 - 0.3f);
-                foreach (var dy in dys)
+                float dx = (k + 1) / 2 * 0.8f * (k % 2 == 1 ? 1 : -1);
+                float px = x + dx;
+                if (px < s.View.X0 + 1.2f || px > s.View.X1 - 0.6f) continue;
+                foreach (var f in fy)
                 {
-                    var p = ScreenOf(Stage.I.BoardToWorld(new Vector2(px, mid + dy)));
+                    var local = new Vector2(px, lane.Bottom + h * f);
+                    if (s.View.LaneAt(local) != lane || !s.View.OnBoard(local)) continue;
+                    var p = ScreenOf(Stage.I.BoardToWorld(local));
                     if (!OverCard(p, dragged)) return p;
                 }
             }
-            return ScreenOf(Stage.I.BoardToWorld(new Vector2(x, mid + 0.15f)));
+            return ScreenOf(Stage.I.BoardToWorld(new Vector2(Mathf.Max(x, s.View.X0 + 1.2f), lane.Bottom + h * 0.55f)));
         }
 
+        /// <summary>
+        /// Clear in a ring around the point too: the camera parallaxes with the mouse, so by the time
+        /// the cursor arrives the board has shifted a little under the spot picked from the tray.
+        /// </summary>
         static bool OverCard(Vector2 screen, CardView ignore)
+        {
+            float r = Screen.height * 0.045f;
+            if (OverCardAt(screen, ignore)) return true;
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * Mathf.PI / 4;
+                if (OverCardAt(screen + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r, ignore)) return true;
+            }
+            return false;
+        }
+
+        static bool OverCardAt(Vector2 screen, CardView ignore)
         {
             foreach (var h in Physics.RaycastAll(Stage.I.Cam.ScreenPointToRay(screen), 200f))
             {
