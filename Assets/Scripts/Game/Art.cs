@@ -234,10 +234,10 @@ namespace AlibiCo
                 case "brass": return Lit(Pal.Brass, "brushed", 0.58f, 0.9f);
                 case "glow": return Emissive(col, col, 2.4f);
                 case "glass": return Lit(col, null, 0.92f, 0.1f);
-                case "wood": return Lit(parts.Length > 1 ? col : Pal.Hex("6B4528"), "wood", 0.32f, 0, null, "wood_n");
+                case "wood": return Lit(Color.Lerp(parts.Length > 1 ? col : Pal.Hex("6B4528"), Color.white, 0.62f), "wood", 0.34f, 0, null, "wood_n");
                 case "woodlight": return Lit(Pal.Hex("9C6B3F"), "wood", 0.3f);
                 case "cork": return Lit(Pal.Hex("C79B68"), "cork", 0.05f, 0, new Vector2(3, 2), "cork_n");
-                case "leather": return Lit(parts.Length > 1 ? col : Pal.Hex("3E5A45"), "leather", 0.38f);
+                case "leather": return Lit(Color.Lerp(parts.Length > 1 ? col : Pal.Hex("3E5A45"), Color.white, 0.55f), "leather", 0.38f);
                 case "paper": return Lit(parts.Length > 1 ? col : Pal.Paper, "paper", 0.1f);
                 case "plastic": return Lit(col, null, 0.55f);
                 case "ceramic": return Lit(col, null, 0.75f);

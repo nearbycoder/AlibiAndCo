@@ -28,7 +28,7 @@ namespace AlibiCo
 
         Transform full, chip, faceRow;
         MeshRenderer glow, softShadow, chipPaper, fullPaper, newTag;
-        TextMeshPro chipTime, chipLine, chipWho, fullTime, fullTimeNote, stamp, chipStampMark, fullClock;
+        TextMeshPro chipTime, chipLine, chipWho, fullTime, stamp, chipStampMark, fullClock;
         MeshRenderer chipClockIcon, chipHypIcon;
         BoxCollider col;
         readonly List<(string who, Transform root, MeshRenderer cross)> faces = new List<(string, Transform, MeshRenderer)>();
@@ -198,8 +198,7 @@ namespace AlibiCo
             Shapes.Quad(full, "rule", new Vector2(size.x - 0.4f, 0.012f), Art.Unlit(new Color(0.12f, 0.16f, 0.22f, 0.35f), true), new Vector3(0, -size.y / 2 + 0.56f, z));
             fullTime = Txt(full, "time", "", AlibiCo.Art.MonoBold, 0.36f, Pal.Ink, new Vector2(2.4f, 0.46f), TextAlignmentOptions.Left,
                 new Vector3(left + 1.2f, -size.y / 2 + 0.3f, z), false);
-            fullTimeNote = Txt(full, "timeNote", "", AlibiCo.Art.Sans, 0.14f, Pal.Red, new Vector2(1.6f, 0.4f), TextAlignmentOptions.Left,
-                new Vector3(left + 2.2f + 0.8f, -size.y / 2 + 0.3f, z), false);
+
             var loc = Stage.I != null ? Locations.Get(Def.Location) : null;
             if (!Def.Town || IsIncident)
             {
@@ -211,8 +210,9 @@ namespace AlibiCo
             var clock = Case.ClockById[Def.Clock];
             if (!clock.Reference)
             {
-                fullClock = Txt(full, "clock", "", AlibiCo.Art.Sans, 0.13f, Pal.InkSoft, new Vector2(2.2f, 0.25f), TextAlignmentOptions.Right,
-                    new Vector3(right - 1.1f, -size.y / 2 + 0.66f, z), false);
+                fullClock = Txt(full, "clock", "", AlibiCo.Art.Sans, 0.13f, Pal.InkSoft, new Vector2(size.x - 0.48f, 0.25f), TextAlignmentOptions.Right,
+                    new Vector3(0, -size.y / 2 + 0.68f, z), false);
+                fullClock.Fit(0.09f);
             }
 
             var tag = new GameObject("newTag").transform;
@@ -340,12 +340,10 @@ namespace AlibiCo
             if (fullTime != null) fullTime.text = t;
             var clock = Case.ClockById[Def.Clock];
             bool trusted = clock.Reference || (board != null && board.IsTrusted(Def.Clock));
-            if (fullTimeNote != null)
-                fullTimeNote.text = corr != 0 ? $"<s>{TimeFmt.Format(Def.From)}</s> {(corr > 0 ? "+" : "−")}{Mathf.Abs(corr)} min" : "";
             if (fullClock != null)
             {
                 fullClock.text = trusted
-                    ? $"<color=#4F7A55>✓</color> {clock.Name}{(corr != 0 ? $" ({(corr > 0 ? "slow" : "fast")} {Mathf.Abs(corr)} min)" : "")}"
+                    ? $"<color=#4F7A55>✓</color> {clock.Name}{(corr != 0 ? $": {(corr > 0 ? "slow" : "fast")} {Mathf.Abs(corr)} min · printed <s>{TimeFmt.Format(Def.From)}</s>" : "")}"
                     : $"<color=#C23B2E>?</color> {clock.Name}: untested";
             }
             if (chipStampMark != null)

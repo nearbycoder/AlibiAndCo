@@ -22,6 +22,13 @@ namespace AlibiCo
         public Screens Screens { get; private set; }
         public Flow Flow { get; private set; } = Flow.Boot;
         public CaseSession Session { get; private set; }
+        TitleDecor decor;
+
+        void ShowDecor(bool on)
+        {
+            if (on && decor == null) decor = TitleDecor.Build(Stage);
+            if (!on && decor != null) { Destroy(decor.gameObject); decor = null; }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -109,6 +116,7 @@ namespace AlibiCo
             EndSession();
             Flow = Flow.Title;
             SetPaused(false);
+            ShowDecor(true);
             Stage.Focus = 1f;
             if (first) { Stage.SetLampInstant(0.05f); Tween.Delay(0.6f, () => { Sfx.Play("lamp_click", 0.9f); Stage.DimLamp(0.85f, 0.25f); }); }
             else Stage.DimLamp(0.85f, 0.6f);
@@ -120,6 +128,7 @@ namespace AlibiCo
         {
             EndSession();
             Flow = Flow.Select;
+            ShowDecor(true);
             Stage.Focus = 1f;
             Stage.DimLamp(0.9f, 0.5f);
             Screens.ShowSelect();
@@ -137,6 +146,7 @@ namespace AlibiCo
             EndSession();
             Flow = Flow.Playing;
             SetPaused(false);
+            ShowDecor(false);
             Stage.Focus = 0;
             Stage.DimLamp(1f, 0.8f);
             var snap = resume ? SaveData.Current.inProgress : null;

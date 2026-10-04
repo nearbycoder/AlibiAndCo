@@ -31,7 +31,7 @@ namespace AlibiCo
         public static MemoDesk Create(Stage stage)
         {
             var go = new GameObject("Memos");
-            go.transform.SetParent(stage.transform, false);
+            go.transform.SetParent(stage.DeskRoot, false);
             var m = go.AddComponent<MemoDesk>();
             m.stage = stage;
             return m;
@@ -88,7 +88,7 @@ namespace AlibiCo
         {
             var r = stage.Notes;
             var root = new GameObject("memo").transform;
-            root.SetParent(stage.DeskRoot, false);
+            root.SetParent(transform, false);
             root.localPosition = new Vector3(r.center.x, r.center.y, -0.05f);
             root.localRotation = Quaternion.Euler(0, 0, Random.Range(-2.5f, 1.5f));
             var size = new Vector2(r.width - 0.1f, r.height - 0.15f);

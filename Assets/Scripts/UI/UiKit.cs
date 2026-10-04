@@ -258,10 +258,20 @@ namespace AlibiCo
             });
         }
 
+        static readonly System.Collections.Generic.List<RaycastResult> uiHits = new System.Collections.Generic.List<RaycastResult>();
+        static PointerEventData ped;
+
+        /// <summary>Is the mouse over an interactive piece of UI? (Explicit raycast; works with simulated input too.)</summary>
         public static bool PointerOverUi()
         {
             var es = EventSystem.current;
-            return es != null && es.IsPointerOverGameObject();
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (es == null || mouse == null) return false;
+            if (ped == null || ped.currentInputModule == null) ped = new PointerEventData(es);
+            ped.position = mouse.position.ReadValue();
+            uiHits.Clear();
+            es.RaycastAll(ped, uiHits);
+            return uiHits.Count > 0;
         }
     }
 }

@@ -48,6 +48,7 @@ namespace AlibiCo
         public float X0, X1, HeaderBottom;
         public Rect Area;
         public Vector2 IncidentSlot;
+        public TextMeshPro Badges, Timer;
         /// <summary>Chips grow when lanes are roomy (fewer people on the board).</summary>
         public float ChipScale = 1f;
         public Vector2 ChipSize => CardView.ChipSize * ChipScale;
@@ -103,6 +104,10 @@ namespace AlibiCo
             // Title paper label behind the text.
             Shapes.Slab(root, "titleCard", new Vector2(6.4f, 1.0f), 0.02f, Art.Lit(Pal.Hex("EFE6D2"), "paper", 0.1f), new Vector3(X0 + 3.0f, b.yMax - 0.62f, 0f)).transform.localRotation = Quaternion.Euler(0, 0, 0.6f);
             Pin(root, new Vector3(X0 + 0.15f, b.yMax - 0.25f, -0.05f), Pal.Hex("B33A2E"));
+            Badges = Txt.Make(root, "badges", "★★★", Art.Sans, 0.3f, Pal.Brass, new Vector2(1.4f, 0.4f), TextAlignmentOptions.Right,
+                new Vector3(X0 + 5.35f, b.yMax - 0.4f, ZLabel), false);
+            Timer = Txt.Make(root, "timer", "0:00", Art.MonoBold, 0.2f, Pal.InkSoft, new Vector2(1.4f, 0.3f), TextAlignmentOptions.Right,
+                new Vector3(X0 + 5.35f, b.yMax - 0.82f, ZLabel), false);
 
             // Lanes.
             var ids = new List<(string id, Person p, bool town)>();
@@ -238,7 +243,7 @@ namespace AlibiCo
             var b = stage.Board;
             clockLegend = new GameObject("clocks").transform;
             clockLegend.SetParent(root, false);
-            clockLegend.localPosition = new Vector3(b.xMax - 3.0f, b.yMax - 0.62f, ZLabel);
+            clockLegend.localPosition = new Vector3(b.xMax - 6.6f, b.yMax - 0.5f, ZLabel);
             float h = 0.34f + clocks.Count * 0.3f;
             Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, -h / 2 + 0.22f, 0.03f))
                 .transform.localRotation = Quaternion.Euler(0, 0, -0.8f);
@@ -273,11 +278,11 @@ namespace AlibiCo
             if (go != null)
             {
                 go.transform.localPosition = pos;
-                go.transform.localRotation = Quaternion.Euler(-90, 0, 0);
-                go.transform.localScale = Vector3.one * r * 10f;
+                go.transform.localRotation = Quaternion.Euler(-90, Random.Range(0f, 360f), 0);
+                go.transform.localScale = Vector3.one * (r / 0.0062f);
                 foreach (var rend in go.GetComponentsInChildren<MeshRenderer>())
-                    if (rend.sharedMaterial != null && rend.sharedMaterial.name.StartsWith("lit|") == false && rend.gameObject.name.Contains("head"))
-                        rend.sharedMaterial = Art.Lit(color, null, 0.55f);
+                    if (rend.gameObject.name.Contains("head"))
+                        rend.sharedMaterial = Art.Lit(color, null, 0.6f);
                 return;
             }
             var s = GameObject.CreatePrimitive(PrimitiveType.Sphere);

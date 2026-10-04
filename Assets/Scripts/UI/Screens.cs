@@ -11,8 +11,6 @@ namespace AlibiCo
     {
         readonly GameRoot root;
         CanvasGroup title, select, intro, hud, actions, pause, settings, closed, confirm;
-        TextMeshProUGUI hudTimer, hudCase;
-        Image[] hudBadges;
         CaseSession hudSession;
         RectTransform actionsPanel;
         TextMeshProUGUI actionsTitle, actionsInfo;
@@ -72,10 +70,10 @@ namespace AlibiCo
         void BuildTitle()
         {
             title = Group("Title");
-            var shade = UiKit.Panel(title.transform, "shade", new Color(0.03f, 0.03f, 0.04f, 0.55f), false);
-            shade.rectTransform.Place(new Vector2(0, 0), new Vector2(0.52f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            var grad = UiKit.Glow(title.transform, new Color(0, 0, 0, 0.5f));
-            grad.rectTransform.Place(new Vector2(0.3f, 0), new Vector2(0.75f, 1), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            var shade = UiKit.Panel(title.transform, "shade", new Color(0.03f, 0.025f, 0.03f, 0.78f), false);
+            shade.rectTransform.Place(new Vector2(0, 0), new Vector2(0.46f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            var grad = UiKit.Glow(title.transform, new Color(0.03f, 0.025f, 0.03f, 0.75f));
+            grad.rectTransform.Place(new Vector2(0.28f, -0.3f), new Vector2(0.64f, 1.3f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
             var col = UiKit.Rect(title.transform, "col");
             col.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(150, 0), new Vector2(1100, 0));
@@ -178,7 +176,9 @@ namespace AlibiCo
             d.characterSpacing = 3;
 
             var suspects = string.Join("\n", c.Suspects.Select(p => "· " + p.Name));
-            var sp = UiKit.Text(inner, "SUSPECTS\n<font=\"" + Art.Typewriter + "\"><size=26>" + suspects + "</size></font>", Art.SansBold, 18, Pal.Oxblood, TextAlignmentOptions.TopLeft);
+            var sp = UiKit.Text(inner, "SUSPECTS", Art.SansBold, 18, Pal.Oxblood, TextAlignmentOptions.TopLeft);
+            var spl = UiKit.Text(inner, suspects, Art.Typewriter, 25, Pal.Ink, TextAlignmentOptions.TopLeft);
+            spl.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -340), new Vector2(-68, 150));
             sp.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -312), new Vector2(-68, 170));
 
             string status;
@@ -302,7 +302,6 @@ namespace AlibiCo
             HideAllMenus();
             hudSession = s;
             if (hud == null) BuildHud();
-            hudCase.text = s.Case.Title.ToUpperInvariant();
             RefreshBadges(false);
             s.BadgeLost += () => RefreshBadges(true);
             s.ShowActions = ShowActions;
@@ -321,27 +320,11 @@ namespace AlibiCo
         {
             hud = Group("HUD");
             var pill = UiKit.Panel(hud.transform, "pill", new Color(0.06f, 0.07f, 0.08f, 0.78f));
-            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -18), new Vector2(640, 64));
-            hudCase = UiKit.Text(pill.transform, "", Art.SansBold, 18, CreamDim, TextAlignmentOptions.Left);
-            hudCase.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(22, 0), new Vector2(200, 0));
-            hudCase.characterSpacing = 3;
-            hudBadges = new Image[3];
-            for (int i = 0; i < 3; i++)
-            {
-                var b = UiKit.Rect(pill.transform, "badge" + i);
-                b.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(240 + i * 34, 0), new Vector2(30, 30));
-                var img = b.gameObject.AddComponent<Image>();
-                var tex = Resources.Load<Texture2D>("Icons/badge");
-                if (tex != null) img.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-                img.color = Pal.Lamp;
-                hudBadges[i] = img;
-            }
-            hudTimer = UiKit.Text(pill.transform, "0:00", Art.MonoBold, 26, Cream, TextAlignmentOptions.Right);
-            hudTimer.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(350, 0), new Vector2(100, 0));
+            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -14), new Vector2(196, 58));
             var hint = UiKit.Button(pill.transform, "Hint", () => hudSession?.Hint(), Pal.Hex("2B3540"), Cream, 22);
-            ((RectTransform)hint.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-92, 0), new Vector2(76, 44));
+            ((RectTransform)hint.transform).Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(86, 42));
             var menu = UiKit.Button(pill.transform, "Menu", () => root.SetPaused(true), Pal.Hex("2B3540"), Cream, 22);
-            ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-10, 0), new Vector2(76, 44));
+            ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
             var help = UiKit.Text(hud.transform,
                 "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront   ·   <b>right-click</b> sends it back   ·   <b>H</b> hint",
@@ -353,33 +336,22 @@ namespace AlibiCo
 
         void RefreshBadges(bool animate)
         {
-            if (hudSession == null) return;
-            int n = hudSession.Badges;
-            for (int i = 0; i < 3; i++)
+            var s = hudSession;
+            if (s == null || s.View == null || s.View.Badges == null) return;
+            int n = s.Badges;
+            s.View.Badges.text = "<color=#C9A24A>" + new string('★', n) + "</color><color=#8A8170>" + new string('☆', 3 - n) + "</color>";
+            if (animate)
             {
-                bool on = i < n;
-                var img = hudBadges[i];
-                var target = on ? Pal.Lamp : new Color(0.35f, 0.35f, 0.38f, 0.6f);
-                if (animate && !on && img.color.a > 0.9f)
-                {
-                    var tr = img.transform;
-                    Tween.Run((tr, "badge"), 0.6f, k =>
-                    {
-                        tr.localScale = Vector3.one * (1 + 0.6f * Mathf.Sin(k * Mathf.PI));
-                        tr.localRotation = Quaternion.Euler(0, 0, k * 40);
-                        img.color = Color.Lerp(Pal.Red, target, k);
-                    }, Ease.OutCubic, () => { tr.localScale = Vector3.one; tr.localRotation = Quaternion.identity; });
-                }
-                else img.color = target;
+                s.View.Badges.transform.Punch(0.35f, 0.5f);
+                Sfx.Play("badge_lost", 0.7f);
             }
         }
 
         public void Tick()
         {
-            if (hudSession != null && hudTimer != null)
+            if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {
-                hudTimer.text = Clock(hudSession.Elapsed);
-                hudTimer.gameObject.SetActive(Settings.ShowTimer);
+                hudSession.View.Timer.text = Settings.ShowTimer ? Clock(hudSession.Elapsed) : "";
             }
             if (actionsCard != null && actions != null && actions.gameObject.activeSelf)
             {
@@ -567,35 +539,36 @@ namespace AlibiCo
             var p = paper.rectTransform;
             var culprit = c.PersonById[c.Incident.Culprit];
 
-            var head = UiKit.Text(p, c.Title.ToUpperInvariant(), Art.SansBold, 22, Pal.Oxblood, TextAlignmentOptions.TopLeft);
+            var head = UiKit.Text(p, c.Title.ToUpperInvariant() + "  ·  THE CULPRIT", Art.SansBold, 22, Pal.Oxblood, TextAlignmentOptions.TopLeft);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -50), new Vector2(-120, 30));
             head.characterSpacing = 5;
             var ph = PortraitImage(p, c, culprit.Id, 170);
             ph.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -100), new Vector2(170, 200));
             ph.transform.localRotation = Quaternion.Euler(0, 0, -3);
             var name = UiKit.Text(p, culprit.Name, Art.Display, 62, Pal.Ink, TextAlignmentOptions.TopLeft);
-            name.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(270, -104), new Vector2(-330, 80));
-            var stats = UiKit.Text(p, $"{Stars(s.Badges)}    <font=\"{Art.MonoBold}\">{Clock(s.Elapsed)}</font>" + (s.UsedHints ? "    <size=20><color=#8A7A6A>with Connie's help</color></size>" : "") + (firstClear ? "" : "    <size=20><color=#8A7A6A>replay</color></size>"),
+            name.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(270, -160), new Vector2(-330, 80));
+            var stats = UiKit.Text(p, $"{Stars(s.Badges)}    {Clock(s.Elapsed)}" + (s.UsedHints ? "    <size=20><color=#8A7A6A>with Connie's help</color></size>" : "") + (firstClear ? "" : "    <size=20><color=#8A7A6A>replay</color></size>"),
                 Art.SansBold, 36, Pal.Ink, TextAlignmentOptions.TopLeft);
-            stats.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -190), new Vector2(-330, 50));
+            stats.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -242), new Vector2(-330, 50));
             var badgeNote = UiKit.Text(p, s.Badges == 3 ? "A clean case. Not a single wrong accusation." : (s.Badges == 2 ? "One false step along the way." : "Got there in the end. Connie would've been quicker."),
                 Art.SerifItalic, 24, Pal.InkSoft, TextAlignmentOptions.TopLeft);
-            badgeNote.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -246), new Vector2(-330, 40));
+            badgeNote.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -292), new Vector2(-330, 40));
 
             var body = UiKit.Text(p, string.Join("\n\n", c.Epilogue), Art.Typewriter, 24, Pal.Ink, TextAlignmentOptions.TopLeft);
-            body.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -330), new Vector2(-120, 330));
+            body.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -350), new Vector2(-120, 330));
             body.lineSpacing = 6;
             body.gameObject.AddComponent<TypeReveal>().Begin(body, 120f, 1.2f);
 
             var stampRect = UiKit.Rect(p, "stamp");
-            stampRect.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-250, -170), new Vector2(460, 150));
-            stampRect.localRotation = Quaternion.Euler(0, 0, 12);
+            stampRect.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-230, -96), new Vector2(400, 104));
+            stampRect.localRotation = Quaternion.Euler(0, 0, 9);
             var frame = UiKit.Panel(stampRect, "frame", new Color(0.66f, 0.14f, 0.17f, 0.9f), true, true);
             frame.rectTransform.Stretch();
             var inner = UiKit.Panel(frame.transform, "inner", Pal.Hex("F2EAD6"), true, true);
             inner.rectTransform.Stretch(8);
-            var st = UiKit.Text(inner.transform, "CASE CLOSED", Art.Display, 66, new Color(0.66f, 0.14f, 0.17f), TextAlignmentOptions.Center);
+            var st = UiKit.Text(inner.transform, "CASE CLOSED", Art.Display, 52, new Color(0.66f, 0.14f, 0.17f), TextAlignmentOptions.Center);
             st.rectTransform.Stretch();
+            st.textWrappingMode = TextWrappingModes.NoWrap;
             stampRect.localScale = Vector3.one * 3f;
             var cg = stampRect.gameObject.AddComponent<CanvasGroup>();
             cg.alpha = 0;

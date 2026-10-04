@@ -18,6 +18,7 @@ namespace AlibiCo
         public Transform DeskRoot { get; private set; }    // same convention, at desk height
         public Light Lamp { get; private set; }
         public Volume Volume { get; private set; }
+        public GameObject Spike { get; private set; }
 
         /// <summary>Visible region at desk height, in world XZ.</summary>
         public Rect View { get; private set; }
@@ -28,6 +29,9 @@ namespace AlibiCo
         public Rect Notes { get; private set; }  // DeskRoot local
 
         public const float BoardHeight = 0.16f;
+
+        /// <summary>Aspect the set is laid out for. Headless (batch) runs pretend to be 16:9 so captures match the game.</summary>
+        public static float LayoutAspect => Application.isBatchMode ? 16f / 9f : Mathf.Clamp((float)Screen.width / Mathf.Max(1, Screen.height), 1.3f, 2.4f);
         public const float DeskHeight = 0.0f;
 
         Vector3 camBasePos;
@@ -91,7 +95,7 @@ namespace AlibiCo
                 plane.Raycast(ray, out float d);
                 return ray.GetPoint(d);
             }
-            Cam.aspect = Mathf.Max(1.3f, (float)Screen.width / Mathf.Max(1, Screen.height));
+            Cam.aspect = LayoutAspect;
             var bl = Hit(0, 0);
             var tr = Hit(1, 1);
             var tl = Hit(0, 1);
@@ -139,7 +143,7 @@ namespace AlibiCo
             Lamp.innerSpotAngle = 70;
             Lamp.intensity = lampBase = 900f;
             Lamp.shadows = LightShadows.Soft;
-            Lamp.shadowStrength = 0.82f;
+            Lamp.shadowStrength = 0.62f;
             Lamp.shadowBias = 0.02f;
             Lamp.shadowNormalBias = 0.3f;
             lampGo.transform.position = new Vector3(View.xMin + 4.0f, 19f, View.yMax - 1.0f);
@@ -168,29 +172,20 @@ namespace AlibiCo
                 desk.GetComponent<Renderer>().sharedMaterial = Art.Lit(Pal.Hex("5A3A22"), "wood", 0.35f, 0, new Vector2(2, 1), "wood_n");
                 Destroy(desk.GetComponent<Collider>());
             }
-            desk.transform.localPosition = new Vector3(0, -0.5f, 0);
-            desk.transform.localScale = new Vector3(View.width + 12, 1, View.height + 12);
-            if (desk.GetComponent<Renderer>() == null) desk.transform.localScale = Vector3.one * 10f;
-
-            // Cork board with oak frame.
-            var bw = Board.width; var bh = Board.height;
-            var frame = Art.Spawn("board_frame", BoardRoot);
-            if (frame != null)
+            if (desk.GetComponent<Renderer>() != null)
             {
-                frame.transform.localRotation = Quaternion.Euler(-90, 0, 0);
-                frame.transform.localScale = new Vector3(bw + 0.5f, 1, bh + 0.5f) * 0.1f;
-                frame.transform.localPosition = new Vector3(0, 0, 0.0f);
+                desk.transform.localPosition = new Vector3(0, -0.5f, 0);
+                desk.transform.localScale = new Vector3(View.width + 12, 1, View.height + 12);
             }
             else
             {
-                var f = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                f.name = "board_frame";
-                f.transform.SetParent(BoardRoot, false);
-                f.transform.localScale = new Vector3(bw + 0.5f, bh + 0.5f, BoardHeight * 2);
-                f.transform.localPosition = new Vector3(0, 0, BoardHeight);
-                f.GetComponent<Renderer>().sharedMaterial = Art.Lit(Pal.Hex("4A2E1A"), "wood", 0.42f);
-                Destroy(f.GetComponent<Collider>());
+                desk.transform.localPosition = new Vector3(0, 0, -1.2f);
+                desk.transform.localScale = Vector3.one * 10f;
             }
+
+            // Cork board with an oak frame: four molding bars and corner blocks (Blender models).
+            var bw = Board.width; var bh = Board.height;
+            BuildFrame(bw, bh);
             var cork = GameObject.CreatePrimitive(PrimitiveType.Quad);
             cork.name = "cork";
             cork.transform.SetParent(BoardRoot, false);
@@ -204,18 +199,18 @@ namespace AlibiCo
             var lamp = Art.Spawn("lamp", transform);
             if (lamp != null)
             {
-                lamp.transform.position = new Vector3(View.xMin - 1.2f, 0, View.yMax + 0.6f);
-                lamp.transform.rotation = Quaternion.Euler(0, 140, 0);
+                lamp.transform.position = new Vector3(View.xMin - 0.9f, 0, View.yMax + 1.4f);
+                lamp.transform.rotation = Quaternion.Euler(0, 35, 0);
                 lamp.transform.localScale = Vector3.one * 10f;
                 lampShade = lamp.transform.Find("shade");
             }
 
-            // Desk dressing around the edges.
-            Prop("mug", new Vector3(View.xMax - 1.1f, 0, View.yMin + 1.0f), 25, 10f);
-            Prop("phone", new Vector3(View.xMin - 0.6f, 0, View.yMin + 0.7f), -18, 10f);
-            Prop("pencil", new Vector3(View.xMin + View.width * 0.17f, 0.05f, View.yMin + 0.45f), 78, 10f);
-            Prop("magnifier", new Vector3(View.xMax - 0.6f, 0, View.yMax - View.height * 0.66f), -35, 10f);
-
+            // Desk dressing peeking in from the edges (the middle of the desk is for the cards).
+            Prop("phone", new Vector3(View.xMin - 0.2f, 0, View.yMin + 0.2f), 32, 10f);
+            Prop("mug", new Vector3(View.xMax + 0.15f, 0, View.yMin + View.height * 0.36f), -20, 10f);
+            Prop("pencil", new Vector3(View.xMin + View.width * 0.165f, 0.0f, View.yMin + 0.32f), 84, 10f);
+            Prop("magnifier", new Vector3(View.xMin + View.width * 0.735f, 0, View.yMin + View.height * 0.27f), -62, 10f);
+            Spike = Prop("spike", Vector3.zero, 0, 10f);
             // Dust motes in the lamp beam.
             var dGo = new GameObject("Dust");
             dGo.transform.SetParent(transform, false);
@@ -239,6 +234,52 @@ namespace AlibiCo
             var pr = dGo.GetComponent<ParticleSystemRenderer>();
             pr.material = Art.Unlit(new Color(1, 0.9f, 0.7f, 0.5f), true, "dot");
             pr.shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        void BuildFrame(float bw, float bh)
+        {
+            var c = BoardRoot.position;
+            float y = 0f;
+            float t = 0.5f; // bar width in units (5 cm molding scaled x10)
+            var bar = Art.Model("frame_bar");
+            if (bar == null)
+            {
+                var f = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                f.name = "board_frame";
+                f.transform.SetParent(transform, false);
+                f.transform.position = c + new Vector3(0, -BoardHeight / 2, 0);
+                f.transform.localScale = new Vector3(bw + 1f, BoardHeight * 2, bh + 1f);
+                f.GetComponent<Renderer>().sharedMaterial = Art.Lit(Pal.Hex("4A2E1A"), "wood", 0.42f);
+                Destroy(f.GetComponent<Collider>());
+                return;
+            }
+            // Backing slab under the cork.
+            var back = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(back.GetComponent<Collider>());
+            back.name = "board_back";
+            back.transform.SetParent(transform, false);
+            back.transform.position = c + new Vector3(0, -BoardHeight / 2 - 0.01f, 0);
+            back.transform.localScale = new Vector3(bw + 0.4f, BoardHeight, bh + 0.4f);
+            back.GetComponent<Renderer>().sharedMaterial = Art.Lit(Pal.Hex("2E1C10"), "wood", 0.3f);
+            void Bar(Vector3 pos, float length, float yaw)
+            {
+                var go = Art.Spawn("frame_bar", transform);
+                go.transform.position = pos;
+                go.transform.rotation = Quaternion.Euler(0, yaw, 0);
+                go.transform.localScale = new Vector3(length, 10f, 10f);
+            }
+            Bar(new Vector3(c.x, y, c.z + bh / 2 + t / 2), bw, 180);
+            Bar(new Vector3(c.x, y, c.z - bh / 2 - t / 2), bw, 0);
+            Bar(new Vector3(c.x - bw / 2 - t / 2, y, c.z), bh, 90);
+            Bar(new Vector3(c.x + bw / 2 + t / 2, y, c.z), bh, -90);
+            foreach (var sx in new[] { -1, 1 })
+                foreach (var sz in new[] { -1, 1 })
+                {
+                    var k = Art.Spawn("frame_corner", transform);
+                    if (k == null) continue;
+                    k.transform.position = new Vector3(c.x + sx * (bw / 2 + t / 2), y, c.z + sz * (bh / 2 + t / 2));
+                    k.transform.localScale = Vector3.one * 10f;
+                }
         }
 
         GameObject Prop(string model, Vector3 pos, float yaw, float scale)
@@ -343,6 +384,7 @@ namespace AlibiCo
                 if (shakeTime <= 0) shakeAmount = 0;
             }
             cam.SetPositionAndRotation(pos, camBaseRot);
+            if (Application.isBatchMode && !Cam.targetTexture) Cam.aspect = LayoutAspect;
 
             if (dof != null)
             {

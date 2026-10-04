@@ -42,6 +42,7 @@ namespace AlibiCo
         Dictionary<string, BoardView.ChipPlace> chips = new Dictionary<string, BoardView.ChipPlace>();
         CardView incident;
         Transform staples;
+        public MapView Map { get; private set; }
 
         // interaction
         CardView hover, pressed, dragging, selected, linkTarget, inspecting;
@@ -70,6 +71,7 @@ namespace AlibiCo
             View?.Destroy();
             if (cardsRoot) Destroy(cardsRoot.gameObject);
             if (Memos) Destroy(Memos.gameObject);
+            if (Map) Destroy(Map.gameObject);
             HideActions?.Invoke();
             Destroy(gameObject);
         }
@@ -83,6 +85,7 @@ namespace AlibiCo
 
             View = new BoardView(stage, c);
             Memos = MemoDesk.Create(stage);
+            Map = MapView.Create(stage, c);
             cardsRoot = new GameObject("Cards").transform;
             cardsRoot.SetParent(stage.transform, false);
             staples = new GameObject("Staples").transform;
@@ -236,6 +239,17 @@ namespace AlibiCo
             return stage.DeskToWorld(new Vector2(r.xMin + 1.55f + k * 0.12f, r.center.y + 0.15f - k * 0.1f), 0.25f + k * 0.12f);
         }
 
+        void PlaceSpike()
+        {
+            if (stage.Spike == null) return;
+            var r = stage.Tray;
+            bool any = Board.Struck.Count > 0;
+            var target = stage.DeskToWorld(new Vector2(r.xMin + 1.55f, r.center.y + 0.15f), 0);
+            target.y = 0;
+            stage.Spike.SetActive(any);
+            stage.Spike.transform.position = target;
+        }
+
         readonly HashSet<string> justStruck = new HashSet<string>();
 
         void PlaceInstant(CardView v) => Place(v, false);
@@ -369,6 +383,7 @@ namespace AlibiCo
                     e.SetStruck(Board.Struck.Contains(e.Id), e.Def.Truth == Logic.Truth.Mistaken ? "MISTAKEN" : "FALSE", false);
                 }
             PlaceEchoes(animate);
+            PlaceSpike();
             if (slowClock != null)
                 Tween.Delay(1.3f, () => { if (this) RefreshVisuals(true); }, (this, "slowRefresh"));
             else RefreshVisuals(animate);
@@ -457,11 +472,15 @@ namespace AlibiCo
             Vector2 mp = mouse.position.ReadValue();
             stage.SetParallax(new Vector2(mp.x / Screen.width, mp.y / Screen.height));
             bool overUi = UiKit.PointerOverUi();
+            debugUpdates++;
+            debugOverUi = overUi;
+            debugMouse = mp;
 
             if (dragging != null) { UpdateDrag(mp, mouse); return; }
 
             // Hover.
             var hit = overUi ? null : Pick(mp, null);
+            if (DebugHoverId != null) hit = DebugHoverId == "incident" ? incident : ViewOf(DebugHoverId);
             if (hit != hover)
             {
                 var old = hover;
@@ -477,6 +496,9 @@ namespace AlibiCo
             }
             hoverTime += Time.unscaledDeltaTime;
             UpdateInspector();
+            bool overMap = (!overUi && hit == null && Map != null && MapHit(mp)) || DebugMapZoom;
+            Map.SetZoom(overMap);
+            UpdateRoutes();
 
             if (mouse.leftButton.wasPressedThisFrame && !overUi)
             {
@@ -503,6 +525,55 @@ namespace AlibiCo
                 Click(p, mp);
             }
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) Memos.Skip();
+        }
+
+        bool MapHit(Vector2 mp)
+        {
+            var ray = stage.Cam.ScreenPointToRay(mp);
+            foreach (var h in Physics.RaycastAll(ray, 200f))
+                if (h.collider.GetComponent<MapView>() != null) return true;
+            return false;
+        }
+
+        string routeKey;
+
+        /// <summary>Hovering a card shows how its owner got there and where they went next.</summary>
+        void UpdateRoutes()
+        {
+            var v = hover != null ? hover : null;
+            string key = v == null ? null : v.Id + "|" + Board.StateKey();
+            if (dragging != null) return;
+            if (key == routeKey) return;
+            routeKey = key;
+            Map.Clear();
+            if (v == null || v.IsIncident) { if (v != null) Map.Route(Case.Incident.Location, Case.Incident.Location, Pal.Red); return; }
+            var card = v.Def;
+            if (card.Town) return;
+            string lane = echoOf.ContainsKey(v) ? null : null;
+            var lanes = Board.LanesOf(card);
+            if (lanes.Count == 0 || Board.Struck.Contains(card.Id)) { Map.Route(card.Location, card.Location, Pal.Ribbon); return; }
+            lane = lanes[0];
+            if (echoOf.ContainsKey(v))
+            {
+                int idx = echoes[card.Id].IndexOf(v);
+                if (idx >= 0 && idx + 1 < card.Subjects.Count) lane = card.Subjects[idx + 1];
+            }
+            if (!Board.Lanes.TryGetValue(lane, out var evs)) return;
+            var me = evs.FirstOrDefault(e => e.Card.Id == card.Id);
+            if (me == null) { Map.Route(card.Location, card.Location, Pal.Ribbon); return; }
+            var before = evs.Where(e => e != me && e.To <= me.From).OrderByDescending(e => e.To).FirstOrDefault();
+            var after = evs.Where(e => e != me && e.From >= me.To).OrderBy(e => e.From).FirstOrDefault();
+            Map.Route(me.Location, me.Location, Pal.Ribbon);
+            if (before != null && before.Location != me.Location)
+            {
+                int need = Board.Map.Minutes(before.Location, me.Location), have = me.From - before.To;
+                Map.Route(before.Location, me.Location, need > have ? Pal.Red : Pal.Ribbon, need > have ? $"{need} min · only {Mathf.Max(0, have)}" : $"{need} min walk");
+            }
+            if (after != null && after.Location != me.Location)
+            {
+                int need = Board.Map.Minutes(me.Location, after.Location), have = after.From - me.To;
+                Map.Route(me.Location, after.Location, need > have ? Pal.Red : Pal.Slack, need > have ? $"{need} min · only {Mathf.Max(0, have)}" : $"then {need} min");
+            }
         }
 
         CardView Pick(Vector2 mp, CardView ignore)
@@ -688,10 +759,21 @@ namespace AlibiCo
             if (v.IsIncident)
             {
                 var lane = onBoard ? View.LaneAt(local) : null;
+                Map.Clear();
+                routeKey = null;
                 if (lane != null && lane.LockRoot != null)
                 {
                     dropLane = lane.Id;
                     View.PreviewIncident(Board, lane.Id);
+                    var fit = Board.Fits[lane.Id];
+                    var inc = Case.Incident;
+                    var evs = Board.Lanes[lane.Id].Where(e => !e.Hypothesis).ToList();
+                    int s0 = fit.Fits ? fit.EarliestStart : Board.IncidentFrom;
+                    var before = evs.Where(e => e.To <= s0).OrderByDescending(e => e.To).FirstOrDefault();
+                    var after = evs.Where(e => e.From >= s0 + inc.Duration).OrderBy(e => e.From).FirstOrDefault();
+                    Map.Route(inc.Location, inc.Location, Pal.Red);
+                    if (before != null) Map.Route(before.Location, inc.Location, fit.Fits ? Pal.Red : Pal.Green, $"{Board.Map.Minutes(before.Location, inc.Location)} min");
+                    if (after != null) Map.Route(inc.Location, after.Location, fit.Fits ? Pal.Red : Pal.Green, $"{Board.Map.Minutes(inc.Location, after.Location)} min");
                 }
             }
             else
@@ -1051,6 +1133,14 @@ namespace AlibiCo
         public void AutoPin(string id) { var v = views[id]; if (!Board.Pinned.Contains(id)) PinCard(v, null); }
         public void AutoLink(string a, string b) => LinkCards(views[a], views[b]);
         public void AutoAccuse(string lane) => Accuse(lane);
+
+        /// <summary>Headless testing: pretend the mouse is over this card / the map.</summary>
+        public string DebugHoverId;
+        public bool DebugMapZoom;
+        int debugUpdates;
+        bool debugOverUi;
+        Vector2 debugMouse;
+        public string DebugState => $"updates={debugUpdates} overUi={debugOverUi} mouse={debugMouse} hover={(hover ? hover.Id : "null")} drag={(dragging ? dragging.Id : "null")} locked={InputLocked}";
 
         public bool CanConfrontSelected(out string reason)
         {

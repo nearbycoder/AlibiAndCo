@@ -44,6 +44,13 @@ namespace AlibiCo
             var text = UiKit.Text(band.transform, "", Art.Typewriter, 36, Pal.Hex("F1E6CF"), TextAlignmentOptions.Center);
             text.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(1500, 130));
             UiKit.Fade(cg, true, 0.6f);
+            var map = s.Map;
+            map.Clear();
+            map.SetZoom(true);
+            var stops = c.Itineraries.TryGetValue(c.Incident.Culprit, out var st) ? st : new System.Collections.Generic.List<Stop>();
+            string pawnAt = stops.Count > 0 ? stops[0].Location : c.Incident.Location;
+            map.PawnAt(pawnAt, true);
+            map.Route(c.Incident.Location, c.Incident.Location, Pal.Red);
             yield return Wait(1.0f);
 
             var timeRx = new Regex(@"^(\d{1,2}):(\d{2})");
@@ -56,6 +63,17 @@ namespace AlibiCo
                     var target = new Vector3(s.View.TimeToX(t), cursorRoot.localPosition.y, cursorRoot.localPosition.z);
                     cursorRoot.MoveLocal(target, 0.9f, Ease.InOutCubic);
                     Sfx.Play("tick", 0.5f);
+                    // Where was the culprit at this moment (or heading next)?
+                    Stop at = null;
+                    foreach (var stop in stops) if (stop.From <= t && stop.To >= t) { at = stop; break; }
+                    if (at == null) foreach (var stop in stops) if (stop.From > t) { at = stop; break; }
+                    if (at != null && at.Location != pawnAt)
+                    {
+                        map.Route(pawnAt, at.Location, new Color(0.75f, 0.16f, 0.12f, 0.9f), $"{Locations.Map.Minutes(pawnAt, at.Location)} min");
+                        pawnAt = at.Location;
+                        map.PawnAt(pawnAt);
+                        Sfx.Play("footsteps", 0.45f);
+                    }
                 }
                 text.text = l;
                 text.maxVisibleCharacters = 0;
@@ -76,6 +94,7 @@ namespace AlibiCo
                 yield return null;
             }
             UiKit.Fade(cg, false, 0.5f, () => UnityEngine.Object.Destroy(group.gameObject));
+            map.SetZoom(false);
             stage.PushIn(0, 1.0f);
             stage.DimLamp(1f, 1f);
             yield return Wait(0.6f);
