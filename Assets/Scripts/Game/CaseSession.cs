@@ -22,6 +22,7 @@ namespace AlibiCo
         public float Elapsed { get; private set; }
         public int Badges => Mathf.Max(1, 3 - Board.Mistakes);
         public bool Solved => Board.Solved;
+        public int TrayCount => Board.TrayCards.Count();
         public bool UsedHints { get; private set; }
         public bool InputLocked;
         public event Action<CaseSession> SolvedEvent;

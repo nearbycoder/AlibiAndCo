@@ -128,13 +128,25 @@ namespace AlibiCo
                     break;
             }
             Shapes.Slab(root, "paper", size, 0.02f, Art.Lit(paper, "paper", 0.1f), Vector3.zero);
+            // A memo pad sheet: two older sheets peeking out underneath and the agency's letterhead at the foot.
+            for (int i = 1; i <= 2; i++)
+                Shapes.Slab(root, "under", size, 0.012f, Art.Lit(Color.Lerp(paper, Pal.Hex("8C8270"), 0.12f * i), "paper", 0.1f),
+                    new Vector3(0.05f * i, -0.06f * i, 0.016f * i)).transform.localRotation = Quaternion.Euler(0, 0, 1.6f * i);
+            if (m.Kind == MemoKind.Connie || m.Kind == MemoKind.Question || m.Kind == MemoKind.Notice)
+            {
+                Txt.Make(root, "letterhead", "ALIBI & CO.  ·  PRIVATE ENQUIRIES  ·  4 QUAY STREET, WRENHAVEN", Art.SansBold, 0.085f,
+                    new Color(0.45f, 0.18f, 0.16f, 0.7f), new Vector2(size.x - 0.4f, 0.16f), TextAlignmentOptions.Center,
+                    new Vector3(0, -size.y / 2 + 0.22f, -0.03f), false).characterSpacing = 4;
+                Shapes.Quad(root, "footRule", new Vector2(size.x - 0.4f, 0.012f), Art.UnlitShared(new Color(0.55f, 0.2f, 0.18f, 0.45f), true),
+                    new Vector3(0, -size.y / 2 + 0.36f, -0.03f));
+            }
             Shapes.Quad(root, "shadow", size * 1.18f, Art.Unlit(new Color(0, 0, 0, 0.3f), true, "shadow"), new Vector3(0.08f, -0.1f, 0.01f));
             var headCol = m.Kind == MemoKind.Firm || m.Kind == MemoKind.Question ? Pal.Oxblood : Pal.InkSoft;
             Txt.Make(root, "head", head, Art.SansBold, 0.15f, headCol, new Vector2(size.x - 0.4f, 0.3f), TextAlignmentOptions.Left,
                 new Vector3(0, size.y / 2 - 0.3f, -0.03f), false).Fit(0.1f);
             Shapes.Quad(root, "rule", new Vector2(size.x - 0.4f, 0.015f), Art.Unlit(new Color(0.2f, 0.2f, 0.25f, 0.35f), true), new Vector3(0, size.y / 2 - 0.5f, -0.03f));
-            body = Txt.Make(root, "body", m.Text, font, textSize, ink, new Vector2(size.x - 0.45f, size.y - 0.85f), TextAlignmentOptions.TopLeft,
-                new Vector3(0, -0.2f, -0.03f));
+            body = Txt.Make(root, "body", m.Text, font, textSize, ink, new Vector2(size.x - 0.45f, size.y - 1.15f), TextAlignmentOptions.TopLeft,
+                new Vector3(0, -0.05f, -0.03f));   // stops above the letterhead
             body.Fit(textSize * 0.62f);
             if (m.Kind == MemoKind.Witness || m.Kind == MemoKind.Firm) body.lineSpacing = -14;
             // Paper clip.

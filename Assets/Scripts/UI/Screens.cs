@@ -17,6 +17,7 @@ namespace AlibiCo
         Button actionsConfront, actionsUnpin;
         CardView actionsCard;
         Notebook notebook;
+        CanvasGroup helpGroup;
 
         static readonly Color Cream = Pal.Hex("F1E6CF");
         static readonly Color CreamDim = Pal.Hex("C9BFA8");
@@ -409,10 +410,15 @@ namespace AlibiCo
             var menu = UiKit.Button(pill.transform, "Menu", () => root.SetPaused(true), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
-            // A soft dark band so the reminder reads over whatever paper is lying on the desk.
-            var helpShade = UiKit.FadeUp(hud.transform, "helpShade", new Color(0.02f, 0.02f, 0.025f, 0.86f));
+            // A soft dark band so the reminder reads over whatever paper is lying on the desk. It steps
+            // aside when the tray needs a second row, whose times sit right where it would be.
+            var helpRoot = UiKit.Rect(hud.transform, "help");
+            helpRoot.Stretch();
+            helpGroup = helpRoot.gameObject.AddComponent<CanvasGroup>();
+            helpGroup.blocksRaycasts = false;
+            var helpShade = UiKit.FadeUp(helpRoot, "helpShade", new Color(0.02f, 0.02f, 0.025f, 0.86f));
             helpShade.rectTransform.Place(new Vector2(0.18f, 0), new Vector2(0.77f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 150));
-            var help = UiKit.Text(hud.transform,
+            var help = UiKit.Text(helpRoot,
                 "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront\n" +
                 "<b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Esc</b> menu",
                 Art.Sans, 18, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Bottom);
@@ -455,6 +461,11 @@ namespace AlibiCo
 
         public void Tick()
         {
+            if (helpGroup != null)
+            {
+                bool show = hudSession != null && !hudSession.Solved && hudSession.TrayCount <= 7;
+                helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, Time.unscaledDeltaTime * 3f);
+            }
             if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {
                 hudSession.View.Timer.text = Settings.ShowTimer ? Clock(hudSession.Elapsed) : "";

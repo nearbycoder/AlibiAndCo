@@ -380,8 +380,8 @@ def head(c, skin):
     age = c.get("age", 0.3)
     els = [
         E((0, 0.012, 0.025), 0.1, (0.84 * w, 0.98, 1.0)),                         # cranium
-        E((0, -0.018, -0.045), 0.085, (0.74 * w * jaw, 0.86, 0.78)),               # face mass / jaw
-        E((0, -0.052, -0.098), 0.04, (0.95 * jaw, 0.8, 0.7)),                      # chin
+        E((0, -0.014, -0.042), 0.085, (0.69 * w * jaw, 0.84, 0.8)),                # face mass / jaw
+        E((0, -0.05, -0.096), 0.034, (1.0 * jaw, 0.8, 0.72)),                      # chin
         E((0, -0.06, 0.035), 0.06, (1.1 * w, 0.6, 0.45)),                          # brow ridge / forehead
         E((0, 0.016, -0.135), 0.066, (0.98, 0.92, 1.2)),                           # neck
     ]
@@ -589,8 +589,8 @@ def hair(c, parts):
         return
     elif style == "long":
         els = [cap(1.11, -0.002, 0.008),
-               E((0, 0.05, -0.11), 0.088, (1.15 * w, 0.78, 1.7)),                               # fall down the back
-               E((-0.08, -0.005, -0.1), 0.042, (0.75, 0.9, 2.0)), E((0.08, -0.005, -0.1), 0.042, (0.75, 0.9, 2.0)),
+               E((0, 0.05, -0.12), 0.092, (1.2 * w, 0.72, 1.75)),                               # curtain down the back
+               E((-0.084, 0.012, -0.11), 0.034, (0.6, 1.25, 2.3)), E((0.084, 0.012, -0.11), 0.034, (0.6, 1.25, 2.3)),
                E((0.012, -0.03, 0.098), 0.046, (1.4, 1.2, 0.4))]                                # volume swept to one side
         els += [E((0, -0.125, -0.056), 0.085, (0.86 * w, 1.05, 1.02), neg=True)]
         parts.append(metaball("hair", els, col, res=0.0024, smooth_iters=16))
@@ -785,10 +785,14 @@ def torso(c, parts):
                 p, _ = surf.front(0.0, -0.36 - i * 0.04, 0.006)
                 if p:
                     parts.append(lib.sphere("button", 0.008, p, brass, seg=16, rings=8, scale=(1, 0.5, 1)))
-            for sx in (-1, 1):   # epaulettes
-                p, _ = surf.toward((sx * 0.17, 0.03, 0.0), (0, 0, -1), 0.0)
+            for sx in (-1, 1):   # epaulettes, laid on top of each shoulder and tilted with its slope
+                p, n = surf.toward((sx * 0.13, 0.04, 0.0), (0, 0, -1), 0.002)
                 if p:
-                    parts.append(lib.box("epaulette", (0.07, 0.05, 0.008), p, brass, 0.003))
+                    ep = lib.box("epaulette", (0.06, 0.045, 0.006), p, brass, 0.002)
+                    ep.rotation_euler = (0, math.radians(sx * 24), 0)
+                    ep.location = p
+                    ep.data.transform(__import__("mathutils").Matrix.Translation(-p))
+                    parts.append(ep)
     if clothes in ("whites", "cardigan", "breton", "jumper"):
         neck_col = shirt if clothes in ("cardigan", "whites") else col
         ring = lib.torus("neckline", 0.058, 0.011, (0, 0.012, -0.19), neck_col, rot=(math.radians(-8), 0, 0))

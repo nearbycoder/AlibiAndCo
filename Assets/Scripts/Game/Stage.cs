@@ -212,8 +212,9 @@ namespace AlibiCo
             Prop("magnifier", new Vector3(View.xMin + View.width * 0.735f, 0, View.yMin + View.height * 0.27f), -62, 10f);
             // Under the tray: the case folder and a fountain pen (cards sit on top of them).
             // (0.07 lifts them clear of the leather blotter, which stands 0.06 proud of the desk.)
-            Prop("folder", new Vector3(Tray.xMax - 2.0f, 0.07f, Tray.center.y - 0.35f), -9, 10f);
-            Prop("pen", new Vector3(Tray.xMin + 0.9f, 0.07f, Tray.yMin + 0.45f), 14, 10f);
+            // Cards are drawn larger than life, so the folder and pen are scaled to match them, not the desk.
+            Prop("folder", new Vector3(Tray.xMax - 2.3f, 0.07f, Tray.center.y - 0.3f), -9, 13.5f);
+            Prop("pen", new Vector3(Tray.xMin + 1.6f, 0.07f, Tray.yMin + 0.4f), 12, 22f);
             Spike = Prop("spike", Vector3.zero, 0, 10f);
             // Dust motes in the lamp beam.
             var dGo = new GameObject("Dust");
