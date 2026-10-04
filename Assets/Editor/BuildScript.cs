@@ -11,14 +11,19 @@ namespace AlibiCo.EditorTools
     public static class BuildScript
     {
         [MenuItem("Alibi & Co/Build Linux Player")]
-        public static void BuildLinux()
+        public static void BuildLinux() => BuildLinuxImpl(true);
+
+        /// <summary>For a resident (batch) Editor driven by the CLI: build without quitting.</summary>
+        public static string BuildLinuxResident() => BuildLinuxImpl(false);
+
+        static string BuildLinuxImpl(bool exitWhenBatch)
         {
             int failed = ValidateAll();
             if (failed > 0)
             {
                 Debug.LogError($"[Build] {failed} case(s) failed validation, refusing to build");
-                if (Application.isBatchMode) EditorApplication.Exit(1);
-                return;
+                if (Application.isBatchMode && exitWhenBatch) EditorApplication.Exit(1);
+                return "validation failed";
             }
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
@@ -28,8 +33,10 @@ namespace AlibiCo.EditorTools
                 options = BuildOptions.None,
             });
             var s = report.summary;
-            Debug.Log($"[Build] {s.result}: {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors, {s.totalTime.TotalSeconds:0}s -> {s.outputPath}");
-            if (Application.isBatchMode) EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);
+            var msg = $"[Build] {s.result}: {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors, {s.totalTime.TotalSeconds:0}s -> {s.outputPath}";
+            Debug.Log(msg);
+            if (Application.isBatchMode && exitWhenBatch) EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);
+            return msg;
         }
 
         [MenuItem("Alibi & Co/Validate Cases")]

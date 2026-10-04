@@ -64,7 +64,14 @@ namespace AlibiCo
             int caseArg = Array.IndexOf(args, "-alibiCase");
             int autoArg = Array.IndexOf(args, "-alibiAutoplay");
             int capArg = Array.IndexOf(args, "-alibiCapture");
+            int inputArg = Array.IndexOf(args, "-alibiInputTest");
             yield return null;
+            if (inputArg >= 0)
+            {
+                string dir = inputArg + 1 < args.Length && !args[inputArg + 1].StartsWith("-") ? args[inputArg + 1] : "/tmp/alibi-input";
+                gameObject.AddComponent<AutoPilot>().Run(dir, true, true);
+                yield break;
+            }
             if (autoArg >= 0 || capArg >= 0)
             {
                 string dir = capArg >= 0 && capArg + 1 < args.Length ? args[capArg + 1] : (autoArg + 1 < args.Length && !args[autoArg + 1].StartsWith("-") ? args[autoArg + 1] : "/tmp/alibi-autoplay");

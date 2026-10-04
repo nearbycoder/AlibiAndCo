@@ -455,12 +455,12 @@ namespace AlibiCo
             }
             // Label: walker + minutes (and the shortfall if impossible).
             float mid = (xa + Mathf.Max(xNeed, xb)) / 2;
-            string text = bad ? $"needs {need} · has {Mathf.Max(0, have)}" : $"{need} min";
-            float lw = bad ? 1.7f : 0.9f;
+            string text = bad ? $"{need} min walk · only {Mathf.Max(0, have)}" : $"{need} min";
+            float lw = bad ? 2.3f : 0.9f;
             if (bad || xb - xa > 0.75f)
             {
-                Shapes.Icon(dynamicRoot, "walk", 0.18f, bad ? Pal.Red : Pal.Ribbon, new Vector3(mid - lw / 2 + 0.02f, y - 0.2f, ZLabel));
-                Label(dynamicRoot, text, mid + 0.1f, y - 0.2f, bad ? Pal.Red : Pal.Ribbon, 0.125f, bad, lw);
+                Shapes.Icon(dynamicRoot, "walk", bad ? 0.22f : 0.18f, bad ? Pal.Red : Pal.Ribbon, new Vector3(mid - lw / 2 + 0.02f, y - 0.22f, ZLabel));
+                Label(dynamicRoot, text, mid + 0.12f, y - 0.22f, bad ? Pal.Red : Pal.Ribbon, bad ? 0.16f : 0.125f, bad, lw);
             }
         }
 
@@ -515,7 +515,7 @@ namespace AlibiCo
         public void HighlightLane(string laneId, Color tint)
         {
             foreach (var l in Lanes)
-                l.Strip.sharedMaterial = l.Id == laneId ? Art.Lit(Color.Lerp(l.StripColor, tint, 0.35f), "paper", 0.08f) : l.StripMat;
+                l.Strip.sharedMaterial = l.Id == laneId ? Art.Lit(Color.Lerp(l.StripColor, tint, 0.55f), "paper", 0.08f) : l.StripMat;
         }
 
         /// <summary>Where a card would land: a ghost marker on the lane's track.</summary>

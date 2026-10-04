@@ -432,6 +432,16 @@ namespace AlibiCo
             actionsPanel.anchoredPosition = new Vector2(x, y);
         }
 
+        /// <summary>Screen position of the Confront button if the card panel is showing (for the input test).</summary>
+        public Vector2? ConfrontButtonScreen()
+        {
+            if (actions == null || !actions.gameObject.activeSelf || actionsConfront == null || !actionsConfront.gameObject.activeInHierarchy) return null;
+            var rt = (RectTransform)actionsConfront.transform;
+            var corners = new Vector3[4];
+            rt.GetWorldCorners(corners);
+            return (Vector2)((corners[0] + corners[2]) / 2);
+        }
+
         void HideActions()
         {
             actionsCard = null;

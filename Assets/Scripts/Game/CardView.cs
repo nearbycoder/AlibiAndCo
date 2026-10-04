@@ -39,6 +39,9 @@ namespace AlibiCo
         float lift, liftTarget;
         GlowKind glowKind;
         GameObject newTagRoot;
+        Transform conflictMark, conflictBadge;
+        Material conflictMat;
+        bool inConflict;
 
         public float LiftTarget { get => liftTarget; set => liftTarget = value; }
         public float CurrentLift => lift;
@@ -268,6 +271,23 @@ namespace AlibiCo
             }
             chipHypIcon = Shapes.Icon(chip, "question", 0.26f, Pal.Blue, new Vector3(size.x / 2 - 0.16f, -0.02f, z - 0.002f));
             chipHypIcon.gameObject.SetActive(false);
+
+            // Contradiction marker: a red border and an alert badge that pulse while the card is in the red.
+            conflictMark = new GameObject("conflict").transform;
+            conflictMark.SetParent(chip, false);
+            conflictMat = Art.Unlit(Pal.RedBright, true);
+            float bw = 0.045f;
+            Shapes.Quad(conflictMark, "top", new Vector2(size.x + bw, bw), conflictMat, new Vector3(0, size.y / 2, z - 0.003f));
+            Shapes.Quad(conflictMark, "bottom", new Vector2(size.x + bw, bw), conflictMat, new Vector3(0, -size.y / 2, z - 0.003f));
+            Shapes.Quad(conflictMark, "left", new Vector2(bw, size.y + bw), conflictMat, new Vector3(-size.x / 2, 0, z - 0.003f));
+            Shapes.Quad(conflictMark, "right", new Vector2(bw, size.y + bw), conflictMat, new Vector3(size.x / 2, 0, z - 0.003f));
+            var badge = new GameObject("badge").transform;
+            badge.SetParent(conflictMark, false);
+            badge.localPosition = new Vector3(size.x / 2 - 0.02f, size.y / 2 - 0.02f, z - 0.006f);
+            Shapes.Quad(badge, "disc", new Vector2(0.3f, 0.3f), Art.Unlit(Pal.Red, true, "dot"), Vector3.zero);
+            Shapes.Icon(badge, "alert", 0.17f, Pal.PaperWhite, new Vector3(0, 0.005f, -0.002f));
+            conflictBadge = badge;
+            conflictMark.gameObject.SetActive(false);
         }
 
         string ShortSource()
@@ -426,6 +446,14 @@ namespace AlibiCo
             }
         }
 
+        public void SetConflict(bool on)
+        {
+            if (conflictMark == null) return;
+            if (on && !inConflict && conflictBadge != null) conflictBadge.Punch(0.6f, 0.45f);
+            inConflict = on;
+            conflictMark.gameObject.SetActive(on);
+        }
+
         public void SetGlow(GlowKind kind)
         {
             glowKind = kind;
@@ -463,6 +491,11 @@ namespace AlibiCo
             if (glowKind == GlowKind.LinkTarget) a *= 0.75f + 0.25f * Mathf.Sin(pulse * 9f);
             glowAlpha = Mathf.Lerp(glowAlpha, a, 1 - Mathf.Exp(-dt * 12f));
             glowMat.SetColor("_BaseColor", new Color(glowColor.r, glowColor.g, glowColor.b, glowAlpha));
+            if (inConflict && conflictMat != null)
+            {
+                float k = 0.55f + 0.45f * Mathf.Sin(pulse * 6f);
+                conflictMat.SetColor("_BaseColor", new Color(Pal.RedBright.r, Pal.RedBright.g, Pal.RedBright.b, 0.5f + 0.5f * k));
+            }
         }
     }
 }

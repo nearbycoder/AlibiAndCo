@@ -440,8 +440,11 @@ namespace AlibiCo
         {
             var conflictCards = new HashSet<string>();
             foreach (var k in Board.Conflicts) { conflictCards.Add(k.A.Card.Id); conflictCards.Add(k.B.Card.Id); }
+            var established = new HashSet<string>();
+            foreach (var k in Board.Conflicts) if (k.Established) { established.Add(k.A.Card.Id); established.Add(k.B.Card.Id); }
             foreach (var v in AllViews())
             {
+                v.SetConflict(established.Contains(v.Id) && !Board.Struck.Contains(v.Id) && v.Compact);
                 GlowKind g = GlowKind.None;
                 if (conflictCards.Contains(v.Id)) g = GlowKind.Conflict;
                 if (v == selected) g = GlowKind.Selected;
@@ -604,7 +607,7 @@ namespace AlibiCo
 
         void UpdateInspector()
         {
-            var target = hover != null && hover.Compact && hoverTime > 0.12f ? hover : null;
+            var target = hover != null && hover.Compact && hoverTime > 0.12f && selected == null ? hover : null;
             string id = target != null ? (target.IsIncident ? "incident" : target.Id) : null;
             if (id == inspectingId)
             {
@@ -618,6 +621,8 @@ namespace AlibiCo
             {
                 ins = target.IsIncident ? CardView.CreateIncident(Case, cardsRoot) : CardView.Create(target.Def, Case, cardsRoot);
                 ins.EnableCollider(false);
+                foreach (var r in ins.GetComponentsInChildren<Renderer>(true))
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 ins.name = "inspector_" + id;
                 inspectors[id] = ins;
             }
