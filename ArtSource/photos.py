@@ -342,5 +342,5 @@ def build_all(only, preview):
         fn()
         out = os.path.join(lib.RENDERS, f"photo_{pid}.png")
         lib.render_preview(out)
-        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", f"photo_{pid}.blend"))
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", f"photo_{pid}.blend"), compress=True)
         print("[photos] rendered", pid)

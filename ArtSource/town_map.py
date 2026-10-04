@@ -404,5 +404,5 @@ def build(preview):
     sc.world = world
     out = os.path.join(lib.RENDERS, "map_town_raw.png")
     lib.render_preview(out)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "town_map.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "town_map.blend"), compress=True)
     print("[map] rendered", out, "S=", S, "OX=", OX, "OY=", OY)

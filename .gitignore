@@ -22,18 +22,50 @@
 *.unityproj
 *.apk
 *.aab
+*.unitypackage
 crashlytics-build.properties
+sysinfo.txt
 .vs/
 .vscode/
 .idea/
-.DS_Store
-# Tools
+.consulo/
+
+# Python / .NET tooling
 __pycache__/
+*.py[cod]
 .venv/
+venv/
+env/
 Tools/CaseValidator/bin/
 Tools/CaseValidator/obj/
-ArtSource/*.blend1
+
+# Blender
+*.blend1
+*.blend2
 ArtSource/renders/
 
-# Gameplay recordings (Tools/record.sh)
+# Raw recordings and captures (Tools/record.sh, Tools/make_trailer.sh work files)
 /Recordings/
+/Captures/
+*.raw
+*.rgba
+
+# Archives and release builds (attached to GitHub Releases instead)
+*.zip
+*.tar.gz
+dist/
+
+# Local agent notes that don't belong in the public repo
+docs/BRIEF.md
+
+# OS and editor junk
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.directory
+.Trash-*
+*~
+*.swp
+*.log

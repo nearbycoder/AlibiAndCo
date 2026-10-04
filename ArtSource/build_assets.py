@@ -8,7 +8,8 @@
     blender -b -P ArtSource/build_assets.py -- all --preview
 
 FBX models go to Assets/Resources/Models, rendered textures to Assets/Resources/{Portraits,Photos,Textures},
-previews to ArtSource/renders. Each group also saves its .blend source in ArtSource/.
+previews to ArtSource/renders. Each group also saves its .blend source in ArtSource/ (zstd-compressed
+to keep the repository lean).
 """
 import os
 import sys
@@ -51,7 +52,7 @@ def do_props(only, preview):
             root.location.x = x
             root.location.y = 2.0
             x += props.PREVIEW_SIZE.get(n, 0.3) * 1.6
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "props.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "props.blend"), compress=True)
 
 
 def do_cards(only, preview):

@@ -963,4 +963,4 @@ def build_all(only, preview):
         b = build_character(cid)
         b.location.x = x
         x += 0.5
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "portraits.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "portraits.blend"), compress=True)
