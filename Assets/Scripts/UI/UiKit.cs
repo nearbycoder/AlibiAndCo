@@ -12,7 +12,7 @@ namespace AlibiCo
     {
         public static Canvas Canvas { get; private set; }
         public static RectTransform Root { get; private set; }
-        static Sprite rounded, roundedSmall, white, softGlow;
+        static Sprite rounded, roundedSmall, white, softGlow, btnFace, btnRim, softShadow;
 
         public static readonly Color PanelDark = Pal.Hex("15191E", 0.92f);
         public static readonly Color PanelPaper = Pal.Hex("F1E8D4");
@@ -25,7 +25,7 @@ namespace AlibiCo
         static void ResetStatics()   // see Art.ResetStatics
         {
             Canvas = null; Root = null; scaler = null; ped = null;
-            rounded = roundedSmall = white = softGlow = null;
+            rounded = roundedSmall = white = softGlow = btnFace = btnRim = softShadow = null;
         }
 
         /// <summary>Text size setting: a smaller reference resolution makes every UI element larger.</summary>
@@ -83,6 +83,9 @@ namespace AlibiCo
             roundedSmall = MakeRounded(32, 8);
             white = MakeRounded(8, 0);
             softGlow = MakeGlow(64);
+            btnFace = MakeButtonFace(64, 12);
+            btnRim = MakeRim(64, 12);
+            softShadow = MakeSoftShadow(96, 28);
         }
 
         static Sprite MakeRounded(int size, int radius)
@@ -102,6 +105,111 @@ namespace AlibiCo
             tex.Apply();
             int b = Mathf.Max(1, radius);
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
+
+        /// <summary>A rounded face with the light baked in: brighter at the top, a little darker at the bottom.</summary>
+        static Sprite MakeButtonFace(int size, int radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Max(0, Mathf.Max(radius - x - 0.5f, x + 0.5f - (size - radius)));
+                    float dy = Mathf.Max(0, Mathf.Max(radius - y - 0.5f, y + 0.5f - (size - radius)));
+                    float a = Mathf.Clamp01(radius - Mathf.Sqrt(dx * dx + dy * dy) + 0.5f);
+                    float t = (y + 0.5f) / size;                  // 0 bottom .. 1 top
+                    float v = Mathf.Lerp(0.82f, 1.0f, Mathf.SmoothStep(0, 1, t));
+                    byte c = (byte)(v * 255);
+                    px[y * size + x] = new Color32(c, c, c, (byte)(a * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        }
+
+        /// <summary>A thin rounded outline, brighter along the top edge: a bevel highlight laid over a button.</summary>
+        static Sprite MakeRim(int size, int radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Max(0, Mathf.Max(radius - x - 0.5f, x + 0.5f - (size - radius)));
+                    float dy = Mathf.Max(0, Mathf.Max(radius - y - 0.5f, y + 0.5f - (size - radius)));
+                    float d = radius - Mathf.Sqrt(dx * dx + dy * dy);          // distance inside the edge
+                    float edge = Mathf.Clamp01(d + 0.5f) * Mathf.Clamp01(2.0f - d);
+                    float top = Mathf.Lerp(0.35f, 1f, (y + 0.5f) / size);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(edge * top * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        }
+
+        /// <summary>A blurred rounded rectangle for soft drop shadows (9-sliced, border = blur).</summary>
+        static Sprite MakeSoftShadow(int size, int blur)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[size * size];
+            float inner = size / 2f - blur;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Max(0, Mathf.Abs(x + 0.5f - size / 2f) - inner);
+                    float dy = Mathf.Max(0, Mathf.Abs(y + 0.5f - size / 2f) - inner);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) / blur;
+                    float a = Mathf.Clamp01(1 - d);
+                    px[y * size + x] = new Color32(0, 0, 0, (byte)(a * a * (3 - 2 * a) * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(blur + 2, blur + 2, blur + 2, blur + 2));
+        }
+
+        /// <summary>
+        /// A soft shadow behind a floating panel. It's a sibling placed just before the panel and
+        /// follows the panel's rect every frame, so callers can keep placing panels as usual.
+        /// </summary>
+        public static Image DropShadow(RectTransform target, float spread = 26f, float alpha = 0.55f, Vector2? offset = null)
+        {
+            var r = Rect(target.parent, target.name + "_shadow");
+            r.SetSiblingIndex(target.GetSiblingIndex());
+            var img = r.gameObject.AddComponent<Image>();
+            img.sprite = softShadow;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0, 0, 0, alpha);
+            img.raycastTarget = false;
+            r.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // safe inside layout groups
+            var f = r.gameObject.AddComponent<ShadowFollow>();
+            f.Target = target;
+            f.Spread = spread;
+            f.Offset = offset ?? new Vector2(0, -10);
+            return img;
+        }
+
+        public sealed class ShadowFollow : MonoBehaviour
+        {
+            public RectTransform Target;
+            public float Spread;
+            public Vector2 Offset;
+
+            void LateUpdate()
+            {
+                if (Target == null) { Destroy(gameObject); return; }
+                var r = (RectTransform)transform;
+                r.anchorMin = Target.anchorMin;
+                r.anchorMax = Target.anchorMax;
+                r.pivot = Target.pivot;
+                r.sizeDelta = Target.sizeDelta + new Vector2(Spread * 2, Spread * 2);
+                // Grown by Spread on every side whatever the pivot.
+                r.anchoredPosition = Target.anchoredPosition + Offset + (Target.pivot - new Vector2(0.5f, 0.5f)) * (Spread * 2);
+                r.localScale = Target.localScale;
+                r.localRotation = Target.localRotation;
+                bool on = Target.gameObject.activeInHierarchy;
+                if (gameObject.activeSelf != on) gameObject.SetActive(on);
+            }
         }
 
         static Sprite MakeGlow(int size)
@@ -176,6 +284,28 @@ namespace AlibiCo
             return img;
         }
 
+        /// <summary>Solid at the bottom, fading to clear at the top, with soft left and right ends.</summary>
+        public static Image FadeUp(Transform parent, string name, Color color)
+        {
+            const int w = 128, h = 64;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float v = 1 - Mathf.SmoothStep(0.45f, 1, (y + 0.5f) / h);   // solid for the lower half
+                    float e = Mathf.SmoothStep(0, 1, Mathf.Min(x + 0.5f, w - x - 0.5f) / (w * 0.18f));
+                    px[y * w + x] = new Color32(255, 255, 255, (byte)(v * e * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            var img = Rect(parent, name).gameObject.AddComponent<Image>();
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f));
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
         public static Image Glow(Transform parent, Color color)
         {
             var r = Rect(parent, "glow");
@@ -201,32 +331,51 @@ namespace AlibiCo
             return t;
         }
 
+        /// <summary>Button feel: eases toward a brighter colour and a slight lift on hover, dips on press.</summary>
         public sealed class Hover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
         {
             public Image Target;
             public Color Normal, Hot;
             public bool Interactable = true;
-            Vector3 baseScale = Vector3.one;
+            bool over, down;
+            float k;
+
             public void OnPointerEnter(PointerEventData e)
             {
-                if (!Interactable) return;
-                if (Target) Target.color = Hot;
-                transform.localScale = baseScale * 1.03f;
-                Sfx.Play("ui_hover", 0.35f);
+                over = true;
+                if (Interactable) Sfx.Play("ui_hover", 0.35f);
             }
-            public void OnPointerExit(PointerEventData e)
+            public void OnPointerExit(PointerEventData e) { over = false; down = false; }
+            public void OnPointerDown(PointerEventData e) { down = Interactable; }
+            public void OnPointerUp(PointerEventData e) { down = false; }
+            void OnDisable() { over = down = false; k = 0; transform.localScale = Vector3.one; if (Target) Target.color = Normal; }
+
+            void Update()
             {
-                if (Target) Target.color = Normal;
-                transform.localScale = baseScale;
+                float goal = Interactable && over ? 1f : 0f;
+                k = Mathf.MoveTowards(k, goal, Time.unscaledDeltaTime * 8f);
+                float e = k * k * (3 - 2 * k);
+                if (Target && Interactable) Target.color = Color.Lerp(Normal, Hot, e);
+                float scale = 1f + 0.025f * e - (down ? 0.035f : 0f);
+                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * scale, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 20f));
             }
-            public void OnPointerDown(PointerEventData e) { if (Interactable) transform.localScale = baseScale * 0.97f; }
-            public void OnPointerUp(PointerEventData e) { transform.localScale = baseScale; }
         }
 
         public static Button Button(Transform parent, string label, Action onClick, Color? bg = null, Color? fg = null,
             float fontSize = 30, string font = null, string name = null)
         {
             var img = Panel(parent, name ?? ("btn_" + label), bg ?? ButtonDark, true, true);
+            img.sprite = btnFace;
+            var drop = img.gameObject.AddComponent<Shadow>();
+            drop.effectColor = new Color(0, 0, 0, 0.45f);
+            drop.effectDistance = new Vector2(0, -3);
+            var rim = Rect(img.transform, "rim");
+            rim.Stretch();
+            var rimImg = rim.gameObject.AddComponent<Image>();
+            rimImg.sprite = btnRim;
+            rimImg.type = Image.Type.Sliced;
+            rimImg.color = new Color(1, 1, 1, 0.16f);
+            rimImg.raycastTarget = false;
             var b = img.gameObject.AddComponent<Button>();
             b.transition = Selectable.Transition.None;
             var h = img.gameObject.AddComponent<Hover>();
@@ -235,6 +384,7 @@ namespace AlibiCo
             h.Hot = bg.HasValue ? Color.Lerp(bg.Value, Color.white, 0.12f) : ButtonHover;
             var t = Text(img.transform, label, font ?? Art.SansBold, fontSize, fg ?? Pal.Paper, TextAlignmentOptions.Center, "label");
             t.rectTransform.Stretch(6);
+            t.characterSpacing = 1.5f;
             b.onClick.AddListener(() =>
             {
                 if (!h.Interactable) return;
@@ -289,10 +439,23 @@ namespace AlibiCo
             var row = Rect(parent, "toggle_" + label);
             var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
             t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.75f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            var box = Panel(row, "box", Pal.Hex("3A434C"), true, true);
+            var box = Panel(row, "box", Pal.Hex("1E252C"), true, true);
             box.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(44, 44));
+            var outline = Rect(box.transform, "outline");
+            outline.Stretch();
+            var ol = outline.gameObject.AddComponent<Image>();
+            ol.sprite = btnRim;
+            ol.type = Image.Type.Sliced;
+            ol.color = new Color(1, 1, 1, 0.45f);
+            ol.raycastTarget = false;
             var check = Panel(box.transform, "check", Pal.Lamp, true, true);
-            check.rectTransform.Stretch(9);
+            check.rectTransform.Stretch(4);
+            var tick = Rect(check.transform, "tick");
+            tick.Stretch(5);
+            var tickImg = tick.gameObject.AddComponent<Image>();
+            tickImg.sprite = Art.Sprite("Icons/check");
+            tickImg.color = Pal.Hex("1E1A14");
+            tickImg.raycastTarget = false;
             var tg = row.gameObject.AddComponent<Toggle>();
             tg.targetGraphic = box;
             tg.graphic = check;

@@ -130,7 +130,7 @@ namespace AlibiCo
             }
 
             var personLane = Lanes.FirstOrDefault(l => !l.IsTown);
-            if (personLane != null) ChipScale = Mathf.Clamp((personLane.Height - 0.5f) / 1.2f, 0.9f, 1.4f);
+            if (personLane != null) ChipScale = Mathf.Clamp((personLane.Height - 0.42f) / 1.15f, 1.0f, 1.4f);
 
             BuildRuler();
             BuildIncidentBand();
@@ -149,6 +149,13 @@ namespace AlibiCo
                 new Vector3((left + right) / 2, (lane.Top + lane.Bottom) / 2, ZStrip + 0.012f));
             lane.Strip = strip;
             strip.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            // Index-tab panel for the name column, with a ruled edge where the timeline starts.
+            float tabRight = X0 - 0.38f;
+            var tabCol = lane.IsTown ? Pal.Hex("D9CFBB") : Pal.Hex("DED0B2");
+            Shapes.Quad(root, "laneTab", new Vector2(tabRight - left, h - 0.12f), Art.Lit(tabCol, "paper", 0.06f),
+                new Vector3((left + tabRight) / 2, (lane.Top + lane.Bottom) / 2, ZStrip - 0.001f));
+            Line(root, new Vector3(tabRight, lane.Bottom + 0.06f, ZStrip - 0.002f), new Vector3(tabRight, lane.Top - 0.06f, ZStrip - 0.002f), 0.018f,
+                new Color(0.55f, 0.18f, 0.16f, 0.5f));
             Pin(root, new Vector3(left + 0.12f, lane.Top - 0.16f, ZStrip - 0.04f), Pal.Hex("8A8F96"), 0.07f);
             Pin(root, new Vector3(right - 0.12f, lane.Top - 0.16f, ZStrip - 0.04f), Pal.Hex("8A8F96"), 0.07f);
 
@@ -175,7 +182,7 @@ namespace AlibiCo
                     new Vector3(colLeft + 0.75f + 0.85f, (lane.Top + lane.Bottom) / 2 - 0.16f, ZLabel), false);
                 return;
             }
-            float ph = Mathf.Min(h - 0.24f, 1.3f);
+            float ph = Mathf.Min(h - 0.2f, 1.3f);
             var portraitSize = new Vector2(ph * 0.84f, ph);
             var pr = Portraits.Make(root, c, lane.Id, portraitSize, false);
             pr.localPosition = new Vector3(colLeft + portraitSize.x / 2 + 0.05f, (lane.Top + lane.Bottom) / 2, -0.03f);
@@ -183,10 +190,14 @@ namespace AlibiCo
             Pin(root, pr.localPosition + new Vector3(0, portraitSize.y / 2 - 0.1f, -0.06f), Pal.Hex("B8402F"), 0.08f);
             float tx = colLeft + portraitSize.x + 0.2f;
             float tw = X0 - 0.45f - tx;
-            Txt.Make(root, "role", lane.Person.IsSuspect ? "SUSPECT" : "WITNESS", Art.SansBold, 0.12f, lane.Person.IsSuspect ? Pal.Oxblood : Pal.InkSoft,
+            var role = Txt.Make(root, "role", lane.Person.IsSuspect ? "SUSPECT" : "WITNESS", Art.SansBold, 0.12f, lane.Person.IsSuspect ? Pal.Oxblood : Pal.InkSoft,
                 new Vector2(tw, 0.2f), TextAlignmentOptions.Left, new Vector3(tx + tw / 2, lane.Top - 0.3f, ZLabel), false);
-            Txt.Make(root, "name", lane.Person.Name.Replace(" ", "\n"), Art.Serif, 0.2f, Pal.Ink, new Vector2(tw, 0.7f), TextAlignmentOptions.TopLeft,
-                new Vector3(tx + tw / 2, lane.Top - 0.78f, ZLabel), true).Fit(0.13f);
+            role.characterSpacing = 8;
+            var nm = Txt.Make(root, "name", lane.Person.Name.Replace("Capt. ", "Capt.\u00A0").Replace(" ", "\n").Replace("\u00A0", " "), Art.Serif, 0.21f, Pal.Ink,
+                new Vector2(tw + 0.05f, 0.78f), TextAlignmentOptions.TopLeft, new Vector3(tx + tw / 2, lane.Top - 0.82f, ZLabel), true);
+            nm.lineSpacing = -18;
+            nm.fontStyle = FontStyles.Bold;
+            nm.Fit(0.17f);
 
             if (lane.Person.IsSuspect) BuildLock(lane);
         }
@@ -197,22 +208,27 @@ namespace AlibiCo
             lane.LockRoot = new GameObject("lock_" + lane.Id).transform;
             lane.LockRoot.SetParent(root, false);
             lane.LockRoot.localPosition = new Vector3(X1 + 0.35f + (b.xMax - X1 - 0.35f) / 2, (lane.Top + lane.Bottom) / 2 + 0.05f, ZLabel);
-            Shapes.Slab(lane.LockRoot, "tag", new Vector2(1.25f, 1.05f), 0.015f, Art.Lit(Pal.Hex("E8DFC9"), "paper", 0.1f), new Vector3(0, 0, 0.03f));
-            lane.LockIcon = Shapes.Icon(lane.LockRoot, "lock", 0.42f, Pal.Green, new Vector3(0, 0.22f, -0.01f));
-            lane.LockLabel = Txt.Make(lane.LockRoot, "label", "COVERED", Art.SansBold, 0.15f, Pal.Green, new Vector2(1.2f, 0.25f), TextAlignmentOptions.Center,
-                new Vector3(0, -0.13f, -0.01f), false);
-            lane.LockNote = Txt.Make(lane.LockRoot, "note", "", Art.Sans, 0.12f, Pal.InkSoft, new Vector2(1.2f, 0.22f), TextAlignmentOptions.Center,
+            Shapes.Slab(lane.LockRoot, "tag", new Vector2(1.36f, 1.12f), 0.015f, Art.Lit(Pal.Hex("EEE6D2"), "paper", 0.1f), new Vector3(0, 0, 0.03f));
+            lane.LockIcon = Shapes.Icon(lane.LockRoot, "lock", 0.46f, Pal.Green, new Vector3(0, 0.24f, -0.01f));
+            lane.LockLabel = Txt.Make(lane.LockRoot, "label", "COVERED", Art.SansBold, 0.17f, Pal.Green, new Vector2(1.3f, 0.26f), TextAlignmentOptions.Center,
+                new Vector3(0, -0.12f, -0.01f), false);
+            lane.LockLabel.characterSpacing = 6;
+            lane.LockNote = Txt.Make(lane.LockRoot, "note", "", Art.Sans, 0.13f, Pal.Ink, new Vector2(1.3f, 0.22f), TextAlignmentOptions.Center,
                 new Vector3(0, -0.34f, -0.01f), false);
         }
 
         void BuildRuler()
         {
             float y = HeaderBottom + 0.2f;
+            // A strip of paper under the times so they read against the cork.
+            var strip = Shapes.Slab(root, "rulerStrip", new Vector2(X1 - X0 + 1.1f, 0.5f), 0.01f, Art.Lit(Pal.Hex("EDE5D3"), "paper", 0.08f),
+                new Vector3((X0 + X1) / 2, y - 0.02f, ZStrip + 0.01f));
+            strip.transform.localRotation = Quaternion.Euler(0, 0, -0.25f);
             for (int m = Mathf.CeilToInt(c.SpanFrom / 15f) * 15; m <= c.SpanTo; m += 15)
             {
                 float x = TimeToX(m);
                 bool hour = m % 60 == 0;
-                Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, hour ? 0.22f : 0.18f, hour ? Pal.Ink : Pal.InkSoft,
+                Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, hour ? 0.24f : 0.19f, hour ? Pal.Ink : Pal.InkSoft,
                     new Vector2(1.2f, 0.3f), TextAlignmentOptions.Center, new Vector3(x, y + 0.04f, ZLabel), false);
                 Line(root, new Vector3(x, y - 0.18f, ZGrid), new Vector3(x, y - 0.06f, ZGrid), 0.02f, new Color(0.1f, 0.12f, 0.16f, 0.6f));
             }
@@ -265,7 +281,7 @@ namespace AlibiCo
                 bool known = board.IsTrusted(k.Id);
                 int corr = board.Correction(k.Id);
                 kv.Value.text = known
-                    ? $"<color=#4F7A55>✓</color>  {k.Name}  <color=#4F7A55>{(corr == 0 ? "right" : (corr > 0 ? $"{corr} min slow" : $"{-corr} min fast"))}</color>"
+                    ? $"<color=#4F7A55>✔</color>  {k.Name}  <color=#4F7A55>{(corr == 0 ? "right" : (corr > 0 ? $"{corr} min slow" : $"{-corr} min fast"))}</color>"
                     : $"<color=#C23B2E>?</color>  {k.Name}  <color=#8A6A5A>untested</color>";
             }
         }
@@ -417,8 +433,8 @@ namespace AlibiCo
                 float x0 = TimeToX(o0), x1 = Mathf.Max(TimeToX(o1), x0 + 0.12f);
                 var hatch = Shapes.Quad(dynamicRoot, "overlap", new Vector2(x1 - x0, 0.34f), hatchMat, new Vector3((x0 + x1) / 2, lane.Track, ZRibbon - 0.004f));
                 SetTiling(hatch, new Vector2((x1 - x0) / 0.34f, 1));
-                Shapes.Icon(dynamicRoot, "alert", 0.26f, Pal.Red, new Vector3(x0 - 0.2f, lane.Track - 0.3f, ZLabel));
-                Label(dynamicRoot, k.Established ? "TWO PLACES AT ONCE" : "if it were them…", x0 + 1.05f, lane.Track - 0.3f, Pal.Red, 0.15f, true, 2.2f).alignment = TextAlignmentOptions.Left;
+                if (k.Established) Pill(dynamicRoot, "TWO PLACES AT ONCE", x1 + 0.12f, lane.Track - 0.22f, Pal.Red, 0.13f, "alert");
+                else Label(dynamicRoot, "if it were them…", x1 + 1.05f, lane.Track - 0.22f, Pal.Red, 0.14f, true, 2.0f);
             }
         }
 
@@ -457,10 +473,12 @@ namespace AlibiCo
             float mid = (xa + Mathf.Max(xNeed, xb)) / 2;
             string text = bad ? $"{need} min walk · only {Mathf.Max(0, have)}" : $"{need} min";
             float lw = bad ? 2.3f : 0.9f;
-            if (bad || xb - xa > 0.75f)
+            if (bad)
+                Pill(dynamicRoot, text.ToUpperInvariant(), mid - 1.1f, y - 0.22f, hyp ? new Color(Pal.Red.r, Pal.Red.g, Pal.Red.b, 0.7f) : Pal.Red, 0.13f, "walk");
+            else if (xb - xa > 0.75f)
             {
-                Shapes.Icon(dynamicRoot, "walk", bad ? 0.22f : 0.18f, bad ? Pal.Red : Pal.Ribbon, new Vector3(mid - lw / 2 + 0.02f, y - 0.22f, ZLabel));
-                Label(dynamicRoot, text, mid + 0.12f, y - 0.22f, bad ? Pal.Red : Pal.Ribbon, bad ? 0.16f : 0.125f, bad, lw);
+                Shapes.Icon(dynamicRoot, "walk", 0.18f, Pal.Ribbon, new Vector3(mid - lw / 2 + 0.02f, y - 0.22f, ZLabel));
+                Label(dynamicRoot, text, mid + 0.12f, y - 0.22f, Pal.Ribbon, 0.13f, false, lw);
             }
         }
 
@@ -480,6 +498,22 @@ namespace AlibiCo
                 tiled[key] = m;
             }
             r.sharedMaterial = m;
+        }
+
+        /// <summary>A solid tag with white type, left edge at x: readable over ribbons, lines and lane edges.</summary>
+        static TextMeshPro Pill(Transform parent, string text, float x, float y, Color bg, float size, string icon = null)
+        {
+            float pad = size * 0.6f, iconW = icon != null ? size * 1.35f : 0f, h = size * 1.85f;
+            var t = Txt.Make(parent, "pill", text, Art.SansBold, size, Color.white, new Vector2(6f, h), TextAlignmentOptions.Left,
+                new Vector3(0, y, ZLabel - 0.004f), false);
+            t.characterSpacing = 4;
+            float textW = t.GetPreferredValues(text).x;
+            float w = pad + iconW + textW + pad;
+            t.rectTransform.sizeDelta = new Vector2(textW + 0.02f, h);
+            t.transform.localPosition = new Vector3(x + pad + iconW + textW / 2 + 0.01f, y, ZLabel - 0.004f);
+            Shapes.Quad(parent, "pillBg", new Vector2(w, h), Art.UnlitShared(bg), new Vector3(x + w / 2, y, ZLabel - 0.002f));
+            if (icon != null) Shapes.Icon(parent, icon, size * 1.15f, Color.white, new Vector3(x + pad + iconW * 0.4f, y, ZLabel - 0.005f));
+            return t;
         }
 
         static TextMeshPro Label(Transform parent, string text, float x, float y, Color col, float size, bool bold, float width = 3f)

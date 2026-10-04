@@ -101,7 +101,7 @@ def cork():
     pits = rng.random((s, s)) > 0.996
     h[pits] *= 0.3
     h = normalize(h)
-    img = tint(h, (120, 82, 46), (226, 182, 128))
+    img = tint(h, (92, 66, 44), (196, 160, 120))   # muted, browner cork; the lamp supplies the warmth
     save_rgb(img, "cork")
     save_rgb(height_to_normal(h, 3.5), "cork_n")
 

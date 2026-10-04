@@ -33,11 +33,12 @@ namespace AlibiCo
             group.alpha = 0;
             r.gameObject.SetActive(false);
 
-            var shade = UiKit.Panel(r, "shade", new Color(0.02f, 0.02f, 0.03f, 0.55f), false);
+            var shade = UiKit.Panel(r, "shade", new Color(0.02f, 0.02f, 0.03f, 0.7f), false);
             shade.rectTransform.Stretch();
             shade.gameObject.AddComponent<Button>().onClick.AddListener(Hide);
 
             var panel = UiKit.Panel(r, "panel", UiKit.PanelPaper).rectTransform;
+            UiKit.DropShadow(panel, 40f, 0.65f, new Vector2(8, -18));
             panel.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(1320, 820));
             UiKit.FitInCanvas(panel);
             var margin = UiKit.Panel(panel, "margin", new Color(0.72f, 0.22f, 0.2f, 0.55f), false);
@@ -115,7 +116,7 @@ namespace AlibiCo
             var b = s.Board;
             var c = s.Case;
             var sb = new StringBuilder();
-            const string ok = "<color=#4F7A55>✓</color>  ", open = "<color=#8E2B2B>•</color>  ";
+            const string ok = "<color=#4F7A55>✔</color>  ", open = "<color=#8E2B2B>•</color>  ";
 
             var inc = c.Incident;
             sb.Append(Head).Append("THE INCIDENT").Append(HeadEnd).Append('\n');

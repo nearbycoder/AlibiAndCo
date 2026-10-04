@@ -133,8 +133,11 @@ namespace AlibiCo
         void BuildSelect()
         {
             select = Group("Select");
-            var shade = UiKit.Panel(select.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.6f), false);
+            var shade = UiKit.Panel(select.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.72f), false);
             shade.rectTransform.Stretch();
+            var top = UiKit.FadeUp(select.transform, "headShade", new Color(0.02f, 0.02f, 0.03f, 0.85f));
+            top.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 300));
+            top.rectTransform.localScale = new Vector3(1, -1, 1);   // solid at the top edge
             var head = UiKit.Text(select.transform, "Case Files", Art.Display, 84, Cream, TextAlignmentOptions.Center);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -70), new Vector2(0, 110));
             var sub = UiKit.Text(select.transform, "ALIBI & CO. · WRENHAVEN · AUTUMN 1986", Art.SansBold, 22, Pal.Lamp, TextAlignmentOptions.Center);
@@ -161,6 +164,7 @@ namespace AlibiCo
             bool inProgress = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
 
             var folder = UiKit.Panel(parent, "folder_" + c.Id, unlocked ? Pal.Hex("D8B97E") : Pal.Hex("6C6253"));
+            UiKit.DropShadow(folder.rectTransform, 30f, 0.6f, new Vector2(6, -14));
             var tab = UiKit.Panel(folder.transform, "tab", unlocked ? Pal.Hex("D8B97E") : Pal.Hex("6C6253"));
             tab.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 0), new Vector2(30, -18), new Vector2(200, 56));
             var tabText = UiKit.Text(tab.transform, $"CASE No. {index + 1}", Art.SansBold, 22, Pal.Ink, TextAlignmentOptions.Center);
@@ -191,6 +195,17 @@ namespace AlibiCo
             else status = "<color=#8E2B2B>OPEN</color>\n<size=20>" + c.Lesson + "</size>";
             var st = UiKit.Text(inner, status, Art.SansBold, 28, Pal.Ink, TextAlignmentOptions.BottomLeft);
             st.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(34, 30), new Vector2(-68, 90));
+            if (unlocked)
+            {
+                var clip = UiKit.Rect(folder.transform, "clip");
+                clip.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-60, -6), new Vector2(44, 80));
+                clip.localRotation = Quaternion.Euler(0, 0, -6);
+                var ci = clip.gameObject.AddComponent<Image>();
+                ci.sprite = Art.Sprite("Icons/clip");
+                ci.color = Pal.Hex("8E969E");
+                ci.raycastTarget = false;
+            }
+            if (rec.solved) Stamp(inner, "CLOSED", new Color(0.18f, 0.42f, 0.31f, 0.8f), new Vector2(-22, -462), -10f);
 
             if (unlocked)
             {
@@ -222,6 +237,7 @@ namespace AlibiCo
             var shade = UiKit.Panel(intro.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.65f), false);
             shade.rectTransform.Stretch();
             var paper = UiKit.Panel(intro.transform, "paper", Pal.Hex("F2EAD6"));
+            UiKit.DropShadow(paper.rectTransform, 40f, 0.65f, new Vector2(8, -18));
             paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240, 900));
             UiKit.FitInCanvas(paper.rectTransform, 20);
             paper.transform.localRotation = Quaternion.Euler(0, 0, -0.6f);
@@ -238,8 +254,38 @@ namespace AlibiCo
             var body = UiKit.Text(p, string.Join("\n\n", c.Intro), Art.Typewriter, 25, Pal.Ink, TextAlignmentOptions.TopLeft);
             body.rectTransform.Place(new Vector2(0, 1), new Vector2(0.62f, 1), new Vector2(0, 1), new Vector2(60, -236), new Vector2(-40, 520));
             body.lineSpacing = 8;
+            // Measure the write-up before the typewriter hides it.
+            body.ForceMeshUpdate();
+            float bodyH = body.GetPreferredValues(body.text, 1240 * 0.62f - 100, 0).y;
             var reveal = body.gameObject.AddComponent<TypeReveal>();
             reveal.Begin(body, 160f);
+
+            // Case-file furniture: a paperclip on the top edge, a rubber stamp, and the Gazette's headline
+            // as a press cutting when the write-up leaves room for it.
+            var clip = UiKit.Rect(p, "clip");
+            clip.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(34, 8), new Vector2(54, 96));
+            clip.localRotation = Quaternion.Euler(0, 0, 8);
+            var clipImg = clip.gameObject.AddComponent<Image>();
+            clipImg.sprite = Art.Sprite("Icons/clip");
+            clipImg.color = Pal.Hex("8E969E");
+            clipImg.raycastTarget = false;
+            var rec = SaveData.Current.Record(c.Id);
+            bool resumeFile = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
+            string stampText = rec.solved ? "CLOSED" : resumeFile ? "IN PROGRESS" : "OPEN FILE";
+            var stampCol = rec.solved ? new Color(0.18f, 0.42f, 0.31f, 0.85f) : new Color(0.66f, 0.14f, 0.17f, 0.82f);
+            Stamp(p, stampText, stampCol, new Vector2(-70, -64), -8f);
+            var news = Art.Tex("news_" + c.Id);
+            if (news != null && 236 + bodyH + 30 < 900 - 140 - 150)
+            {
+                var cut = UiKit.Rect(p, "cutting");
+                cut.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(64, 146), new Vector2(560, 140));
+                cut.localRotation = Quaternion.Euler(0, 0, 1.2f);
+                UiKit.DropShadow(cut, 10f, 0.35f, new Vector2(3, -5));
+                var raw = cut.gameObject.AddComponent<RawImage>();
+                raw.texture = news;
+                raw.uvRect = new Rect(0.03f, 0.64f, 0.94f, 0.335f);   // masthead, headline and standfirst
+                raw.raycastTarget = false;
+            }
 
             // Suspects column.
             var col = UiKit.Rect(p, "suspects");
@@ -275,6 +321,35 @@ namespace AlibiCo
             ((RectTransform)back.transform).sizeDelta = new Vector2(240, 70);
             Show(intro);
             Sfx.Play("paper_slide", 0.5f);
+        }
+
+        /// <summary>A rubber stamp: spaced capitals in a ruled box, inked a little unevenly, at an angle.</summary>
+        static void Stamp(RectTransform parent, string text, Color ink, Vector2 topRight, float angle)
+        {
+            var box = UiKit.Rect(parent, "stamp");
+            var t = UiKit.Text(box, text, Art.SansBold, 34, ink, TextAlignmentOptions.Center);
+            t.characterSpacing = 10;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.ForceMeshUpdate();
+            float w = Mathf.Max(t.preferredWidth, text.Length * 26f) + 56, h = 70;
+            box.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), topRight, new Vector2(w, h));
+            box.localRotation = Quaternion.Euler(0, 0, angle);
+            t.rectTransform.Stretch();
+            const float k = 4f;
+            foreach (var (min, max, pos, size) in new[] {
+                (new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 0), new Vector2(0, k)),
+                (new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(0, k)),
+                (new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(k, 0)),
+                (new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 0), new Vector2(k, 0)) })
+            {
+                var line = UiKit.Panel(box, "rule", ink, false);
+                line.raycastTarget = false;
+                line.rectTransform.anchorMin = min;
+                line.rectTransform.anchorMax = max;
+                line.rectTransform.pivot = new Vector2(min.x == max.x ? (min.x == 0 ? 0 : 1) : 0.5f, min.y == max.y ? (min.y == 0 ? 0 : 1) : 0.5f);
+                line.rectTransform.anchoredPosition = pos;
+                line.rectTransform.sizeDelta = size;
+            }
         }
 
         public static Graphic PortraitImage(Transform parent, CaseDef c, string id, float w)
@@ -325,6 +400,7 @@ namespace AlibiCo
         {
             hud = Group("HUD");
             var pill = UiKit.Panel(hud.transform, "pill", new Color(0.06f, 0.07f, 0.08f, 0.78f));
+            UiKit.DropShadow(pill.rectTransform, 16f, 0.45f, new Vector2(0, -6));
             pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -14), new Vector2(290, 58));
             var hint = UiKit.Button(pill.transform, "Hint", () => hudSession?.Hint(), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)hint.transform).Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(86, 42));
@@ -333,6 +409,9 @@ namespace AlibiCo
             var menu = UiKit.Button(pill.transform, "Menu", () => root.SetPaused(true), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
+            // A soft dark band so the reminder reads over whatever paper is lying on the desk.
+            var helpShade = UiKit.FadeUp(hud.transform, "helpShade", new Color(0.02f, 0.02f, 0.025f, 0.86f));
+            helpShade.rectTransform.Place(new Vector2(0.18f, 0), new Vector2(0.77f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 150));
             var help = UiKit.Text(hud.transform,
                 "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront\n" +
                 "<b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Esc</b> menu",
@@ -392,6 +471,7 @@ namespace AlibiCo
             actions = Group("Actions");
             actions.blocksRaycasts = true;
             var panel = UiKit.Panel(actions.transform, "panel", new Color(0.07f, 0.08f, 0.1f, 0.94f));
+            UiKit.DropShadow(panel.rectTransform, 22f, 0.55f, new Vector2(0, -10));
             actionsPanel = panel.rectTransform;
             actionsPanel.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(400, 210));
             actionsTitle = UiKit.Text(actionsPanel, "", Art.SansBold, 22, Cream, TextAlignmentOptions.TopLeft);
@@ -494,6 +574,7 @@ namespace AlibiCo
             var shade = UiKit.Panel(pause.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.6f), false);
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(pause.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.96f));
+            UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
             panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520, 620));
             var t = UiKit.Text(panel.transform, "Paused", Art.Display, 66, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(0, 90));
@@ -522,7 +603,8 @@ namespace AlibiCo
             var shade = UiKit.Panel(settings.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.55f), false);
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 900));
+            UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 850));
             UiKit.FitInCanvas(panel.rectTransform);
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
@@ -556,6 +638,7 @@ namespace AlibiCo
             var shade = UiKit.Panel(confirm.transform, "shade", new Color(0, 0, 0, 0.5f), false);
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(confirm.transform, "panel", new Color(0.1f, 0.11f, 0.13f, 0.98f));
+            UiKit.DropShadow(panel.rectTransform, 30f, 0.6f, new Vector2(0, -14));
             panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620, 260));
             var q = UiKit.Text(panel.transform, question, Art.Serif, 30, Cream, TextAlignmentOptions.Center);
             q.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(-60, 110));
@@ -578,6 +661,7 @@ namespace AlibiCo
             var shade = UiKit.Panel(closed.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.62f), false);
             shade.rectTransform.Stretch();
             var paper = UiKit.Panel(closed.transform, "paper", Pal.Hex("F2EAD6"));
+            UiKit.DropShadow(paper.rectTransform, 40f, 0.65f, new Vector2(8, -18));
             paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180, 820));
             UiKit.FitInCanvas(paper.rectTransform, 20);
             paper.transform.localRotation = Quaternion.Euler(0, 0, 0.5f);

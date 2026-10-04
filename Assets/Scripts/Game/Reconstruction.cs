@@ -36,8 +36,8 @@ namespace AlibiCo
             group.Stretch();
             var cg = group.gameObject.AddComponent<CanvasGroup>();
             cg.alpha = 0;
-            var band = UiKit.Panel(group, "band", new Color(0.03f, 0.03f, 0.04f, 0.82f), false);
-            band.rectTransform.Place(new Vector2(0, 0), new Vector2(0.66f, 0), new Vector2(0, 0), Vector2.zero, new Vector2(0, 250));
+            var band = UiKit.FadeRight(group, "band", new Color(0.025f, 0.022f, 0.03f, 0.93f), 0.62f);
+            band.rectTransform.Place(new Vector2(0, 0), new Vector2(0.72f, 0), new Vector2(0, 0), Vector2.zero, new Vector2(0, 270));
             var head = UiKit.Text(band.transform, "RECONSTRUCTION", Art.SansBold, 22, Pal.Lamp, TextAlignmentOptions.Left);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(70, -26), new Vector2(-140, 30));
             head.characterSpacing = 8;

@@ -282,10 +282,10 @@ namespace AlibiCo
                 new Vector3(0.02f, size.y / 2 - 0.2f, z), false);
             chipTime.Fit(0.15f);
             string place = Def.Town ? (Def.Kind == "statement" ? "heard at " + (loc != null ? loc.Short : "") : "") : (loc != null ? loc.Short : Def.Location);
-            chipLine = Txt(chip, "place", place, AlibiCo.Art.SansBold, 0.145f, Darken(locCol, 0.65f), new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
+            chipLine = Txt(chip, "place", place, AlibiCo.Art.SansBold, 0.165f, Darken(locCol, 0.65f), new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
                 new Vector3(0.04f, -0.03f, z), false);
             chipLine.Fit(0.1f);
-            chipWho = Txt(chip, "who", ShortSource(), AlibiCo.Art.Sans, 0.13f, Pal.InkSoft, new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
+            chipWho = Txt(chip, "who", ShortSource(), AlibiCo.Art.Sans, 0.148f, Pal.InkSoft, new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
                 new Vector3(0.04f, -size.y / 2 + 0.13f, z), false);
             chipWho.Fit(0.09f);
             Shapes.Icon(chip, Def.Kind, 0.2f, Pal.InkFaint, new Vector3(size.x / 2 - 0.15f, size.y / 2 - 0.14f, z));
@@ -389,7 +389,7 @@ namespace AlibiCo
             if (fullClock != null)
             {
                 fullClock.text = trusted
-                    ? $"<color=#4F7A55>✓</color> {clock.Name}{(corr != 0 ? $": {(corr > 0 ? "slow" : "fast")} {Mathf.Abs(corr)} min · printed <s>{TimeFmt.Format(Def.From)}</s>" : "")}"
+                    ? $"<color=#4F7A55>✔</color> {clock.Name}{(corr != 0 ? $": {(corr > 0 ? "slow" : "fast")} {Mathf.Abs(corr)} min · printed <s>{TimeFmt.Format(Def.From)}</s>" : "")}"
                     : $"<color=#C23B2E>?</color> {clock.Name}: untested";
             }
             if (chipStampMark != null)

@@ -68,6 +68,7 @@ namespace AlibiCo
         public void End()
         {
             if (Current == this) Current = null;
+            if (stage) stage.SetNewspaper(null);
             View?.Destroy();
             if (cardsRoot) Destroy(cardsRoot.gameObject);
             if (Memos) Destroy(Memos.gameObject);
@@ -136,6 +137,7 @@ namespace AlibiCo
             }
             else Memos.Post(MemoKind.Notice, "CASE REOPENED", "Right where you left it. Every pin is still in place.");
             AudioDirector.I?.PlayMusic("music_board", 3f);
+            stage.SetNewspaper(c.Id);
         }
 
         IEnumerable<string> knownConflictsSeed() => Board.EstablishedConflicts.Select(k => k.Key);

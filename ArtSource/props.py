@@ -292,6 +292,79 @@ def build_desk():
     return parent_all("desk", planks + [blot] + corners)
 
 
+# --------------------------------------------------------------------------- case folder, fountain pen
+
+def build_folder():
+    """A closed manila case folder, a little overstuffed: sheets peek out, a red string winds round a button."""
+    manila = material("paper_D9BC82", "D9BC82", rough=0.7)
+    manila_dark = material("paper_C9A96C", "C9A96C", rough=0.7)
+    sheet = material("paper_F1EBDD", "F1EBDD", rough=0.8)
+    sheet2 = material("paper_E9E2D0", "E9E2D0", rough=0.8)
+    red = material("col_8E2B2B", "8E2B2B", rough=0.6)
+    W, D = 0.33, 0.24
+    parts = []
+    back = box("back", (W, D, 0.0012), (0, 0, 0.0006), manila_dark)
+    parts.append(back)
+    # Sheets fanned slightly inside, peeking out of the open edge.
+    for i, (dx, dy, rot, m) in enumerate([(0.012, -0.004, 2.2, sheet), (0.02, 0.006, -1.4, sheet2), (0.006, 0.01, 3.4, sheet)]):
+        sh = box("sheet", (W - 0.02, D - 0.03, 0.0006), (dx, dy, 0.0016 + i * 0.0007), m)
+        sh.rotation_euler = (0, 0, math.radians(rot))
+        parts.append(sh)
+    # Front cover with a tab along the top edge.
+    bm = bmesh.new()
+    outline = [(-W / 2, -D / 2), (W / 2, -D / 2), (W / 2, D / 2 - 0.004), (W * 0.18, D / 2 - 0.004), (W * 0.15, D / 2 + 0.018),
+               (-W * 0.15, D / 2 + 0.018), (-W * 0.18, D / 2 - 0.004), (-W / 2, D / 2 - 0.004)]
+    vs = [bm.verts.new((x, y, 0.0045)) for x, y in outline]
+    bm.faces.new(vs)
+    ext = bmesh.ops.extrude_face_region(bm, geom=bm.faces[:])
+    bmesh.ops.translate(bm, vec=(0, 0, 0.0012), verts=[e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    cover = mesh_obj("cover", bm, manila)
+    box_uv(cover, 4.0)
+    parts.append(cover)
+    # A label on the cover and a ruled box for the case number.
+    parts.append(box("label", (0.12, 0.035, 0.0004), (-0.07, 0.07, 0.0062), material("paper_F4EEDF", "F4EEDF", rough=0.8)))
+    # String tie: button on the cover, string wound round it and trailing off.
+    btn = cylinder("button", 0.009, 0.002, (0.12, -0.02, 0.0058), red, seg=20)
+    parts.append(btn)
+    pts = [(0.12, -0.02), (0.129, -0.01), (0.115, -0.006), (0.108, -0.026), (0.13, -0.03), (0.155, -0.06), (0.17, -0.1), (0.16, -0.13)]
+    bm = bmesh.new()
+    prev = None
+    for x, y in pts:
+        v = bm.verts.new((x, y, 0.0072))
+        if prev:
+            bm.edges.new((prev, v))
+        prev = v
+    st = mesh_obj("string", bm, red)
+    mod = st.modifiers.new("skin", "SKIN")
+    for v in st.data.skin_vertices[0].data:
+        v.radius = (0.0009, 0.0009)
+    sub = st.modifiers.new("sub", "SUBSURF")
+    sub.levels = 2
+    parts.append(st)
+    return parent_all("folder", parts)
+
+
+def build_pen():
+    """A black lacquer fountain pen with gold trim, cap posted on the end."""
+    black = material(BLACK, "141414", rough=0.12)
+    gold = material(BRASS, "C9A24A", metallic=0.9, rough=0.3)
+    nib = material("metal_D8C27A", "D8C27A", metallic=1, rough=0.25)
+    body = lathe("barrel", [(0.0, 0.0), (0.0052, 0.002), (0.0058, 0.02), (0.0056, 0.075), (0.0046, 0.085), (0.0, 0.087)], black, 32)
+    grip = lathe("section", [(0.0, 0.085), (0.0045, 0.085), (0.0038, 0.1), (0.0, 0.1)], black, 24)
+    n = lathe("nib", [(0.0, 0.098), (0.0034, 0.098), (0.0006, 0.118), (0.0, 0.119)], nib, 24)
+    n.scale = (1.0, 0.45, 1.0)
+    cap = lathe("cap", [(0.0, -0.05), (0.0049, -0.049), (0.0063, -0.03), (0.0063, 0.008), (0.0, 0.008)], black, 32)
+    band = torus("band", 0.0064, 0.0009, (0, 0, -0.004), gold, seg=32, rseg=8)
+    band2 = torus("band2", 0.0058, 0.0007, (0, 0, 0.074), gold, seg=32, rseg=8)
+    clip = box("clip", (0.0016, 0.0025, 0.04), (0, 0.0066, -0.028), gold, 0.0006)
+    root = parent_all("pen_body", [body, grip, n, cap, band, band2, clip])
+    root.rotation_euler = (0, math.radians(90), 0)
+    root.location = (0, 0, 0.0065)
+    outer = parent_all("pen", [root])
+    return outer
+
+
 BUILDERS = {
     "lamp": build_lamp,
     "mug": build_mug,
@@ -304,7 +377,10 @@ BUILDERS = {
     "frame_bar": build_frame_bar,
     "frame_corner": build_frame_corner,
     "desk": build_desk,
+    "folder": build_folder,
+    "pen": build_pen,
 }
 
 PREVIEW_SIZE = {"lamp": 0.35, "mug": 0.12, "phone": 0.25, "pencil": 0.18, "magnifier": 0.2, "pin": 0.02, "spike": 0.15,
-                "pawn": 0.05, "frame_bar": 0.5, "frame_corner": 0.06, "desk": 3.0}
+                "pawn": 0.05, "frame_bar": 0.5, "frame_corner": 0.06, "desk": 3.0,
+                "folder": 0.35, "pen": 0.15}

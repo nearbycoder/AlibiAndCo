@@ -14,13 +14,13 @@ from PIL import Image, ImageFilter
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def finish(img, size, warmth=0.22, grain=0.035, vignette=0.38, seed=0, flash=False, mono=0.0):
+def finish(img, size, warmth=0.22, grain=0.035, vignette=0.38, seed=0, flash=False, mono=0.0, sat=0.82):
     rng = np.random.default_rng(seed)
     im = img.convert("RGB").resize((size, size) if isinstance(size, int) else size, Image.LANCZOS)
     a = np.asarray(im, np.float32) / 255
     lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
     # Desaturate a little (or a lot for monochrome press prints).
-    sat = 0.82 - mono * 0.82
+    sat = sat - mono * sat
     a = lum[..., None] + (a - lum[..., None]) * sat
     # Warm print toning: tint shadows brown, highlights cream.
     sepia = np.stack([lum * 1.07 + 0.04, lum * 0.95 + 0.02, lum * 0.78], -1)
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         os.makedirs(dst, exist_ok=True)
         for i, f in enumerate(sorted(glob.glob(os.path.join(ROOT, "ArtSource", "renders", "portrait_*.png")))):
             cid = os.path.basename(f)[len("portrait_"):-4]
-            finish(Image.open(f), 384, seed=i).save(os.path.join(dst, cid + ".png"))
+            finish(Image.open(f), 384, warmth=0.16, grain=0.022, vignette=0.3, seed=i, sat=0.95).save(os.path.join(dst, cid + ".png"))
             print("portrait", cid)
     else:
         dst = os.path.join(ROOT, "Assets", "Resources", "Photos")

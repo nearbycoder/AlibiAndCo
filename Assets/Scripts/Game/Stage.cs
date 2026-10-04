@@ -137,11 +137,11 @@ namespace AlibiCo
             lampGo.transform.SetParent(transform, false);
             Lamp = lampGo.AddComponent<Light>();
             Lamp.type = LightType.Spot;
-            Lamp.color = Pal.Hex("FFC77A");
+            Lamp.color = Pal.Hex("FFE0B5");   // warm white: paper should read as paper, the warmth is in the falloff
             Lamp.range = 80;
             Lamp.spotAngle = 125;
             Lamp.innerSpotAngle = 70;
-            Lamp.intensity = lampBase = 900f;
+            Lamp.intensity = lampBase = 820f;
             Lamp.shadows = LightShadows.Soft;
             Lamp.shadowStrength = 0.62f;
             Lamp.shadowBias = 0.02f;
@@ -210,6 +210,10 @@ namespace AlibiCo
             Prop("mug", new Vector3(View.xMax + 0.15f, 0, View.yMin + View.height * 0.36f), -20, 10f);
             Prop("pencil", new Vector3(View.xMin + View.width * 0.165f, 0.0f, View.yMin + 0.32f), 84, 10f);
             Prop("magnifier", new Vector3(View.xMin + View.width * 0.735f, 0, View.yMin + View.height * 0.27f), -62, 10f);
+            // Under the tray: the case folder and a fountain pen (cards sit on top of them).
+            // (0.07 lifts them clear of the leather blotter, which stands 0.06 proud of the desk.)
+            Prop("folder", new Vector3(Tray.xMax - 2.0f, 0.07f, Tray.center.y - 0.35f), -9, 10f);
+            Prop("pen", new Vector3(Tray.xMin + 0.9f, 0.07f, Tray.yMin + 0.45f), 14, 10f);
             Spike = Prop("spike", Vector3.zero, 0, 10f);
             // Dust motes in the lamp beam.
             var dGo = new GameObject("Dust");
@@ -282,6 +286,29 @@ namespace AlibiCo
                 }
         }
 
+        GameObject newspaper;
+
+        /// <summary>The Gazette's front page for this case, half under the tray; null clears it.</summary>
+        public void SetNewspaper(string caseId)
+        {
+            if (newspaper) Destroy(newspaper);
+            newspaper = null;
+            var tex = caseId != null ? Art.Tex("news_" + caseId) : null;
+            if (tex == null) return;
+            newspaper = new GameObject("newspaper");
+            newspaper.transform.SetParent(transform, false);
+            // Half under the tray, running off the bottom edge of the frame.
+            newspaper.transform.position = new Vector3(Tray.center.x - 1.9f, 0.068f, Tray.yMin - 0.35f);
+            newspaper.transform.rotation = Quaternion.Euler(90, -7, 0);
+            float w = 6.4f;
+            var mat = Art.Lit(Pal.Hex("B8B2A4"), null, 0.06f);   // a step darker than the evidence, so it stays background
+            mat = new Material(mat);
+            mat.SetTexture("_BaseMap", tex);
+            var q = Shapes.Quad(newspaper.transform, "page", new Vector2(w, w * tex.height / tex.width), mat, Vector3.zero);
+            q.shadowCastingMode = ShadowCastingMode.Off;
+            q.receiveShadows = true;
+        }
+
         GameObject Prop(string model, Vector3 pos, float yaw, float scale)
         {
             var go = Art.Spawn(model, transform);
@@ -313,19 +340,19 @@ namespace AlibiCo
             vignette.smoothness.Override(0.5f);
             vignette.color.Override(Pal.Hex("0A0806"));
             colorAdj = p.Add<ColorAdjustments>(true);
-            colorAdj.postExposure.Override(0.25f);
-            colorAdj.contrast.Override(12f);
-            colorAdj.saturation.Override(-6f);
-            colorAdj.colorFilter.Override(Pal.Hex("FFF4E6"));
+            colorAdj.postExposure.Override(0.15f);
+            colorAdj.contrast.Override(18f);
+            colorAdj.saturation.Override(0f);
+            colorAdj.colorFilter.Override(Pal.Hex("FFFAF4"));
             var wb = p.Add<WhiteBalance>(true);
-            wb.temperature.Override(6f);
+            wb.temperature.Override(-2f);
             var grain = p.Add<FilmGrain>(true);
             grain.type.Override(FilmGrainLookup.Thin2);
             grain.intensity.Override(0.22f);
             grain.response.Override(0.7f);
             var lgg = p.Add<LiftGammaGain>(true);
-            lgg.lift.Override(new Vector4(0.98f, 1.0f, 1.04f, 0.0f));
-            lgg.gain.Override(new Vector4(1.03f, 1.0f, 0.96f, 0.0f));
+            lgg.lift.Override(new Vector4(0.97f, 1.0f, 1.05f, -0.01f));   // cool, slightly deeper shadows
+            lgg.gain.Override(new Vector4(1.01f, 1.0f, 0.99f, 0.0f));
             dof = p.Add<DepthOfField>(true);
             dof.mode.Override(DepthOfFieldMode.Gaussian);
             dof.gaussianStart.Override(60f);

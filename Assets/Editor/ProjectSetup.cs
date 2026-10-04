@@ -280,7 +280,7 @@ namespace AlibiCo.EditorTools
                 ti.wrapMode = TextureWrapMode.Repeat;
                 if (Path.GetFileNameWithoutExtension(p).EndsWith("_n")) ti.textureType = TextureImporterType.NormalMap;
                 string n = Path.GetFileNameWithoutExtension(p);
-                if (n == "shadow" || n == "dot" || n == "app_icon" || n.StartsWith("map")) ti.wrapMode = TextureWrapMode.Clamp;
+                if (n == "shadow" || n == "dot" || n == "app_icon" || n.StartsWith("map") || n.StartsWith("news")) ti.wrapMode = TextureWrapMode.Clamp;
                 if (n.StartsWith("map")) { ti.maxTextureSize = 4096; ti.textureCompression = TextureImporterCompression.CompressedHQ; }
                 ti.alphaIsTransparency = true;
             }
