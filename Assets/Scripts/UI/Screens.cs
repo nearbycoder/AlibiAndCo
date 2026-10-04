@@ -274,7 +274,7 @@ namespace AlibiCo
             var back = UiKit.Button(btns, "Back to files", () => { Hide(intro); root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 26);
             ((RectTransform)back.transform).sizeDelta = new Vector2(240, 70);
             Show(intro);
-            Sfx.Play("paper_slide", 0.7f);
+            Sfx.Play("paper_slide", 0.5f);
         }
 
         public static Graphic PortraitImage(Transform parent, CaseDef c, string id, float w)

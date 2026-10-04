@@ -100,7 +100,7 @@ Three handcrafted cases on one shared town map, each introducing one idea:
   ffmpeg, rebuilds the soundtrack offline from a per-frame voice log (`Tools/mix_recording.py`),
   and muxes the two. The output goes to `Recordings/` (git-ignored). It needs `ffmpeg` on the
   PATH. Automated runs (autoplay, input test, recording) use a blank in-memory save, so they never
-  touch your progress. The last full recording was 7 min 39 s, covered all three cases, had every
+  touch your progress. The last full recording was 8 min 38 s, covered all three cases, had every
   gesture land (0 fallbacks) and lost no badges.
 
 ## Building
@@ -136,7 +136,11 @@ finished with Python and Pillow (run with `.venv/bin/python`): `Tools/photo_fini
 and `Tools/photo_finish.py photos` give the portraits and press photos a 1980s print look, and
 `Tools/map_finish.py` adds the paper finish to the town map. `Tools/make_textures.py` generates
 every texture and icon procedurally, `Tools/make_icon.py` draws the app icon, and `Tools/synth_audio.py` synthesizes all the music,
-ambience and sound effects with numpy (no samples).
+ambience and sound effects with numpy (no samples). Its output is deterministic: the same script
+gives byte-identical files. Music cues are normalised to a loudness target (−13.5 LUFS, with the
+board theme a little lower at −15 so it sits under your thinking), and every loop is built so its
+seam is continuous. `Tools/audio_qa.py` reports loudness, peaks, DC offset, clipping and loop
+seams for every clip.
 
 ## Project layout
 
@@ -156,6 +160,8 @@ docs/images/            README screenshots (from the autoplay run)
 
 ## Known gaps
 
+- The mix was balanced by measurement (loudness per clip times the volume each call site plays
+  it at, peaks, loop seams), not by listening on speakers or headphones.
 - Text size doesn't enlarge the small chips pinned on the board or the memo slips on the desk;
   their text is read by hovering a chip (which brings up the scaled full card) or in the
   notebook. Large panels (case files, case intro, case closed, settings, notebook) are shrunk back

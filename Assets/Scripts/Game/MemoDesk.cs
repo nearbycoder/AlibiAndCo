@@ -87,7 +87,7 @@ namespace AlibiCo
             var target = current.localPosition;
             current.localPosition = target + new Vector3(-6.5f, 0.4f, -0.4f);
             current.MoveLocal(target, 0.5f, Ease.OutCubic);
-            Sfx.Play("paper_slide", 0.55f);
+            Sfx.Play("paper_slide", 0.3f);   // every memo: keep it under the pins and stamps
             typing = true;
             visible = 0;
             total = body.textInfo != null ? body.text.Length : 0;

@@ -160,7 +160,7 @@ namespace AlibiCo
 
         public void ApplyVolumes()
         {
-            rain.volume = Settings.Effects * 0.24f;
+            rain.volume = Settings.Effects * 0.15f;   // amb_rain is normalised hotter since its DC offset was removed
             tick.volume = Settings.Effects * 0.07f;
         }
 

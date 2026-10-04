@@ -277,7 +277,7 @@ namespace AlibiCo
                         v.transform.MoveWorld(target, 0.55f, Ease.InOutCubic);
                         v.transform.RotateLocal(rot, 0.5f, Ease.OutCubic);
                         v.transform.ScaleTo(Vector3.one * 0.62f, 0.5f, Ease.OutCubic);
-                        Sfx.Play("paper_slide", 0.5f);
+                        Sfx.Play("paper_slide", 0.35f);
                     }, (v, "spike"));
                 }
                 else

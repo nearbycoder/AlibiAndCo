@@ -30,12 +30,34 @@ def t_axis(dur):
     return np.arange(int(dur * SR)) / SR
 
 
-def write(name, x, peak=0.89):
-    """Write mono (1-D) or stereo (N x 2) float audio as 16-bit WAV, peak-normalised."""
+def lufs(x):
+    """Integrated loudness (ITU-R BS.1770 K-weighting, 400 ms blocks, absolute + relative gates)."""
+    x = x if x.ndim == 2 else x[:, None]
+    b1, a1 = [1.53512485958697, -2.69169618940638, 1.19839281085285], [1, -1.69065929318241, 0.73248077421585]
+    b2, a2 = [1, -2, 1], [1, -1.99004745483398, 0.99007225036621]
+    y = signal.lfilter(b2, a2, signal.lfilter(b1, a1, x, axis=0), axis=0)
+    blk, hop = int(0.4 * SR), int(0.1 * SR)
+    ms = np.array([(y[i:i + blk] ** 2).mean(0).sum() for i in range(0, max(1, len(y) - blk + 1), hop)])
+    loud = -0.691 + 10 * np.log10(ms + 1e-12)
+    gated = ms[loud > -70]
+    if gated.size == 0:
+        return -99.0
+    rel = -0.691 + 10 * np.log10(gated.mean()) - 10
+    gated = ms[(loud > -70) & (loud > rel)]
+    return -0.691 + 10 * np.log10(gated.mean())
+
+
+def write(name, x, peak=0.89, target_lufs=None):
+    """Write mono (1-D) or stereo (N x 2) float audio as 16-bit WAV, peak-normalised, then (for
+    music) turned down to a loudness target so cues match when they crossfade."""
     x = np.asarray(x, dtype=np.float64)
     m = np.max(np.abs(x)) if x.size else 0
     if m > 0:
         x = x / m * peak
+    if target_lufs is not None:
+        gain = 10 ** ((target_lufs - lufs(x)) / 20)
+        x = x * min(gain, peak / max(1e-9, np.max(np.abs(x))))
+        print(f"  {name}: {lufs(x):.1f} LUFS")
     if x.ndim == 1:
         ch, data = 1, x
     else:
@@ -204,7 +226,8 @@ def ks_pluck(freq, dur, damping=0.996, bright=0.5, seed=None):
 
 
 def upright_bass(freq, dur, vel=1.0):
-    x = ks_pluck(freq, dur + 0.25, damping=0.9965, bright=0.25 + 0.2 * vel)
+    # Excite each string from the track's seeded rng so a rebuild reproduces the same take.
+    x = ks_pluck(freq, dur + 0.25, damping=0.9965, bright=0.25 + 0.2 * vel, seed=int(rng.integers(1 << 31)))
     body = lp(x, 900, 2) + 0.35 * bp(x, 70, 200)
     thump = lp(noise(int(0.03 * SR)), 300) * env_exp(int(0.03 * SR), 0.01) * 0.6
     body[: len(thump)] += thump
@@ -539,8 +562,8 @@ def make_ambience():
         f = rng.uniform(2500, 9000)
         L = 600
         drops[p:p + L] += np.sin(2 * np.pi * f * np.arange(L) / SR) * np.exp(-np.arange(L) / rng.uniform(25, 90)) * rng.uniform(0.05, 0.4)
-    gutter = lp(noise(n, "brown"), 300) * 0.25
-    rain = (bed * swell + hp(drops, 2000) * 0.35 + gutter)
+    gutter = hp(lp(noise(n, "brown"), 300), 30, 2) * 0.25   # brown noise drifts: keep it off DC
+    rain = hp(bed * swell + hp(drops, 2000) * 0.35 + gutter, 20, 2)
     st = np.stack([rain, np.roll(rain, 911)], -1)
     xf = int(2.0 * SR)
     st[:xf] = st[:xf] * np.linspace(0, 1, xf)[:, None] + st[-xf:] * np.linspace(1, 0, xf)[:, None]
@@ -548,10 +571,15 @@ def make_ambience():
     write("amb_rain", st, 0.6)
 
     # Desk clock: tick-tock, slightly different pitches, 4 s loop.
-    out = np.zeros(int(4.0 * SR))
+    period = int(4.0 * SR)
+    out = np.zeros(period)
     for i in range(8):
         out += at(tick_sound(1.0 if i % 2 == 0 else 0.86, 0.7), i * 0.5, 4.0)
-    write("amb_clock", reverb(out, 0.6, 0.15), 0.5)
+    wet = reverb(out, 0.6, 0.15)
+    loop = wet[:period].copy()
+    tail = wet[period:]
+    loop[:len(tail)] += tail[:period]
+    write("amb_clock", loop, 0.5)
 
 
 # --------------------------------------------------------------------------- music
@@ -583,7 +611,11 @@ class Score:
             main[:L] += tail[:L]
         # Gentle tape colour: soft saturation + rolled-off highs.
         main = np.tanh(main * 0.9) / 0.9
-        main = np.stack([lp(main[:, c], 11000, 1) for c in range(2)], -1)
+        # Run the filter over [end of loop, loop] and keep the second part, so its state at the
+        # loop point is what it would be mid-song (a cold start clicks at the seam).
+        pre = int(0.5 * SR)
+        wrapped = np.concatenate([main[-pre:], main])
+        main = np.stack([lp(wrapped[:, c], 11000, 1)[pre:] for c in range(2)], -1)
         return main
 
 
@@ -619,7 +651,7 @@ def walking_line(prog, beats_per_chord=4):
 
 
 def jazz_track(name, prog, bpm, bars_per_chord=1, melody=None, density=1.0, seed=0, ride_on=True, brushes=True,
-               rhodes_gain=0.5, vibes_gain=0.55, bass_gain=0.9, reverb_sec=2.4, wet=0.24):
+               rhodes_gain=0.5, vibes_gain=0.55, bass_gain=0.9, reverb_sec=2.4, wet=0.24, target_lufs=-13.5):
     global rng
     rng = np.random.default_rng(seed)
     beat = 60.0 / bpm
@@ -670,7 +702,7 @@ def jazz_track(name, prog, bpm, bars_per_chord=1, melody=None, density=1.0, seed
             sc.add(vibes(midi(m), length_beats * beat, 0.7), start_beat * beat, vibes_gain * 0.55, 0.15)
 
     out = sc.loop_render(reverb_sec, wet)
-    write(name, out, 0.85)
+    write(name, out, 0.85, target_lufs)
 
 
 def generate_melody(prog, bars_per_chord, seed, sparse=0.5, register=(62, 79)):
@@ -706,7 +738,7 @@ def make_music():
     # Board: sparse, unobtrusive, loopable for long thinking.
     prog_board = ["Dm9", "Dm6", "Gm9", "Gm9", "Em7b5", "A7b9", "Dm9", "Dm9", "Cm9", "F7", "Bbmaj7", "Ebmaj7", "Em7b5", "A7b9", "Dm9", "A7alt"] * 2
     jazz_track("music_board", prog_board, 72, 1, generate_melody(prog_board, 1, 11, 0.32, (64, 76)), density=0.75, seed=5,
-               rhodes_gain=0.42, vibes_gain=0.42, bass_gain=0.8)
+               rhodes_gain=0.42, vibes_gain=0.42, bass_gain=0.8, target_lufs=-15.0)   # a bed to think over
     # Reveal: slower, darker, drums out, heartbeat kick, then resolves.
     prog_reveal = ["Em7b5", "A7alt", "Dm9", "Dm9", "Gm9", "A7b9", "Dm9", "Dm9"]
     jazz_track("music_reveal", prog_reveal, 60, 1, generate_melody(prog_reveal, 1, 21, 0.5, (57, 72)), density=0.35, seed=9,
