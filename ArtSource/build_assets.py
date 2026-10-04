@@ -1,6 +1,7 @@
 """Entry point for every Blender-made asset in Alibi & Co.
 
     blender -b -P ArtSource/build_assets.py -- props [--only lamp,mug] [--preview]
+    blender -b -P ArtSource/build_assets.py -- cards [--preview]
     blender -b -P ArtSource/build_assets.py -- portraits [--preview]
     blender -b -P ArtSource/build_assets.py -- map
     blender -b -P ArtSource/build_assets.py -- photos
@@ -53,6 +54,11 @@ def do_props(only, preview):
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(lib.ROOT, "ArtSource", "props.blend"))
 
 
+def do_cards(only, preview):
+    import cards
+    cards.build_all(only, preview)
+
+
 def do_portraits(only, preview):
     import portraits
     portraits.build_all(only, preview)
@@ -71,7 +77,7 @@ def do_photos(only, preview):
 if __name__ == "__main__":
     groups, only, preview = args()
     if "all" in groups:
-        groups = ["props", "portraits", "map", "photos"]
+        groups = ["props", "cards", "portraits", "map", "photos"]
     for g in groups:
-        {"props": do_props, "portraits": do_portraits, "map": do_map, "photos": do_photos}[g](only, preview)
+        {"props": do_props, "cards": do_cards, "portraits": do_portraits, "map": do_map, "photos": do_photos}[g](only, preview)
     print("[build_assets] done:", ", ".join(groups))

@@ -118,6 +118,26 @@ namespace AlibiCo
             return img;
         }
 
+        /// <summary>Solid on the left, easing to clear on the right (for shading behind left-aligned text).</summary>
+        public static Image FadeRight(Transform parent, string name, Color color, float solid = 0.55f)
+        {
+            const int w = 256;
+            var tex = new Texture2D(w, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[w];
+            for (int x = 0; x < w; x++)
+            {
+                float t = Mathf.InverseLerp(solid, 1, (x + 0.5f) / w);
+                px[x] = new Color32(255, 255, 255, (byte)((1 - Mathf.SmoothStep(0, 1, t)) * 255));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            var img = Rect(parent, name).gameObject.AddComponent<Image>();
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, w, 1), new Vector2(0.5f, 0.5f));
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
         public static Image Glow(Transform parent, Color color)
         {
             var r = Rect(parent, "glow");

@@ -423,6 +423,9 @@ namespace AlibiCo
         void DrawStaples()
         {
             for (int i = staples.childCount - 1; i >= 0; i--) Destroy(staples.GetChild(i).gameObject);
+            foreach (var v in views.Values)
+                foreach (Transform ch in v.Body)
+                    if (ch.name == "icon_clip") Destroy(ch.gameObject);
             foreach (var l in Board.Links)
             {
                 if (!views.TryGetValue(l.Key, out var a) || !views.TryGetValue(l.Value, out var b)) continue;

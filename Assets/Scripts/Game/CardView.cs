@@ -81,6 +81,32 @@ namespace AlibiCo
 
         Color Ink => Def.IsTestimony ? Pal.Hex("1E365A") : Pal.Ink;
 
+        static string Shape(string kind)
+        {
+            switch (kind)
+            {
+                case "receipt": return "receipt";
+                case "ledger": return "ledger";
+                case "call": return "slip";
+                case "ticket": return "ticket";
+                case "photo": return "photo";
+                case "note": return "cutting";
+                default: return "index";
+            }
+        }
+
+        /// <summary>The paper itself: the Blender silhouette for this kind of card, or a plain slab.</summary>
+        MeshRenderer Paper(Transform parent, Vector2 size, bool chipSize, Material mat)
+        {
+            var go = Art.Spawn($"card_{Shape(IsIncident ? "incident" : Def.Kind)}_{(chipSize ? "chip" : "full")}", parent);
+            if (go == null) return Shapes.Slab(parent, "paper", size, Thick, mat, Vector3.zero);
+            go.transform.localRotation = Quaternion.Euler(-90, 0, 0);
+            go.transform.localPosition = Vector3.zero;
+            var r = go.GetComponentInChildren<MeshRenderer>();
+            r.sharedMaterial = mat;
+            return r;
+        }
+
         void Build()
         {
             Body = new GameObject("body").transform;
@@ -117,7 +143,7 @@ namespace AlibiCo
         {
             var size = FullSize;
             var paperColor = Pal.CardColor(Def.Kind);
-            fullPaper = Shapes.Slab(full, "paper", size, Thick, Art.Lit(paperColor, "paper", 0.12f), Vector3.zero);
+            fullPaper = Paper(full, size, false, Art.Lit(paperColor, "paper", 0.12f));
             float z = -Thick - 0.004f;
             float left = -size.x / 2 + 0.24f, right = size.x / 2 - 0.24f, top = size.y / 2 - 0.16f;
             var kindCol = Pal.InkFaint;
@@ -233,7 +259,7 @@ namespace AlibiCo
         {
             var size = ChipSize;
             var paperColor = Pal.CardColor(Def.Kind);
-            chipPaper = Shapes.Slab(chip, "paper", size, Thick, Art.Lit(paperColor, "paper", 0.12f), Vector3.zero);
+            chipPaper = Paper(chip, size, true, Art.Lit(paperColor, "paper", 0.12f));
             float z = -Thick - 0.004f;
             if (IsIncident)
             {

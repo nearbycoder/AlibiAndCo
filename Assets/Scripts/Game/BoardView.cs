@@ -296,7 +296,7 @@ namespace AlibiCo
 
         static MeshRenderer Line(Transform parent, Vector3 a, Vector3 b, float width, Color color)
         {
-            return Shapes.StripObject(parent, "line", new[] { a, b }, width, Art.Unlit(color, true));
+            return Shapes.StripObject(parent, "line", new[] { a, b }, width, Art.UnlitShared(color, true));
         }
 
         // ------------------------------------------------------------------ dynamic
@@ -357,7 +357,7 @@ namespace AlibiCo
         /// <summary>Rebuild markers, leader lines, ribbons and contradiction marks from the board.</summary>
         public void RefreshDynamic(Board board, Dictionary<string, ChipPlace> chips, ICollection<string> struck, string hoverCard)
         {
-            for (int i = dynamicRoot.childCount - 1; i >= 0; i--) Object.Destroy(dynamicRoot.GetChild(i).gameObject);
+            for (int i = dynamicRoot.childCount - 1; i >= 0; i--) Art.DestroyWithMeshes(dynamicRoot.GetChild(i));
             var map = board.Map;
 
             // Markers & leaders for every placed chip (including struck, drawn faint).
@@ -373,15 +373,15 @@ namespace AlibiCo
                 if (ch.Interval)
                 {
                     var bar = Shapes.Quad(dynamicRoot, "bar", new Vector2(Mathf.Max(0.05f, ch.MarkerX2 - ch.MarkerX), 0.13f),
-                        Art.Unlit(new Color(col.r, col.g, col.b, 0.75f * alpha), true), new Vector3((ch.MarkerX + ch.MarkerX2) / 2, lane.Track, ZMarker));
+                        Art.UnlitShared(new Color(col.r, col.g, col.b, 0.75f * alpha), true), new Vector3((ch.MarkerX + ch.MarkerX2) / 2, lane.Track, ZMarker));
                     if (isStruck) Line(dynamicRoot, new Vector3(ch.MarkerX, lane.Track, ZMarker - 0.002f), new Vector3(ch.MarkerX2, lane.Track, ZMarker - 0.002f), 0.025f, new Color(0.3f, 0.3f, 0.3f, 0.6f));
                 }
                 else
                 {
                     Shapes.Quad(dynamicRoot, "dotShadow", new Vector2(0.26f, 0.26f), markerShadowMat, new Vector3(ch.MarkerX + 0.02f, lane.Track - 0.02f, ZMarker + 0.001f));
-                    Shapes.Quad(dynamicRoot, "dot", new Vector2(0.19f, 0.19f), Art.Unlit(new Color(col.r * 0.85f, col.g * 0.85f, col.b * 0.85f, alpha), true, "dot"),
+                    Shapes.Quad(dynamicRoot, "dot", new Vector2(0.19f, 0.19f), Art.UnlitShared(new Color(col.r * 0.85f, col.g * 0.85f, col.b * 0.85f, alpha), true, "dot"),
                         new Vector3(ch.MarkerX, lane.Track, ZMarker));
-                    Shapes.Quad(dynamicRoot, "dotCore", new Vector2(0.11f, 0.11f), Art.Unlit(new Color(col.r * 0.7f, col.g * 0.7f, col.b * 0.7f, alpha), false),
+                    Shapes.Quad(dynamicRoot, "dotCore", new Vector2(0.11f, 0.11f), Art.UnlitShared(new Color(col.r * 0.7f, col.g * 0.7f, col.b * 0.7f, alpha), false),
                         new Vector3(ch.MarkerX, lane.Track, ZMarker - 0.001f));
                 }
                 if (!lane.IsTown)
@@ -432,7 +432,7 @@ namespace AlibiCo
             {
                 if (xb - xa > 0.15f)
                     Shapes.StripObject(dynamicRoot, "stay", new[] { new Vector3(xa, y, ZRibbon), new Vector3(xb, y, ZRibbon) }, 0.035f,
-                        Art.Unlit(new Color(Pal.Slack.r, Pal.Slack.g, Pal.Slack.b, 0.35f), true));
+                        Art.UnlitShared(new Color(Pal.Slack.r, Pal.Slack.g, Pal.Slack.b, 0.35f), true));
                 return;
             }
             float xNeed = TimeToX(a.To + need);
@@ -441,7 +441,7 @@ namespace AlibiCo
             if (hyp) walkCol = new Color(walkCol.r, walkCol.g, walkCol.b, 0.55f);
             float walkEnd = bad ? xb : xNeed;
             if (walkEnd > xa)
-                Shapes.StripObject(dynamicRoot, "walk", new[] { new Vector3(xa, y, ZRibbon), new Vector3(walkEnd, y, ZRibbon) }, 0.1f, Art.Unlit(walkCol, true));
+                Shapes.StripObject(dynamicRoot, "walk", new[] { new Vector3(xa, y, ZRibbon), new Vector3(walkEnd, y, ZRibbon) }, 0.1f, Art.UnlitShared(walkCol, true));
             if (!bad && xb - xNeed > 0.06f)
             {
                 var s = Shapes.StripObject(dynamicRoot, "slack", new[] { new Vector3(xNeed, y, ZRibbon), new Vector3(xb, y, ZRibbon) }, 0.05f, slackMat, 1f / 0.18f);
@@ -464,10 +464,18 @@ namespace AlibiCo
             }
         }
 
+        static readonly Dictionary<(Material, Vector2), Material> tiled = new Dictionary<(Material, Vector2), Material>();
+
         static void SetTiling(MeshRenderer r, Vector2 tiling)
         {
-            var m = new Material(r.sharedMaterial);
-            m.SetTextureScale("_BaseMap", tiling);
+            tiling = new Vector2(Mathf.Round(tiling.x * 4) / 4, Mathf.Round(tiling.y * 4) / 4);
+            var key = (r.sharedMaterial, tiling);
+            if (!tiled.TryGetValue(key, out var m) || m == null)
+            {
+                m = new Material(r.sharedMaterial);
+                m.SetTextureScale("_BaseMap", tiling);
+                tiled[key] = m;
+            }
             r.sharedMaterial = m;
         }
 
@@ -508,7 +516,7 @@ namespace AlibiCo
 
         public void ClearPreview()
         {
-            for (int i = previewRoot.childCount - 1; i >= 0; i--) Object.Destroy(previewRoot.GetChild(i).gameObject);
+            for (int i = previewRoot.childCount - 1; i >= 0; i--) Art.DestroyWithMeshes(previewRoot.GetChild(i));
             foreach (var l in Lanes) l.Strip.sharedMaterial = l.StripMat;
         }
 

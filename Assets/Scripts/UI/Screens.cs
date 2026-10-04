@@ -70,10 +70,8 @@ namespace AlibiCo
         void BuildTitle()
         {
             title = Group("Title");
-            var shade = UiKit.Panel(title.transform, "shade", new Color(0.03f, 0.025f, 0.03f, 0.78f), false);
-            shade.rectTransform.Place(new Vector2(0, 0), new Vector2(0.46f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            var grad = UiKit.Glow(title.transform, new Color(0.03f, 0.025f, 0.03f, 0.75f));
-            grad.rectTransform.Place(new Vector2(0.28f, -0.3f), new Vector2(0.64f, 1.3f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            var shade = UiKit.FadeRight(title.transform, "shade", new Color(0.03f, 0.025f, 0.03f, 0.8f));
+            shade.rectTransform.Place(new Vector2(0, 0), new Vector2(0.7f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
 
             var col = UiKit.Rect(title.transform, "col");
             col.Place(new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(150, 0), new Vector2(1100, 0));
@@ -494,18 +492,18 @@ namespace AlibiCo
             var shade = UiKit.Panel(settings.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.55f), false);
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(720, 720));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760, 860));
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
             var col = UiKit.Rect(panel.transform, "col");
-            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(600, 520));
+            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(640, 600));
             var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
-            vl.spacing = 18; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
+            vl.spacing = 16; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
             Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
             Row(UiKit.Slider(col, "Music", Settings.Music, v => Settings.Music = v));
             Row(UiKit.Slider(col, "Sound effects", Settings.Effects, v => { Settings.Effects = v; Sfx.Play("pin", 0.6f); }));
             Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
-            Row(UiKit.Toggle(col, "Reduced motion (less shake & parallax)", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
+            Row(UiKit.Toggle(col, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
             Row(UiKit.Toggle(col, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));
             var reset = UiKit.Button(col, "Erase all progress", () => Confirm("Erase every closed case and badge?", () => { SaveData.Reset(); if (root.Flow == Flow.Select) root.ShowSelect(); }), Pal.Hex("3A2526"), Pal.Hex("E8B4A8"), 20);
             Size(reset, 50);
@@ -607,8 +605,8 @@ namespace AlibiCo
             }
             if (last)
             {
-                var fin = UiKit.Text(p, "Three for three. Wrenhaven sleeps a little easier.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.Right);
-                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 60), new Vector2(-760, 40));
+                var fin = UiKit.Text(p, "Three for three. Wrenhaven sleeps a little easier.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
             }
             Show(closed);
             AudioDirector.I.PlayMusic("music_closed", 1.5f);

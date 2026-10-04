@@ -207,6 +207,24 @@ namespace AlibiCo
             return m;
         }
 
+        /// <summary>Shared unlit material for static colours (don't animate these).</summary>
+        public static Material UnlitShared(Color c, bool transparent = false, string tex = null)
+        {
+            string key = $"unlit|{ColorUtility.ToHtmlStringRGBA(c)}|{transparent}|{tex}";
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
+            m = Unlit(c, transparent, tex);
+            cache[key] = m;
+            return m;
+        }
+
+        /// <summary>Destroy a generated hierarchy along with any procedural meshes it owns.</summary>
+        public static void DestroyWithMeshes(Transform root)
+        {
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+                if (mf.sharedMesh != null && mf.sharedMesh != Shapes.QuadMesh && mf.sharedMesh.name == "strip") Object.Destroy(mf.sharedMesh);
+            Object.Destroy(root.gameObject);
+        }
+
         public static Material LitTransparent(Color c, string tex = null)
         {
             var m = new Material(BaseMat("LitTransparent"));

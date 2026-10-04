@@ -86,8 +86,38 @@ namespace AlibiCo
             ShowTitle(true);
         }
 
+        float lastAspect, aspectCheck;
+        CaseDef introCase;
+
+        /// <summary>The set is laid out for one aspect ratio; if the window changes shape, rebuild it.</summary>
+        void CheckAspect()
+        {
+            if (Application.isBatchMode) return;
+            aspectCheck -= Time.unscaledDeltaTime;
+            if (aspectCheck > 0) return;
+            aspectCheck = 0.5f;
+            float a = Stage.LayoutAspect;
+            if (lastAspect <= 0) { lastAspect = a; return; }
+            if (Mathf.Abs(a - lastAspect) < 0.02f || Flow == Flow.Closing || Flow == Flow.Closed || Flow == Flow.Boot) return;
+            lastAspect = a;
+            var flow = Flow;
+            var c = Session != null ? Session.Case : null;
+            EndSession();
+            ShowDecor(false);
+            Destroy(Stage.gameObject);
+            Stage = Stage.Build();
+            switch (flow)
+            {
+                case Flow.Playing: if (c != null) StartCase(c, true); break;
+                case Flow.Select: ShowSelect(); break;
+                case Flow.Intro: if (introCase != null) ShowIntro(introCase); else ShowSelect(); break;
+                default: ShowTitle(false); break;
+            }
+        }
+
         void Update()
         {
+            CheckAspect();
             var kb = Keyboard.current;
             if (kb == null) return;
             if (kb.escapeKey.wasPressedThisFrame)
@@ -144,6 +174,8 @@ namespace AlibiCo
 
         public void ShowIntro(CaseDef c)
         {
+            introCase = c;
+            ShowDecor(true);
             Flow = Flow.Intro;
             Screens.ShowIntro(c);
         }

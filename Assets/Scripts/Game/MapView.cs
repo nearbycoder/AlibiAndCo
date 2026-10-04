@@ -133,7 +133,7 @@ namespace AlibiCo
 
         public void Clear()
         {
-            for (int i = routes.childCount - 1; i >= 0; i--) Destroy(routes.GetChild(i).gameObject);
+            for (int i = routes.childCount - 1; i >= 0; i--) Art.DestroyWithMeshes(routes.GetChild(i));
         }
 
         /// <summary>Draw the shortest walk between two places with its total time.</summary>
