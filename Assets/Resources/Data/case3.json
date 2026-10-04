@@ -1,0 +1,193 @@
+{
+  "id": "case3",
+  "title": "The Last Light",
+  "tagline": "Somebody wanted the sea dark.",
+  "date": "Saturday 1 November 1986",
+  "weather": "Gale warning · heavy rain",
+  "lesson": "Paper says who. People only say what they saw.",
+  "spanFrom": "21:00",
+  "spanTo": "23:10",
+  "intro": [
+    "On the night of the Harvest Ball, in a rising gale, the lamp at Wren Point went dark. The trawler Merry Wren ran onto the Mallow Rocks. Her skipper rowed ashore, but the boat was lost.",
+    "The coastguard logged the light burning at 22:05. At 22:36 the Grand's doorman telephoned to say it was out. Someone climbed the tower and jammed the lamp's clockwork with a marlinspike, which takes at least six minutes.",
+    "The keeper, his daughter, a fisherman with a grudge and the boat's owner all have stories. One of them is wearing someone else's coat."
+  ],
+  "people": [
+    { "id": "nell",   "name": "Nell Garrow",         "role": "suspect", "blurb": "The keeper's daughter, seventeen. Was meant to be minding the lamp tonight." },
+    { "id": "elias",  "name": "Elias Garrow",        "role": "suspect", "blurb": "Keeper of Wren Point for twenty-two years. Night off. Darts." },
+    { "id": "cole",   "name": "Bertram Cole",        "role": "suspect", "blurb": "Fisherman, doorman at the Grand on Saturdays. Swore he'd see Rook ruined." },
+    { "id": "rook",   "name": "Capt. Augustus Rook", "role": "suspect", "blurb": "Owner of the Merry Wren. At the Harvest Ball all night, or so the photographs say." }
+  ],
+  "clocks": [
+    { "id": "ref",     "name": "Exchange, coastguard & church bells" },
+    { "id": "lantern", "name": "The Lantern's bar clock", "offset": -10, "known": true, "note": "Ten minutes slow. We learned that at the Regatta." },
+    { "id": "camera",  "name": "Press camera date-back", "offset": 12, "note": "Wendell Fry never sets his camera's clock." }
+  ],
+  "incident": {
+    "title": "The Last Light",
+    "short": "Light jammed",
+    "text": "Wren Point's lamp clockwork was jammed with a marlinspike. Burning at 22:05 (coastguard), reported dark at 22:36. The job takes 6 minutes at the top of the tower.",
+    "location": "lighthouse",
+    "from": "22:05",
+    "to": "22:36",
+    "duration": 6,
+    "culprit": "rook"
+  },
+  "cards": [
+    {
+      "id": "t_power", "kind": "ledger", "start": true, "town": true,
+      "title": "Fault log", "source": "record", "sourceName": "South Western Electricity Board",
+      "text": "Supply dip, Wrenhaven East feeder.\nDuration: 3 seconds. Cause: gale on the lines.",
+      "location": "hotel", "at": "21:58", "event": "flicker"
+    },
+    {
+      "id": "t_flicker", "kind": "photo", "town": true, "image": "flicker",
+      "title": "Roll 3, frame 11", "source": "record", "sourceName": "Wendell Fry, Wrenhaven Gazette",
+      "text": "The ballroom mid-waltz as every chandelier dips at once.\nDate-back stamp: 22:10",
+      "location": "hotel", "at": "22:10", "clock": "camera", "event": "flicker"
+    },
+    {
+      "id": "n_claim", "kind": "statement", "start": true,
+      "title": "Nell Garrow", "source": "nell", "sourceName": "Nell, in her own words",
+      "text": "“I was up in the lamp room all night, from nine till Dad came running in. I never left the light. Not once.”",
+      "subjects": ["nell"], "location": "lighthouse", "from": "21:00", "to": "22:48",
+      "truth": "lie",
+      "reply": "“…I went to the pictures with Davey. Dad says boys are a distraction from the light. I'm sorry. I'm so sorry.”",
+      "unlocks": ["n_davey"]
+    },
+    {
+      "id": "n_ledger", "kind": "ledger", "start": true,
+      "title": "Box office ledger", "source": "record", "sourceName": "The Odeon",
+      "text": "21:30 · BACK TO THE FUTURE\n2 × stalls · N. GARROW",
+      "subjects": ["nell"], "location": "cinema", "at": "21:25"
+    },
+    {
+      "id": "n_kiosk", "kind": "receipt", "start": true,
+      "title": "Kiosk receipt", "source": "record", "sourceName": "The Odeon · interval kiosk",
+      "text": "2 × choc-ice\nStaff discount: N. GARROW (ex-usherette)",
+      "subjects": ["nell"], "location": "cinema", "at": "22:18"
+    },
+    {
+      "id": "n_davey", "kind": "statement",
+      "title": "Davey Penhale", "source": "witness", "sourceName": "Nell's young man",
+      "text": "“Nell and me were in the back row of the Odeon from half nine till the end, five past eleven. She never left my side.”",
+      "subjects": ["nell"], "location": "cinema", "from": "21:30", "to": "23:05",
+      "firm": "“Never left my side. I swear it on my mum.”"
+    },
+    {
+      "id": "x_sid", "kind": "statement", "start": true,
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“Elias was at the oche from nine by our clock till about quarter past ten, when young Jory burst in shouting that the Point was dark.”",
+      "subjects": ["elias"], "location": "lantern", "from": "21:00", "to": "22:15", "clock": "lantern",
+      "firm": "“Nine till quarter past ten by the clock. Yes, that clock. I know, I know.”"
+    },
+    {
+      "id": "x_slate", "kind": "ledger", "start": true,
+      "title": "Darts slate", "source": "record", "sourceName": "The Lantern",
+      "text": "E. GARROW · checked out on double sixteen\nTime chalked off the clock over the bar.",
+      "subjects": ["elias"], "location": "lantern", "at": "22:06", "clock": "lantern"
+    },
+    {
+      "id": "x_coast", "kind": "call", "start": true,
+      "title": "Coastguard log", "source": "record", "sourceName": "HM Coastguard, Hayle Head",
+      "text": "E. Garrow telephones from Wren Point:\nlamp clockwork jammed with a marlinspike. Restarting.",
+      "subjects": ["elias"], "location": "lighthouse", "at": "22:48"
+    },
+    {
+      "id": "c_peng", "kind": "statement", "start": true,
+      "title": "Mrs Pengelly", "source": "witness", "sourceName": "Lives on the cliff road",
+      "text": "“I saw Bertram Cole in his yellow oilskin, the one with the patched elbow, hurrying along the cliff path towards the Point. St Brigid's had just struck the quarter.”",
+      "subjects": ["cole"], "location": "cliff", "at": "22:15",
+      "truth": "mistaken",
+      "reply": "“Well… it was his oilskin. Nobody else has a patch like that. I never saw his face, not with the hood up in that rain.”",
+      "unlocks": ["u_photo", "t_flicker", "c_coat"]
+    },
+    {
+      "id": "c_taxi", "kind": "call", "start": true,
+      "title": "Exchange log", "source": "record", "sourceName": "Wrenhaven Telephone Exchange",
+      "text": "Grand Hotel front desk → Wrenhaven Taxis · 1 minute\nCaller: “Cole, on the door.”",
+      "subjects": ["cole"], "location": "hotel", "at": "22:14"
+    },
+    {
+      "id": "c_coast", "kind": "call", "start": true,
+      "title": "Coastguard log", "source": "record", "sourceName": "HM Coastguard, Hayle Head",
+      "text": "Telephone from the Grand Hotel's doorman, B. Cole:\n“Wren Point's gone dark.”",
+      "subjects": ["cole"], "location": "hotel", "at": "22:36"
+    },
+    {
+      "id": "c_coat", "kind": "statement",
+      "title": "Bertram Cole", "source": "cole", "sourceName": "Cole, in his own words",
+      "text": "“My oilskin hung on the staff peg by the kitchen door all night. When I fetched it at eleven it was soaked through, with mud to the knees.”",
+      "subjects": ["cole"], "location": "hotel", "at": "23:00",
+      "firm": "“Soaked. And I never set foot outside all night.”"
+    },
+    {
+      "id": "u_photo", "kind": "photo", "image": "terrace",
+      "title": "Roll 3, frame 19", "source": "record", "sourceName": "Wendell Fry, Wrenhaven Gazette",
+      "text": "The Grand's terrace in the rain. In the background, on the cliff path, a figure in a yellow oilskin heads east.\nDate-back stamp: 22:27",
+      "candidates": ["nell", "elias", "cole", "rook"], "trueSubject": "rook",
+      "location": "cliff", "at": "22:27", "clock": "camera"
+    },
+    {
+      "id": "r_claim", "kind": "statement", "start": true,
+      "title": "Capt. Augustus Rook", "source": "rook", "sourceName": "Rook, in his own words",
+      "text": "“I was in the ballroom from nine until the band packed up. I danced, I drank, I drew the raffle. I never left it. Ask anyone.”",
+      "subjects": ["rook"], "location": "hotel", "from": "21:00", "to": "23:05",
+      "truth": "lie",
+      "reply": "“Very well. I stepped out onto the terrace for a cigar. Ten minutes. Twenty, perhaps. A man may take the air.”"
+    },
+    {
+      "id": "r_wife", "kind": "statement", "start": true,
+      "title": "Lavinia Rook", "source": "witness", "sourceName": "The Captain's wife",
+      "text": "“Augustus was at my side the entire evening. We danced every dance.”",
+      "subjects": ["rook"], "location": "hotel", "from": "21:00", "to": "23:05",
+      "truth": "lie",
+      "reply": "“I… danced two reels with the Mayor. When I came back, Augustus was at the bar and his hair was wet. He said he'd been on the terrace. I chose to believe him.”"
+    },
+    {
+      "id": "r_photo1", "kind": "photo", "start": true, "image": "toast",
+      "title": "Roll 3, frame 14", "source": "record", "sourceName": "Wendell Fry, Wrenhaven Gazette",
+      "text": "Capt. Rook toasts the Mayor beneath the big chandelier.\nDate-back stamp: 22:12",
+      "subjects": ["rook"], "location": "hotel", "at": "22:12", "clock": "camera"
+    },
+    {
+      "id": "r_photo2", "kind": "photo", "start": true, "image": "raffle",
+      "title": "Roll 3, frame 22", "source": "record", "sourceName": "Wendell Fry, Wrenhaven Gazette",
+      "text": "Capt. Rook draws the raffle, beaming, hair oddly damp.\nDate-back stamp: 22:56",
+      "subjects": ["rook"], "location": "hotel", "at": "22:56", "clock": "camera"
+    }
+  ],
+  "triggers": [
+    { "on": "conflict", "a": "n_claim", "b": "n_ledger",
+      "question": "Nell says she never left the lamp room, but the Odeon sold her two stalls tickets at 21:25." },
+    { "on": "conflict", "a": "c_peng", "b": "c_taxi",
+      "question": "Mrs Pengelly saw Cole on the cliff path at 22:15. The exchange has him ringing for a taxi from the hotel desk at 22:14, four minutes' walk away." },
+    { "on": "conflict", "a": "u_photo", "b": "r_claim",
+      "question": "The figure in the oilskin can only be Rook, and Rook says he never left the ballroom." },
+    { "on": "calibrate", "a": "camera", "memo": "Fry's camera runs twelve minutes fast. Every photograph on that roll just moved." },
+    { "on": "confirm", "a": "u_photo", "memo": "Only one face is left. The oilskin had a passenger." }
+  ],
+  "memos": [
+    { "when": "start", "text": "Some cards don't say who. Watch the faces: paper can rule a person out, words can't." },
+    { "when": "unknown", "text": "A face is crossed out when that person's paper trail makes the card impossible. When only one is left, you've found them." },
+    { "when": "allCovered", "text": "Every alibi holds. Then look at whose clock they hang on." }
+  ],
+  "truth": {
+    "nell":  [ { "at": "cinema", "from": "21:25", "to": "23:05" } ],
+    "elias": [ { "at": "lantern", "from": "21:05", "to": "22:27" }, { "at": "lighthouse", "from": "22:48", "to": "23:10" } ],
+    "cole":  [ { "at": "hotel", "from": "21:00", "to": "23:10" } ],
+    "rook":  [ { "at": "hotel", "from": "21:00", "to": "22:08" }, { "at": "cliff", "from": "22:12", "to": "22:15" }, { "at": "lighthouse", "from": "22:23", "to": "22:29" }, { "at": "hotel", "from": "22:41", "to": "23:05" } ]
+  },
+  "reconstruction": [
+    "22:08. Rook slips out of the ballroom, past the kitchens, and lifts Cole's oilskin off its peg.",
+    "22:15. Fry's flash catches a yellow shape on the cliff path. Nobody looks twice.",
+    "22:23. A marlinspike in the lamp's clockwork. Wren Point goes dark.",
+    "22:41. Back in the ballroom with wet hair. “Just a cigar on the terrace.”",
+    "22:44. He draws the raffle and smiles for the camera."
+  ],
+  "epilogue": [
+    "Rook had insured the Merry Wren for twice her worth in September. His nephew Tam was to run her onto the Mallow Rocks at low water and row ashore: “the light failed, nobody's fault.”",
+    "The insurers paid nothing. Tam turned King's evidence. Mrs Pengelly sent Cole a fruit cake by way of apology.",
+    "Nell still minds the light. Davey brings the choc-ices. Connie's note: “Three for three, partner. Go home and get some sleep.”"
+  ]
+}

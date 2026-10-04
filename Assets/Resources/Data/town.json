@@ -1,0 +1,44 @@
+{
+  "name": "Wrenhaven",
+  // x/y are map units (roughly walking minutes); y grows north, the sea is to the south.
+  "locations": [
+    { "id": "boathouse",  "name": "Yacht Club Boathouse", "short": "Boathouse",  "icon": "anchor",   "color": "#4E7D8C", "x": 8,  "y": 10, "blurb": "Slipways, varnish and the Regatta Cup cabinet." },
+    { "id": "cafe",       "name": "Harbour Café",         "short": "Café",       "icon": "cup",      "color": "#C98B4E", "x": 18, "y": 10, "blurb": "Tea, parkin and a till that's never been right." },
+    { "id": "pier",       "name": "The Pier",             "short": "Pier",       "icon": "pier",     "color": "#7A8F9C", "x": 22, "y": 6,  "blurb": "Planks, gulls and the ferry steps." },
+    { "id": "lantern",    "name": "The Lantern",          "short": "Lantern",    "icon": "pint",     "color": "#A8553F", "x": 25, "y": 10, "blurb": "Harbour pub. Darts, sherry, a slow clock." },
+    { "id": "bandstand",  "name": "Promenade Bandstand",  "short": "Bandstand",  "icon": "music",    "color": "#6E8B5E", "x": 30, "y": 9,  "blurb": "Brass band on Sundays, courting couples otherwise." },
+    { "id": "hotel",      "name": "The Grand Hotel",      "short": "Grand",      "icon": "star",     "color": "#8C6F9E", "x": 34, "y": 11, "blurb": "Chandeliers, a ballroom and a night porter's ledger." },
+    { "id": "cliff",      "name": "Cliff Path",           "short": "Cliff Path", "icon": "path",     "color": "#5F7A6A", "x": 38, "y": 8,  "blurb": "Windswept path from the Grand to Wren Point." },
+    { "id": "lighthouse", "name": "Wren Point Lighthouse","short": "Lighthouse", "icon": "light",    "color": "#C7A53F", "x": 45, "y": 4,  "blurb": "A clockwork lamp that hasn't missed a night in ninety years." },
+    { "id": "hardware",   "name": "Fenwick's Hardware",   "short": "Hardware",   "icon": "key",      "color": "#6B7F8E", "x": 19, "y": 16, "blurb": "Open late. Matches, gloves, paraffin." },
+    { "id": "bakery",     "name": "Penhallow's Bakery",   "short": "Bakery",     "icon": "bread",    "color": "#D0A35C", "x": 25, "y": 17, "blurb": "Home of the three-time Bake-Off champion." },
+    { "id": "townhall",   "name": "Town Hall",            "short": "Town Hall",  "icon": "clock",    "color": "#8E8A7A", "x": 29, "y": 19, "blurb": "Market square, war memorial, the mayor's office." },
+    { "id": "depot",      "name": "Bus Depot",            "short": "Depot",      "icon": "bus",      "color": "#9C7A55", "x": 36, "y": 21, "blurb": "Route 4 to Polgarth, every forty minutes." },
+    { "id": "cinema",     "name": "The Odeon",            "short": "Odeon",      "icon": "film",     "color": "#9E5A6E", "x": 31, "y": 25, "blurb": "Two screens, one usherette, a sticky floor." },
+    { "id": "church",     "name": "St Brigid's Church",   "short": "St Brigid's","icon": "bell",     "color": "#7D7F9C", "x": 22, "y": 23, "blurb": "Its bells keep better time than anyone in town." },
+    { "id": "station",    "name": "Railway Station",      "short": "Station",    "icon": "train",    "color": "#6D6D6D", "x": 14, "y": 27, "blurb": "End of the branch line." },
+    { "id": "glasshouse", "name": "Park Glasshouse",      "short": "Glasshouse", "icon": "leaf",     "color": "#5E8F6B", "x": 8,  "y": 20, "blurb": "Victorian palm house in Penrose Park." }
+  ],
+  "streets": [
+    { "a": "boathouse", "b": "cafe",       "min": 10 },
+    { "a": "cafe",      "b": "pier",       "min": 4 },
+    { "a": "pier",      "b": "lantern",    "min": 3 },
+    { "a": "lantern",   "b": "bandstand",  "min": 5 },
+    { "a": "bandstand", "b": "hotel",      "min": 4 },
+    { "a": "hotel",     "b": "cliff",      "min": 4 },
+    { "a": "cliff",     "b": "lighthouse", "min": 8 },
+    { "a": "cafe",      "b": "hardware",   "min": 6 },
+    { "a": "hardware",  "b": "bakery",     "min": 6 },
+    { "a": "lantern",   "b": "bakery",     "min": 7 },
+    { "a": "bakery",    "b": "townhall",   "min": 4 },
+    { "a": "townhall",  "b": "depot",      "min": 8 },
+    { "a": "townhall",  "b": "cinema",     "min": 6 },
+    { "a": "cinema",    "b": "depot",      "min": 7 },
+    { "a": "depot",     "b": "hotel",      "min": 9 },
+    { "a": "hardware",  "b": "church",     "min": 8 },
+    { "a": "church",    "b": "townhall",   "min": 7 },
+    { "a": "church",    "b": "station",    "min": 9 },
+    { "a": "station",   "b": "glasshouse", "min": 10 },
+    { "a": "glasshouse","b": "boathouse",  "min": 11 }
+  ]
+}

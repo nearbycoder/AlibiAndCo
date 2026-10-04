@@ -1,0 +1,161 @@
+{
+  "id": "case2",
+  "title": "The Regatta Cup",
+  "tagline": "Clocks lie too.",
+  "date": "Saturday 18 October 1986",
+  "weather": "Clear · low tide 21:42",
+  "lesson": "Fix the clock, and the story moves.",
+  "spanFrom": "20:45",
+  "spanTo": "22:40",
+  "intro": [
+    "The Wrenhaven Regatta Cup, solid silver and a hundred years old, has vanished from its cabinet in the Yacht Club boathouse.",
+    "The cleaner saw it at half past nine as St Brigid's struck the half. When the steward got back at 22:17, the cabinet was open and the Cup was gone. Picking that lock takes at least four minutes.",
+    "Three people had keys, debts or grudges. All three have alibis. In this town, though, half the clocks are wrong."
+  ],
+  "people": [
+    { "id": "marlow", "name": "Marlow Quint",     "role": "suspect", "blurb": "Club treasurer. Pressed suit, frayed cuffs, a bookie who knows his name." },
+    { "id": "ines",   "name": "Ines Delacroix",   "role": "suspect", "blurb": "Rival skipper from Brittany. Lost the Cup on a protest last year. Hasn't forgotten." },
+    { "id": "rolf",   "name": "Rolf Abernethy",   "role": "suspect", "blurb": "Boathouse steward for thirty years. Has the only other key to the cabinet." }
+  ],
+  "clocks": [
+    { "id": "ref",     "name": "Exchange, bank & church bells" },
+    { "id": "lantern", "name": "The Lantern's bar clock", "offset": -10, "note": "Sid keeps it slow so last orders come later." },
+    { "id": "cafe",    "name": "Harbour Café clock & till", "offset": 5, "note": "Dot sets the till by the wall clock. The wall clock is wrong." }
+  ],
+  "incident": {
+    "title": "The Regatta Cup",
+    "short": "Cup stolen",
+    "text": "The Regatta Cup was lifted from its locked cabinet in the boathouse. Seen at 21:30, missing at 22:17. Picking the lock takes 4 minutes.",
+    "location": "boathouse",
+    "from": "21:30",
+    "to": "22:17",
+    "duration": 4,
+    "culprit": "marlow"
+  },
+  "cards": [
+    {
+      "id": "t_radio", "kind": "note", "start": true, "town": true,
+      "title": "Radio Times", "source": "record", "sourceName": "BBC Radio 4 listings",
+      "text": "21:00 · THE NEWS\nread by Brian Perkins",
+      "location": "townhall", "at": "21:00", "event": "news9"
+    },
+    {
+      "id": "t_sid", "kind": "statement", "town": true,
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“We stopped the darts when the nine o'clock news came on the wireless. Our clock said ten to nine. I remember thinking they were early.”",
+      "location": "lantern", "at": "20:50", "clock": "lantern", "event": "news9",
+      "firm": "“Ten to nine on our clock, news on the wireless. Clear as day.”"
+    },
+    {
+      "id": "i_ledger", "kind": "ledger", "start": true,
+      "title": "Porter's ledger", "source": "record", "sourceName": "The Grand Hotel · night porter",
+      "text": "Miss I. DELACROIX, Room 12\n1 × cognac, signed to the room.",
+      "subjects": ["ines"], "location": "hotel", "at": "21:20"
+    },
+    {
+      "id": "i_sid", "kind": "statement", "start": true,
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“Miss Delacroix came in asking about the morning tide. Twenty past nine by our clock.”",
+      "subjects": ["ines"], "location": "lantern", "at": "21:20", "clock": "lantern",
+      "firm": "“Twenty past nine. I looked straight at the clock over the bar. Mind you, nobody in here trusts that clock.”"
+    },
+    {
+      "id": "i_call", "kind": "call", "start": true,
+      "title": "Exchange log", "source": "record", "sourceName": "Wrenhaven Telephone Exchange",
+      "text": "Grand Hotel, Room 12 → LYON, FRANCE\nTrunk call · 6 minutes",
+      "subjects": ["ines"], "location": "hotel", "from": "21:58", "to": "22:04"
+    },
+    {
+      "id": "r_till", "kind": "receipt", "start": true,
+      "title": "Till receipt", "source": "record", "sourceName": "Harbour Café",
+      "text": "Pie & peas, mug of tea\nPAID BY CARD · R. ABERNETHY",
+      "subjects": ["rolf"], "location": "cafe", "at": "21:10", "clock": "cafe", "event": "rolfpie"
+    },
+    {
+      "id": "r_bank", "kind": "ledger",
+      "title": "Card authorisation", "source": "record", "sourceName": "Wrenhaven Savings Bank",
+      "text": "R. ABERNETHY · HARBOUR CAFE\n£1.85 · approved",
+      "subjects": ["rolf"], "location": "cafe", "at": "21:05", "event": "rolfpie"
+    },
+    {
+      "id": "r_sid", "kind": "statement", "start": true,
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“Rolf played darts with the lads from twenty past nine by our clock till he left at ten to ten. Said he had his rounds to do.”",
+      "subjects": ["rolf"], "location": "lantern", "from": "21:20", "to": "21:50", "clock": "lantern",
+      "firm": "“Twenty past to ten to, by the clock. He lost, as usual.”"
+    },
+    {
+      "id": "r_police", "kind": "call", "start": true,
+      "title": "Police desk log", "source": "record", "sourceName": "Wrenhaven Police Station",
+      "text": "Telephone from R. Abernethy, steward, Yacht Club:\n“The Regatta Cup's gone.”",
+      "subjects": ["rolf"], "location": "boathouse", "at": "22:18"
+    },
+    {
+      "id": "m_slate", "kind": "ledger", "start": true,
+      "title": "Darts slate", "source": "record", "sourceName": "The Lantern",
+      "text": "M. QUINT · 2 pints · settled\nTime chalked off the clock over the bar.",
+      "subjects": ["marlow"], "location": "lantern", "at": "21:25", "clock": "lantern"
+    },
+    {
+      "id": "m_claim", "kind": "statement", "start": true,
+      "title": "Marlow Quint", "source": "marlow", "sourceName": "Marlow, in his own words",
+      "text": "“I walked down from the Lantern and sat in the Harbour Café from twenty to ten until half ten with the evening paper. Ask Dot.”",
+      "subjects": ["marlow"], "location": "cafe", "from": "21:40", "to": "22:30",
+      "truth": "lie",
+      "reply": "“So I dawdled. Sue me. But I had a coffee at 21:52, it's on the docket, and I paid for a brandy by card a little after ten. The bank logs every card. The boathouse is ten minutes each way, Detective, and that lock takes picking. Do the arithmetic.”",
+      "unlocks": ["m_bank", "r_bank"]
+    },
+    {
+      "id": "m_docket", "kind": "receipt", "start": true,
+      "title": "Table docket", "source": "record", "sourceName": "Harbour Café · table 4",
+      "text": "Coffee, slice of parkin · CASH\n“Mr Quint” in Dot's hand.",
+      "subjects": ["marlow"], "location": "cafe", "at": "21:52", "clock": "cafe"
+    },
+    {
+      "id": "m_dot", "kind": "statement", "start": true,
+      "title": "Dot Pike", "source": "witness", "sourceName": "Waitress, Harbour Café",
+      "text": "“Mr Quint came in at quarter to ten by our clock and sat at table four with his paper all evening. His coat never left the chair.”",
+      "subjects": ["marlow"], "location": "cafe", "from": "21:45", "to": "22:30", "clock": "cafe",
+      "truth": "mistaken",
+      "reply": "“His coat was on the chair the whole time… but I was out the back washing up for a good while. He could have slipped out the side door. Oh dear.”"
+    },
+    {
+      "id": "m_bank", "kind": "ledger",
+      "title": "Card authorisation", "source": "record", "sourceName": "Wrenhaven Savings Bank",
+      "text": "M. QUINT · HARBOUR CAFE\n£1.20 · brandy coffee · approved",
+      "subjects": ["marlow"], "location": "cafe", "at": "22:12"
+    }
+  ],
+  "triggers": [
+    { "on": "conflict", "a": "i_ledger", "b": "i_sid", "unlocks": ["t_sid"],
+      "question": "The Grand's ledger has Ines drinking cognac at 21:20, and Sid has her at the Lantern at 21:20. They're nine minutes' walk apart. Who's wrong, or whose clock is?" },
+    { "on": "conflict", "a": "m_slate", "b": "m_claim",
+      "question": "Marlow settled his slate at the Lantern at 21:35. The café is seven minutes' walk away, yet he says he sat down at 21:40." },
+    { "on": "conflict", "a": "m_slate", "b": "m_dot",
+      "question": "On the corrected café clock, Dot has Marlow sitting down at 21:40. He was still paying at the Lantern at 21:35." },
+    { "on": "calibrate", "a": "lantern", "memo": "The Lantern's clock is ten minutes slow. Everything Sid timed by it just moved." },
+    { "on": "calibrate", "a": "cafe", "memo": "The café clock is five minutes fast, and so is every docket it stamped." }
+  ],
+  "memos": [
+    { "when": "start", "text": "Clocks lie too. When two cards describe the same moment, drag one onto the other." },
+    { "when": "firstConflict", "text": "Before you call Sid a liar, ask which clock he was reading." },
+    { "when": "allCovered", "text": "Everyone's covered. Then somebody's cover is false. Look for a moment that's on two clocks." }
+  ],
+  "truth": {
+    "marlow": [ { "at": "lantern", "from": "21:00", "to": "21:35" }, { "at": "cafe", "from": "21:42", "to": "21:47" }, { "at": "boathouse", "from": "21:57", "to": "22:01" }, { "at": "cafe", "from": "22:11", "to": "22:35" } ],
+    "ines":   [ { "at": "hotel", "from": "20:50", "to": "21:21" }, { "at": "lantern", "from": "21:30", "to": "21:38" }, { "at": "hotel", "from": "21:47", "to": "22:40" } ],
+    "rolf":   [ { "at": "cafe", "from": "20:55", "to": "21:15" }, { "at": "lantern", "from": "21:30", "to": "22:00" }, { "at": "boathouse", "from": "22:17", "to": "22:40" } ]
+  },
+  "reconstruction": [
+    "21:35. Marlow settles his slate at the Lantern and strolls down the front.",
+    "21:47. Coffee and parkin at table four. He leaves his coat and his paper on the chair.",
+    "21:57. Out the side door and along the sea wall. Four minutes with a picklock.",
+    "22:11. Back at table four. Dot is still at the sink.",
+    "22:12. A brandy, paid by card, timed by the bank. That was the alibi."
+  ],
+  "epilogue": [
+    "Marlow had been dipping into the club's float for a year to pay his bookie. The Cup was going to be melted down in Polgarth on Monday morning.",
+    "It was found in his boot locker, wrapped in a regatta flag. Ines won the race by a length and refused to be gracious about it.",
+    "Dot bought the café a new clock. Connie's note: “Remember the Lantern's clock: ten minutes slow. It'll come up again.”"
+  ]
+}

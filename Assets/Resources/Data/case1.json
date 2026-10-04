@@ -1,0 +1,124 @@
+{
+  "id": "case1",
+  "title": "Sugar and Spite",
+  "tagline": "Somebody hated that cake.",
+  "date": "Friday 10 October 1986",
+  "weather": "Drizzle · 9°C",
+  "lesson": "Lies aren't confessions.",
+  "spanFrom": "20:00",
+  "spanTo": "21:45",
+  "intro": [
+    "The night before the Wrenhaven Bake-Off, Maud Penhallow's showstopper, four tiers of lemon and lavender, was found face-down on her bakery floor.",
+    "Maud locked up at 20:30 and came back for her reading glasses at 21:15. The back door's lock is stiff, so whoever did it was inside for at least five minutes.",
+    "Three people had a reason to hate that cake. Each of them has a story."
+  ],
+  "people": [
+    { "id": "agnes", "name": "Agnes Trelawney", "role": "suspect", "blurb": "Rival baker. Runner-up three years running. Says she doesn't mind." },
+    { "id": "bram",  "name": "Bram Okafor",     "role": "suspect", "blurb": "Maud's apprentice. Wants his name on the loaves, not just flour on his apron." },
+    { "id": "clem",  "name": "Clem Hollis",     "role": "suspect", "blurb": "Caterer, chess fiend, Maud's ex-husband. Still has a key." }
+  ],
+  "clocks": [
+    { "id": "ref", "name": "Wristwatches & church bells" }
+  ],
+  "incident": {
+    "title": "The Showstopper",
+    "short": "Cake on the floor",
+    "text": "Maud's Bake-Off cake was tipped off its stand inside Penhallow's Bakery. Locked at 20:30, found at 21:15. The vandal needed 5 minutes inside.",
+    "location": "bakery",
+    "from": "20:30",
+    "to": "21:15",
+    "duration": 5,
+    "culprit": "bram"
+  },
+  "cards": [
+    {
+      "id": "a_claim", "kind": "statement", "start": true,
+      "title": "Agnes Trelawney", "source": "agnes", "sourceName": "Agnes, in her own words",
+      "text": "“I went to the quarter-past-eight picture at the Odeon and didn't come out till half nine. Sat through every minute of it.”",
+      "subjects": ["agnes"], "location": "cinema", "from": "20:15", "to": "21:30",
+      "truth": "lie",
+      "reply": "“…Oh, all right. I was in the Lantern. Two sherries. If the judges hear I was tippling the night before the Bake-Off, I'll never live it down.”",
+      "unlocks": ["a_sid"]
+    },
+    {
+      "id": "a_tab", "kind": "receipt", "start": true,
+      "title": "Bar tab", "source": "record", "sourceName": "The Lantern",
+      "text": "Mrs A. TRELAWNEY\n2 × sweet sherry\nSettled at the bar.",
+      "subjects": ["agnes"], "location": "lantern", "at": "20:52"
+    },
+    {
+      "id": "a_sid", "kind": "statement",
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“Agnes came in about twenty to nine and sat at the end of the bar till gone half nine. Never left her stool.”",
+      "subjects": ["agnes"], "location": "lantern", "from": "20:40", "to": "21:30",
+      "firm": "“She never shifted. I'd have noticed. She was blocking the dartboard.”"
+    },
+    {
+      "id": "b_claim", "kind": "statement", "start": true,
+      "title": "Bram Okafor", "source": "bram", "sourceName": "Bram, in his own words",
+      "text": "“I was playing chess with Clem at the Harbour Café from half eight till twenty past nine. He beat me twice. Ask him.”",
+      "subjects": ["bram"], "location": "cafe", "from": "20:30", "to": "21:20",
+      "truth": "lie",
+      "reply": "“Fine. I left the café. I went for a walk. I needed matches… for my stove. That's not a crime.”"
+    },
+    {
+      "id": "c_claim", "kind": "statement", "start": true,
+      "title": "Clem Hollis", "source": "clem", "sourceName": "Clem, in his own words",
+      "text": "“Bram and I were at the café over the chessboard, half eight till twenty past nine. Neither of us left the table.”",
+      "subjects": ["clem", "bram"], "location": "cafe", "from": "20:30", "to": "21:20",
+      "truth": "lie",
+      "reply": "“All right. I left at a quarter to nine for the bus to my sister's. Bram asked me to say we were together all evening. He said he had an ‘errand’. I didn't ask.”",
+      "unlocks": ["c_true"]
+    },
+    {
+      "id": "c_ticket", "kind": "ticket", "start": true,
+      "title": "Bus ticket", "source": "record", "sourceName": "Route 4 · Wrenhaven → Polgarth",
+      "text": "Single, adult. Clipped by the conductor at the depot.\nFound in C. Hollis's coat pocket.",
+      "subjects": ["clem"], "location": "depot", "at": "21:10"
+    },
+    {
+      "id": "c_true", "kind": "statement",
+      "title": "Clem Hollis (again)", "source": "clem", "sourceName": "Clem, second statement",
+      "text": "“We played from half eight till a quarter to nine. Then I went for my bus and Bram went off on his errand.”",
+      "subjects": ["clem", "bram"], "location": "cafe", "from": "20:30", "to": "20:45",
+      "firm": "“That's the truth this time. Quarter to nine. I nearly missed the bus.”"
+    },
+    {
+      "id": "b_receipt", "kind": "receipt", "start": true,
+      "title": "Till receipt", "source": "record", "sourceName": "Fenwick's Hardware · night counter",
+      "text": "1 × Swan Vestas matches\nON ACCOUNT: B. OKAFOR",
+      "subjects": ["bram"], "location": "hardware", "at": "21:12"
+    }
+  ],
+  "triggers": [
+    { "on": "conflict", "a": "a_claim", "b": "a_tab",
+      "question": "Agnes says she was at the pictures, but her bar tab puts her in the Lantern at 20:52. Which is it?" },
+    { "on": "conflict", "a": "c_claim", "b": "c_ticket",
+      "question": "Clem swears he never left the chessboard, so how was his bus ticket clipped at the depot at 21:10?" },
+    { "on": "conflict", "a": "b_claim", "b": "b_receipt",
+      "question": "Bram was buying matches at Fenwick's at 21:12 while ‘playing chess at the café’?" }
+  ],
+  "memos": [
+    { "when": "start", "text": "Every card belongs somewhere. Drag each one onto the board. It'll find its own line and its own time." },
+    { "when": "firstPin", "text": "The ribbons show the walk between places. Ink blue: there was time. Red: there wasn't." },
+    { "when": "firstConflict", "text": "Red means impossible. Paper doesn't lie, people do. Click a statement in the red and confront them." },
+    { "when": "firstStrike", "text": "A lie isn't a confession. People lie about sherry, sweethearts and debts. Ask where they really were." },
+    { "when": "incidentHint", "text": "Now drag the incident card across the lines. It'll only fit where someone had the time to do it." }
+  ],
+  "truth": {
+    "agnes": [ { "at": "lantern", "from": "20:38", "to": "21:35" } ],
+    "bram":  [ { "at": "cafe", "from": "20:30", "to": "20:47" }, { "at": "bakery", "from": "20:59", "to": "21:04" }, { "at": "hardware", "from": "21:10", "to": "21:13" } ],
+    "clem":  [ { "at": "cafe", "from": "20:30", "to": "20:45" }, { "at": "depot", "from": "21:09", "to": "21:15" } ]
+  },
+  "reconstruction": [
+    "20:45. Clem leaves for his bus. Bram leaves the café right behind him.",
+    "20:59. Bram lets himself into the bakery with the spare key from the flour bin.",
+    "21:01. Four tiers of lemon and lavender meet the floor.",
+    "21:12. Matches at Fenwick's, on account. He thought that made an alibi."
+  ],
+  "epilogue": [
+    "Bram confessed before Maud had finished sweeping up. She'd told him, again, that he wasn't ready to bake under the Penhallow name.",
+    "Maud entered a plain Victoria sponge instead and won anyway. Agnes came second and swore it was the sherry.",
+    "Connie's note on the file: “Good work, partner. Next time the clocks won't be on your side.”"
+  ]
+}
