@@ -21,6 +21,13 @@ namespace AlibiCo
 
         static CanvasScaler scaler;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()   // see Art.ResetStatics
+        {
+            Canvas = null; Root = null; scaler = null; ped = null;
+            rounded = roundedSmall = white = softGlow = null;
+        }
+
         /// <summary>Text size setting: a smaller reference resolution makes every UI element larger.</summary>
         public static void ApplyScale()
         {

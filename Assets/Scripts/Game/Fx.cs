@@ -7,6 +7,9 @@ namespace AlibiCo
     {
         static Material dustMat, inkMat, sparkMat;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => dustMat = inkMat = sparkMat = null;   // see Art.ResetStatics
+
         static ParticleSystem Burst(string name, Vector3 pos, Material mat, int count, float speed, float size, float life, Color color, float gravity = 0, float spread = 1f)
         {
             if (Settings.ReducedMotion) count = Mathf.Max(1, count / 3);

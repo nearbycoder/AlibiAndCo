@@ -466,6 +466,9 @@ namespace AlibiCo
 
         static readonly Dictionary<(Material, Vector2), Material> tiled = new Dictionary<(Material, Vector2), Material>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => tiled.Clear();   // see Art.ResetStatics
+
         static void SetTiling(MeshRenderer r, Vector2 tiling)
         {
             tiling = new Vector2(Mathf.Round(tiling.x * 4) / 4, Mathf.Round(tiling.y * 4) / 4);

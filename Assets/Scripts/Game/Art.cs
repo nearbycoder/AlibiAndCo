@@ -74,6 +74,16 @@ namespace AlibiCo
         static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
         static readonly Dictionary<string, Material> cache = new Dictionary<string, Material>();
 
+        /// <summary>
+        /// The project enters play mode without a domain reload, so statics outlive a play session
+        /// while the objects they cache are destroyed with it. Start every session empty.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            fonts.Clear(); baseMats.Clear(); textures.Clear(); models.Clear(); sprites.Clear(); cache.Clear();
+        }
+
         public const string Typewriter = "SpecialElite-Regular SDF";
         public const string Mono = "CourierPrime-Regular SDF";
         public const string MonoBold = "CourierPrime-Bold SDF";
@@ -99,7 +109,7 @@ namespace AlibiCo
 
         public static Texture2D Tex(string name)
         {
-            if (textures.TryGetValue(name, out var t)) return t;
+            if (textures.TryGetValue(name, out var t) && t != null) return t;
             t = Resources.Load<Texture2D>("Textures/" + name);
             textures[name] = t;
             return t;
@@ -107,7 +117,7 @@ namespace AlibiCo
 
         public static Sprite Sprite(string path)
         {
-            if (sprites.TryGetValue(path, out var s)) return s;
+            if (sprites.TryGetValue(path, out var s) && s != null) return s;
             var tex = Resources.Load<Texture2D>(path);
             s = tex != null ? UnityEngine.Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100) : null;
             sprites[path] = s;
@@ -120,7 +130,7 @@ namespace AlibiCo
 
         public static GameObject Model(string name)
         {
-            if (models.TryGetValue(name, out var m)) return m;
+            if (models.TryGetValue(name, out var m) && m != null) return m;
             m = Resources.Load<GameObject>("Models/" + name);
             if (m == null) Debug.LogWarning($"[Art] missing model {name}");
             models[name] = m;
@@ -163,7 +173,7 @@ namespace AlibiCo
         public static Material Lit(Color c, string tex = null, float smooth = 0.25f, float metal = 0f, Vector2? tiling = null, string normal = null)
         {
             string key = $"lit|{ColorUtility.ToHtmlStringRGBA(c)}|{tex}|{smooth:0.00}|{metal:0.00}|{tiling}|{normal}";
-            if (cache.TryGetValue(key, out var m)) return m;
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
             m = new Material(BaseMat(normal != null ? "LitNormal" : "Lit"));
             m.SetColor("_BaseColor", c);
             m.SetFloat("_Smoothness", smooth);
@@ -187,7 +197,7 @@ namespace AlibiCo
         public static Material Emissive(Color c, Color emission, float intensity = 1)
         {
             string key = $"emit|{ColorUtility.ToHtmlStringRGBA(c)}|{ColorUtility.ToHtmlStringRGBA(emission)}|{intensity}";
-            if (cache.TryGetValue(key, out var m)) return m;
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
             m = new Material(BaseMat("LitEmissive"));
             m.SetColor("_BaseColor", c);
             m.SetColor("_EmissionColor", emission * intensity);

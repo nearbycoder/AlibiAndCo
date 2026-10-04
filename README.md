@@ -160,5 +160,3 @@ docs/images/            README screenshots (from the autoplay run)
   their text is read by hovering a chip (which brings up the scaled full card) or in the
   notebook. Large panels (case files, case intro, case closed, settings, notebook) are shrunk back
   to fit the screen at the larger sizes, so they stay about the same size.
-- In a long-running headless Editor, the 3D scene sometimes renders magenta after several
-  play-mode sessions. This hasn't happened in the standalone build.

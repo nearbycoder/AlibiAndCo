@@ -41,6 +41,7 @@ print(len(d.get('entries',[])), 'error entries')" ;;
     xy=$($U eval -- --code "var v=AlibiCo.GameRoot.I.Session.ViewOf(\"$2\"); var p=AlibiCo.Stage.I.Cam.WorldToViewportPoint(v.transform.position); return (p.x*UnityEngine.Screen.width).ToString(\"0\")+\" \"+(p.y*UnityEngine.Screen.height).ToString(\"0\");" --timeout 10000 | python3 -c "import json,sys; print(json.load(sys.stdin)['result'])")
     $U simulate_pointer -- --x ${xy% *} --y ${xy#* } --action move > /dev/null; echo "$xy" ;;
   pointer) $U simulate_pointer -- --x "$2" --y "$3" --action "${4:-move}" > /dev/null ;;
-  quit) $U quit || true ;;
+  # The CLI's own quit command fails in edit mode (it schedules a DontDestroyOnLoad object), so exit via the Editor API.
+  quit) $U eval -- --code 'UnityEditor.EditorApplication.delayCall += () => UnityEditor.EditorApplication.Exit(0); return "bye";' --timeout 10000 || true ;;
   *) sed -n 2,12p "$0"; exit 2 ;;
 esac

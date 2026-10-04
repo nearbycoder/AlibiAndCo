@@ -40,6 +40,17 @@ namespace AlibiCo
 
         static readonly Dictionary<string, Material> iconMats = new Dictionary<string, Material>();
 
+        /// <summary>
+        /// The project enters play mode without a domain reload, so statics outlive a play session
+        /// while the objects they cache are destroyed with it. Start every session empty.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            iconMats.Clear();
+            quad = null;
+        }
+
         /// <summary>A tinted icon quad from Resources/Icons.</summary>
         public static MeshRenderer Icon(Transform parent, string icon, float size, Color color, Vector3 pos, float rotZ = 0)
         {

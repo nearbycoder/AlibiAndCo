@@ -63,6 +63,9 @@ namespace AlibiCo
     {
         static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => mats.Clear();   // see Art.ResetStatics
+
         public static Transform Make(Transform parent, CaseDef c, string personId, Vector2 size, bool small)
         {
             var root = new GameObject("portrait_" + personId).transform;
@@ -148,6 +151,9 @@ namespace AlibiCo
 
         /// <summary>-alibiTextSize n on the command line (for capturing the larger sizes).</summary>
         public static int TextSizeOverride = -1;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => TextSizeOverride = -1;   // see Art.ResetStatics
 
         /// <summary>Scales the screen-space UI and the hovered-card inspector.</summary>
         public static float TextScale => TextScales[TextSize];
@@ -250,6 +256,14 @@ namespace AlibiCo
         public bool seenIntro;
 
         static SaveData current;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()   // see Art.ResetStatics
+        {
+            current = null;
+            Volatile = false;
+            UnlockAll = false;
+        }
         static string PathOnDisk => System.IO.Path.Combine(Application.persistentDataPath, "alibi_save.json");
 
         public static SaveData Current

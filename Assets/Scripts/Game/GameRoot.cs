@@ -18,6 +18,9 @@ namespace AlibiCo
         public static GameRoot I { get; private set; }
         public static bool Paused { get; private set; }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { Paused = false; Time.timeScale = 1; }   // see Art.ResetStatics
+
         public Stage Stage { get; private set; }
         public Screens Screens { get; private set; }
         public Flow Flow { get; private set; } = Flow.Boot;
