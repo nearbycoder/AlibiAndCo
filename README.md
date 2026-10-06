@@ -10,7 +10,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 
 [![Unity 6000.6](https://img.shields.io/badge/Unity-6000.6.2f1%20·%20URP-222?logo=unity&logoColor=white)](https://unity.com/releases/editor/archive)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86__64-2f5d8a?logo=linux&logoColor=white)](https://github.com/nearbycoder/AlibiAndCo/releases)
-[![Cases: 5, proven airtight](https://img.shields.io/badge/cases-5%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
+[![Cases: 5 + a daily docket, proven airtight](https://img.shields.io/badge/cases-5%20%2B%20a%20daily%20docket%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
 [![Blender 4.5](https://img.shields.io/badge/art-Blender%204.5-e87d0d?logo=blender&logoColor=white)](#rebuilding-the-generated-assets)
 [![Audio: synthesized](https://img.shields.io/badge/audio-100%25%20synthesized-c9a24a)](#rebuilding-the-generated-assets)
 
@@ -134,6 +134,12 @@ Gazette* prints the front page.
 typewriter keys for memos, a paper-and-pin foley set, and a glass-and-piano hit when a lock
 breaks. All of it is synthesized from code.
 
+**A new docket every day.** Once the second case is closed, the case files offer the *Daily
+Docket*: a short generated case for the day, with three of the town's regulars, a small crime and
+three stories. It's built from the town map and its people, and the same validator that checks the
+handwritten cases proves each one airtight before it's offered. On some days a wrong clock puts an
+honest story in the red. The case files keep each day's best result.
+
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
 the board's labels and the memo slips (windows under 900 pixels tall start at Large); fullscreen;
@@ -158,6 +164,10 @@ answer, and no way to accuse the wrong person).
 | **5. The Wrenhaven Lily** | Saturday 13 December 1986 | 3 + Town | A chain of clocks. One clock can't be checked against anything reliable, only against another wrong clock once that one is mended, and that clock timed the crime. About 15–20 minutes. |
 
 Cases unlock in order, and the case files keep your best rating, time and seals for each.
+
+**The Daily Docket** is a sixth, endless file: a three-suspect case generated for each calendar day
+(about 3 minutes, case 1's size), on a rota of thirteen small crimes around Wrenhaven. About a third
+of days add a wrong clock and an honest witness in the red. It opens when case 2 is closed.
 
 ## Screenshots
 
@@ -217,11 +227,13 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | Command | What it does |
 |---|---|
 | `Tools/validate.sh [--verbose]` | Compiles the game's own `Assets/Scripts/Logic/` into a console app and proves every case airtight. It uses a system `dotnet` or the .NET 8 SDK inside the Unity Editor. `--verbose` walks through each solution. |
+| `Tools/validate.sh --docket N [yyyy-MM-dd]` / `--docket-show yyyy-MM-dd` | Generates and proves N consecutive Daily Dockets (and reports how many variations the worst day needed), or prints one day's docket in full with its solution. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
-| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case through the real session code with the solver's moves (and, in the finale, confronts the honest witness on purpose to check she stands firm), saves a screenshot per step and prints PASS/FAIL. |
+| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and four Daily Dockets (today's and three fixed days) through the real session code with the solver's moves, confronting an honest witness on purpose in case 4 and on a clock day to check they stand firm. It checks every contradiction carries its marker, saves a screenshot per step and prints PASS/FAIL. Pass an absolute path. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
 | `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start) and prints PASS/FAIL. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
+| `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,reload]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`), the pad test (`?padtest`) and a reload check that the save persists (`?savecheck`), logging load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
 Automated runs use a blank in-memory save, so they never touch your progress.
@@ -292,6 +304,11 @@ docs/media/             README and trailer media
 - **One logic core, two hosts.** Everything that decides the game (`Board`, `CaseData`,
   `TownMap`, the solver) is plain C# in `Assets/Scripts/Logic/`. Unity renders it, and a .NET
   console app compiles the same files to check it, so the game and the validator can't disagree.
+- **Generated cases, proven at runtime.** The Daily Docket writes ordinary case JSON from a
+  date-seeded generator of its own (SplitMix64, so a date gives the same case in Unity, the browser
+  and .NET), and the game runs the full validator on it before offering it, trying the next
+  variation if it fails. Ten years of dates (3,653 days) all come out airtight; the worst day needs
+  7 of the 40 variations allowed, and the slowest takes under 40 ms in .NET (about 100 ms in the game).
 - **Proven-airtight cases.** `CaseValidator` searches every reachable board state (cards
   unlocked, clocks corrected, statements struck) using only legal moves. It checks that each
   case has exactly one consistent solution, that the solved state is reachable from every state,
@@ -329,24 +346,38 @@ There are no stock assets, samples or third-party models in the project.
 
 ## Status and known issues
 
-*Alibi & Co.* is a complete, small game: five cases, start to finish. The released version is
-**0.1.0** (three cases). Cases 4 and 5 and the other changes since then aren't released yet.
+*Alibi & Co.* is a complete, small game: five cases, start to finish, plus a generated Daily
+Docket. The released version is **0.1.0** (three cases). Cases 4 and 5, the Docket and the other
+changes since then aren't released yet.
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
-- **The browser build was tested in headless Chrome only.** On the dev machine's Radeon 8060S it
-  loads cold from localhost in about 6 seconds and holds 60 fps on a full board at 1920×993.
-  Progress survives a page reload. It hasn't been tried in Firefox or Safari or on a phone (touch
-  isn't supported), and its sound wasn't checked. There's no Quit button or resolution picker in
-  the browser, where the page sets the size.
+- **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
+  8060S (`node Tools/webtest.mjs`). In both, autoplay plays all five cases and four Daily Dockets to
+  CASE CLOSED with no console errors at 60 fps, the simulated-gamepad test passes, and progress
+  survives a page reload. It loads from localhost in under 2 seconds (26.5 MB). It hasn't been tried
+  in Safari: Playwright's WebKit build needs Ubuntu libraries this machine doesn't have. It also
+  hasn't been tried on a phone (touch isn't supported) or with a person watching, and its sound
+  wasn't checked. There's no Quit button or resolution picker in the browser, where the page sets
+  the size.
 - **The macOS build is untested on a Mac.** It builds on Linux as a Universal app with the bundle id
   `com.nearbycoder.alibiandco` and Unity's ad-hoc signature, and both architectures and the bundle
   layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
   first launch: right-click the app and choose Open, or allow it under System Settings → Privacy &
   Security.
 - **Gamepad support was tested with a simulated pad only.** A scripted test (`-alibiPadTest`)
-  plays case 1 to the end with nothing but stick and button events. It hasn't been tried with a
-  physical controller or on a Steam Deck, and there's no touch support.
+  plays case 1 to the end with nothing but stick and button events, in the Linux build and in the
+  browser. It hasn't been tried with a physical controller or on a Steam Deck, and there's no touch
+  support. The layout was checked at the Deck's 1280×800.
+- **The Daily Docket is short and formulaic by design.** Each one is about case 1's size (two or
+  three moves): one false alibi that hides the culprit, one lie that turns out innocent, one honest
+  story, and on about a third of days a wrong clock. The text is assembled from hand-written
+  pieces, so a regular player will start to recognise phrases. Every docket is proven airtight
+  before it's offered, but the generated stories have had one read-through of ten days during
+  development, not a playtest. The day follows the computer's local date.
+- **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
+  triangle as well as the red glow, and the locks differ by icon and word. That was checked on
+  protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.
 - **The mix was balanced by measurement**, not by ear: loudness per clip, peaks and loop seams
   were checked with `Tools/audio_qa.py`, not on speakers or headphones.
 - **Small screens are tight.** At 1280×720 (which starts at Large), the smallest chip text in the

@@ -419,6 +419,20 @@ contradiction isn't dramatic enough, or the incident pin isn't satisfying enough
 moments get the polish budget first.
 
 ## 16. Stretch goals (only after everything above is polished)
-- "Daily Docket": procedurally generated mini-cases, built from random itineraries and checked
-  by the same validator.
+- ~~"Daily Docket": procedurally generated mini-cases, built from random itineraries and checked
+  by the same validator.~~ Built in improvement round 3 (`Assets/Scripts/Logic/Docket.cs`).
+  Each calendar day gets a three-suspect case from the cast of ten and the town's places, on a
+  fixed rota of thirteen small crimes:
+  - the **culprit** claims one place all evening, slipped out to the scene, and a record somewhere
+    else after the crime breaks the claim; confronting it brings a second, true statement that
+    leaves the hole;
+  - an **innocent liar** claims one place but was at another (a record shows it); confronting the
+    lie brings a witness there whose statement covers the whole window;
+  - an **honest** suspect's story is true, with paper to match. On about a third of days that
+    paper is timed by a wrong clock (a café till, the Grand's lobby clock…) and sits in the red
+    until it's linked through an Electricity Board power dip. Confronting it costs a badge.
+  The generator writes ordinary case JSON and only offers it once `CaseValidator` proves it
+  airtight (pin orders included); otherwise it tries the next of 40 seeded variations. It uses its
+  own SplitMix64 generator, so a date produces the same docket in Unity, the browser and .NET. The
+  validator console sweeps dates (`--docket N`) and prints one in full (`--docket-show`).
 - A case editor menu in the Unity Editor.

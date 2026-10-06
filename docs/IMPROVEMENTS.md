@@ -380,3 +380,56 @@ tests, autoplay, screenshots and a read-through.
 Deferred: Windows builds, signing and notarization, hosting, the licence, releases and tags (owner
 decisions); audio by ear and a physical controller or Steam Deck (they need a person and
 hardware).
+
+## Round 3 results (6 Oct 2026)
+
+All four items landed on `improvements-3`. Screenshots are in `docs/media/improvements/round3/`
+(`r3-1-*` save recovery, `r3-2-*` colour-blind simulations, `r3-3-*` browsers).
+
+| # | Item | Commits | Verified by | Result |
+|---|---|---|---|---|
+| R3-1 | Crash-safe saves | f0959c4 | 6 new EditMode tests (truncated save, missing save, both unreadable, stale temp file, the JSON check). A real player run (`-alibiSaveCheck`) against a throwaway `XDG_CONFIG_HOME` holding a save cut off mid-write and a good backup: it moved the broken file aside, loaded the backup (cases 1–3 closed, Continue offered for case 4), and the next save kept all three files. The check refuses to run against the real folder (tried) | Met |
+| R3-2 | Contradictions you can see without colour | b8ea1f8 | Protanopia, deuteranopia and tritanopia simulations of cases 2, 4 and 5 before and after. A new `[Conflicts]` autoplay check after every step (41 per run) compares the marked chips with the board's established contradictions. Autoplay at 1080p and 1280×800, input test, pad test | Met. The locks already differed by icon and word, so they weren't changed |
+| R3-3 | Browser build, played to the end | df1636b | `node Tools/webtest.mjs` on the final build: headless Chromium (Playwright, ANGLE on the Radeon) and the system Firefox 157 (WebDriver BiDi via puppeteer-core) | Met in Chromium and Firefox: autoplay 9/9 (5 cases, 4 dockets), the pad test and the reload check pass with 0 console errors, 60 fps, loads in 1.2–1.6 s, 26.5 MB. **WebKit wasn't run**: its Playwright build needs Ubuntu's ICU 74, flite and libjxl 0.8, which aren't on this machine |
+| R3-4 | Daily Docket | f5513b5 | `Tools/validate.sh --docket 1000` and a ten-year sweep (3,653 days, all airtight; worst day 7 of 40 variations; slowest 38 ms). 5 new EditMode tests (60 days, determinism, the crime rota, ids, spoken times). Autoplay plays today's docket and three fixed days (two clock days, one with the trap confronted on purpose) at 1080p, 1280×800 and in both browsers. A read-through of ten days | Met, and shipped. The same date gives the same docket in .NET, the Mono player and the WebAssembly build |
+
+EditMode tests: 35/35 (24 before the round). The validator still proves cases 1–5 airtight with
+60 pin orders each.
+
+Found along the way:
+
+- **The contradiction badge never drew.** Every chip in a contradiction was meant to carry a red
+  disc with a white warning sign, but the disc never rendered (only a white triangle, invisible on
+  cream, poked past the corner). It's been replaced by the dark triangle with a cream rim.
+- **The card that caused a contradiction got its border late.** Markers were only set on cards
+  that had finished shrinking into a chip, so the card just pinned stayed unmarked until something
+  else changed. The new `[Conflicts]` check caught it in cases 1 and 5.
+- **The web build logged an error at startup**: `CreatePrimitive(Quad)` asked for a `MeshCollider`
+  that WebGL code stripping had removed. `Assets/link.xml` keeps it.
+- **The pad test could stall** when the game window was throttled to about 11 fps on the shared
+  desktop: one frame of the slowest cursor speed overshot the test's 3-pixel target, so every move
+  ran to its 900-frame cap. The tolerance now scales with the frame time, and screenshots log
+  their frame count. It now passes in 74 s at that frame rate. This is probably the "virtual mouse
+  stopped" flake from round 2.
+- **First docket drafts read badly in places:** the same crime on consecutive days, two people's
+  paper at the same spot, and clocks up to 29 minutes wrong. Fixed with a fixed 13-day crime rota,
+  distinct places per story and smaller clock errors (at most about 17 minutes).
+
+Not done, and why:
+
+- **Keeping Unity's `TestResults.xml` out of `~/.config/unity3d`.** The EditMode test runner
+  writes a copy of its results next to the game's save, as it did in earlier rounds. Pointing
+  `XDG_CONFIG_HOME` elsewhere breaks licensing whenever no licensing client is already running (exit
+  code 198), so that change was reverted (2dfe4c0). The real `alibi_save.json` and `prefs` were
+  byte-identical before and after the round.
+- **Safari/WebKit, phones, a physical controller, a Steam Deck, the sound by ear and colour-blind
+  players**: they need hardware, system packages or people this loop doesn't have.
+- **Windows builds, signing and notarization, hosting the web build, the licence, releases and
+  tags**: owner decisions, unchanged.
+
+Owner decisions this round adds:
+
+- **WebKit testing** needs Ubuntu's ICU 74, flite and libjxl 0.8 (or a container) installed outside
+  the repo. Alternatively, test on a Mac in Safari.
+- **The Daily Docket in a release**: whether to announce it with the next release (the trailer
+  doesn't show it), and whether opening it only after case 2 is the right gate.
