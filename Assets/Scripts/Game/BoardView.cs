@@ -51,7 +51,12 @@ namespace AlibiCo
         public TextMeshPro Badges, Timer;
         /// <summary>Chips grow when lanes are roomy (fewer people on the board).</summary>
         public float ChipScale = 1f;
+        /// <summary>Space between a lane's track line and the bottom of its chips (room for the markers).</summary>
+        const float ChipGap = 0.13f;
         public Vector2 ChipSize => CardView.ChipSize * ChipScale;
+        /// <summary>The TOWN lane is shorter; its chips sit centred on it, never taller than it.</summary>
+        public float TownChipScale = 1f;
+        public float ScaleFor(string laneId) => laneId == Board.TownLane ? TownChipScale : ChipScale;
         Transform clockLegend;
         readonly Dictionary<string, TextMeshPro> clockRows = new Dictionary<string, TextMeshPro>();
         Material ribbonMat, slackMat, hatchMat, redMat, markerShadowMat, stringMat, leaderMat;
@@ -138,9 +143,15 @@ namespace AlibiCo
             if (personLane != null)
             {
                 float roomy = Mathf.Clamp((personLane.Height - 0.42f) / 1.15f, 1.0f, 1.4f);
-                float fits = (personLane.Top - 0.08f - (personLane.Track + 0.2f)) / CardView.ChipSize.y;
-                ChipScale = Mathf.Max(roomy * TextScale, Mathf.Min(fits, 1.15f));
+                float fits = (personLane.Top - 0.06f - (personLane.Track + ChipGap)) / CardView.ChipSize.y;
+                ChipScale = Mathf.Max(roomy * TextScale, Mathf.Min(fits, 1.15f * TextScale));
                 ChipScale = Mathf.Max(1f, Mathf.Min(ChipScale, Mathf.Max(roomy, fits), 1.7f));
+            }
+            var townLane = Lanes.FirstOrDefault(l => l.IsTown);
+            TownChipScale = ChipScale;
+            if (townLane != null)
+            {
+                TownChipScale = Mathf.Min(ChipScale, Mathf.Max(0.9f, (townLane.Height - 0.1f) / CardView.ChipSize.y));
             }
 
             BuildRuler();
@@ -384,15 +395,16 @@ namespace AlibiCo
         {
             var result = new Dictionary<string, ChipPlace>();
             var byLane = placed.GroupBy(p => p.lane);
-            float w = ChipSize.x, h = ChipSize.y;
             const float gap = 0.06f;
             foreach (var g in byLane)
             {
                 if (!LaneById.TryGetValue(g.Key, out var lane)) continue;
+                var size = CardView.ChipSize * ScaleFor(lane.Id);
+                float w = size.x, h = size.y;
                 var items = g.Select(p => (p.card, from: board.BoardFrom(p.card), to: board.BoardTo(p.card)))
                     .OrderBy(x => x.from).ThenBy(x => x.to).ThenBy(x => x.card.Id).ToList();
-                float chipBase = lane.Track + 0.2f + h / 2;
-                int rows = lane.IsTown ? 1 : Mathf.Clamp(Mathf.FloorToInt((lane.Top - 0.06f - (lane.Track + 0.2f)) / (h + 0.05f)), 1, 3);
+                float chipBase = lane.IsTown ? (lane.Top + lane.Bottom) / 2 + 0.02f : lane.Track + ChipGap + h / 2;
+                int rows = lane.IsTown ? 1 : Mathf.Clamp(Mathf.FloorToInt((lane.Top - 0.06f - (lane.Track + ChipGap)) / (h + 0.05f)), 1, 3);
                 float rowStep = h + 0.05f;
                 var rowEnds = new float[rows];
                 for (int r = 0; r < rows; r++) rowEnds[r] = float.MinValue;

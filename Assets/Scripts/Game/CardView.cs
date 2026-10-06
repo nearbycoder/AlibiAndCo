@@ -288,16 +288,21 @@ namespace AlibiCo
             var locCol = loc != null ? Pal.Hex(loc.Color) : Pal.InkSoft;
             if (!Def.Town)
                 Shapes.Quad(chip, "stripe", new Vector2(0.09f, size.y), Art.Unlit(locCol), new Vector3(-size.x / 2 + 0.045f, 0, z + 0.001f));
+            // Three lines on a 1.5 × 0.72 chip: time, place, source. The lower two are set as large as the
+            // chip allows (they're the ones that go unreadable first on small screens), and the source
+            // line stops short of the clock mark in the bottom-right corner.
             chipTime = Txt(chip, "time", "", AlibiCo.Art.MonoBold, 0.25f, Pal.Ink, new Vector2(size.x - 0.32f, 0.32f), TextAlignmentOptions.Left,
-                new Vector3(0.02f, size.y / 2 - 0.2f, z), false);
+                new Vector3(0.02f, size.y / 2 - 0.18f, z), false);
             chipTime.Fit(0.15f);
-            string place = Def.Town ? (Def.Kind == "statement" ? "heard at " + (loc != null ? loc.Short : "") : "") : (loc != null ? loc.Short : Def.Location);
-            chipLine = Txt(chip, "place", place, AlibiCo.Art.SansBold, 0.165f, Darken(locCol, 0.65f), new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
-                new Vector3(0.04f, -0.03f, z), false);
-            chipLine.Fit(0.1f);
-            chipWho = Txt(chip, "who", ShortSource(), AlibiCo.Art.Sans, 0.148f, Pal.InkSoft, new Vector2(size.x - 0.24f, 0.2f), TextAlignmentOptions.Left,
-                new Vector3(0.04f, -size.y / 2 + 0.13f, z), false);
-            chipWho.Fit(0.09f);
+            string place = Def.Town ? (Def.Kind == "statement" && loc != null ? loc.Short : "") : (loc != null ? loc.Short : Def.Location);
+            chipLine = Txt(chip, "place", place, AlibiCo.Art.SansBold, 0.2f, Darken(locCol, 0.6f), new Vector2(size.x - 0.24f, 0.22f), TextAlignmentOptions.Left,
+                new Vector3(0.04f, -0.045f, z), false);
+            chipLine.Fit(0.11f);
+            bool clockMark = !Case.ClockById[Def.Clock].Reference;
+            float whoW = size.x - (clockMark ? 0.69f : 0.24f);
+            chipWho = Txt(chip, "who", ShortSource(), AlibiCo.Art.Sans, 0.185f, Color.Lerp(Pal.InkSoft, Pal.Ink, 0.55f), new Vector2(whoW, 0.21f), TextAlignmentOptions.Left,
+                new Vector3(-size.x / 2 + 0.16f + whoW / 2, -size.y / 2 + 0.125f, z), false);
+            chipWho.Fit(0.1f);
             Shapes.Icon(chip, Def.Kind, 0.2f, Pal.InkFaint, new Vector3(size.x / 2 - 0.15f, size.y / 2 - 0.14f, z));
             if (!Case.ClockById[Def.Clock].Reference)
             {
@@ -333,10 +338,14 @@ namespace AlibiCo
                 var n = Def.Title ?? "";
                 int sp = n.IndexOf(' ');
                 string first = sp > 0 ? n.Substring(0, sp) : n;
-                if (first == "Capt." || first == "Mrs" || first == "Mr") first = n;
+                // Titles keep the surname: "Capt. Rook", "Mrs Pengelly".
+                if (first == "Capt." || first == "Mrs" || first == "Mr") first = n.Split(' ')[0] + " " + n.Split(' ')[^1];
                 return "“" + first + "”";
             }
-            return Def.Title;
+            // Photos: "Roll 3, frame 14" reads as "frame 14" on a chip; the card itself keeps the roll.
+            var title = Def.Title ?? "";
+            if (Def.Kind == "photo" && title.StartsWith("Roll ") && title.Contains(", ")) return title.Substring(title.IndexOf(", ") + 2);
+            return title;
         }
 
         TextMeshPro Txt(Transform parent, string name, string text, string font, float size, Color color, Vector2 box, TextAlignmentOptions align, Vector3 pos, bool wrap = true)
@@ -378,6 +387,23 @@ namespace AlibiCo
         }
 
         public Vector2 Size => Compact ? ChipSize : FullSize;
+
+        /// <summary>
+        /// On-screen em height in pixels of the chip's time, place and source lines (as drawn, after
+        /// auto-sizing), or -1 for a line the chip doesn't have. Used by the autopilot's legibility log.
+        /// </summary>
+        public Vector3 ChipEmPixels(Camera cam)
+        {
+            float Em(TextMeshPro t)
+            {
+                if (t == null || !t.gameObject.activeInHierarchy || string.IsNullOrEmpty(t.text)) return -1;
+                t.ForceMeshUpdate();
+                var p = t.transform.position;
+                var v = t.transform.TransformVector(Vector3.up * t.fontSize / 10f);
+                return (cam.WorldToScreenPoint(p + v) - cam.WorldToScreenPoint(p)).magnitude;
+            }
+            return new Vector3(Em(chipTime), Em(chipLine), Em(chipWho));
+        }
 
         /// <summary>
         /// Pop the card. The body always rests at scale 1, and the compact/full swap animates that same

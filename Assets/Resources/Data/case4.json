@@ -105,7 +105,7 @@
     },
     {
       "id": "c_police", "kind": "note",
-      "title": "Constable's notebook", "source": "record", "sourceName": "PC Treloar, Wrenhaven Police",
+      "title": "PC's notebook", "source": "record", "sourceName": "PC Treloar, Wrenhaven Police",
       "text": "Pier head. Advised C. Hollis to move chestnut brazier back from the rail. Complied, with remarks.",
       "subjects": ["clem"], "location": "pier", "at": "21:20"
     },

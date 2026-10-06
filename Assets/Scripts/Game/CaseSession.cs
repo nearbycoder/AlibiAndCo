@@ -316,7 +316,7 @@ namespace AlibiCo
             }
             v.SetCompact(pinned, animate);
             v.EnableCollider(true);
-            var scale = Vector3.one * (pinned ? View.ChipScale : 1f);
+            var scale = Vector3.one * (pinned ? View.ScaleFor(Board.LanesOf(card)[0]) : 1f);
             if (animate)
             {
                 v.transform.MoveWorld(target, dur, Ease.OutCubic);
@@ -1204,6 +1204,24 @@ namespace AlibiCo
         // ------------------------------------------------------------------ automation (autopilot & tests)
 
         public CardView ViewOf(string id) => views.TryGetValue(id, out var v) ? v : null;
+
+        /// <summary>Smallest on-screen em heights (time, place, source) over every chip on the board.</summary>
+        public string LegibilityReport()
+        {
+            float t = float.MaxValue, l = float.MaxValue, w = float.MaxValue;
+            string tId = "", lId = "", wId = "";
+            int n = 0;
+            foreach (var v in AllViews())
+            {
+                if (!v.Compact || v.IsIncident || Board.Struck.Contains(v.Id)) continue;
+                var e = v.ChipEmPixels(stage.Cam);
+                if (e.x > 0 && e.x < t) { t = e.x; tId = v.Id; }
+                if (e.y > 0 && e.y < l) { l = e.y; lId = v.Id; }
+                if (e.z > 0 && e.z < w) { w = e.z; wId = v.Id; }
+                n++;
+            }
+            return n == 0 ? "no chips" : $"time {t:0.0} px ({tId}), place {l:0.0} px ({lId}), source {w:0.0} px ({wId}); em, min over {n} chips at {Screen.width}x{Screen.height}, text size {Settings.TextSizeNames[Settings.TextSize]}, chip scale {View.ChipScale:0.00}, lane {View.Lanes[0].Height:0.00} track +{View.Lanes[0].Track - View.Lanes[0].Bottom:0.00}";
+        }
         public CardView IncidentView => incident;
         public void AutoPin(string id) { var v = views[id]; if (!Board.Pinned.Contains(id)) PinCard(v, null); }
         public void AutoLink(string a, string b) => LinkCards(views[a], views[b]);

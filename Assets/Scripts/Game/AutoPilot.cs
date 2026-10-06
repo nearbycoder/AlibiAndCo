@@ -237,6 +237,7 @@ namespace AlibiCo
                 }
                 yield return Wait(1.6f);
                 yield return Shot(c.Id + "_pinned");
+                Debug.Log($"[Legibility] {c.Id} pinned: {s.LegibilityReport()}");
                 // Hover a contradiction card so the inspector shows up in captures.
                 int step = 0;
                 bool ok = true;
@@ -310,6 +311,7 @@ namespace AlibiCo
                     foreach (var p in c.Suspects.Where(p => p.Id != c.Incident.Culprit))
                         if (s.Board.CheckAccusation(p.Id).Ok) { Debug.LogError($"[AutoPilot] FAIL {c.Id}: {p.Id} accusable too"); ok = false; }
                 }
+                Debug.Log($"[Legibility] {c.Id} solved: {s.LegibilityReport()}");
                 if (ok)
                 {
                     s.AutoAccuse(c.Incident.Culprit);

@@ -319,10 +319,11 @@ There are no stock assets, samples or third-party models in the project.
 - **Mouse and keyboard only.** There's no gamepad or touch support.
 - **The mix was balanced by measurement**, not by ear: loudness per clip, peaks and loop seams
   were checked with `Tools/audio_qa.py`, not on speakers or headphones.
-- **Small screens are tight.** At 1280×720, a chip's time is about 10 pixels tall at Large and
-  Larger, but its place and source lines are only 6–7 pixels in the busiest case. Chips can't grow
-  past the height of their lane. Hover a chip to read the full, scaled card, or open the notebook.
-  Large panels shrink back to fit the screen at the larger sizes.
+- **Small screens are tight.** At 1280×720 (which starts at Large), the smallest chip text in the
+  busiest cases (four suspects) is about 11 pixels per em, against about 14 in the three-suspect
+  cases. Autoplay logs these figures as `[Legibility]`. That's readable but small. Hover a chip to
+  read the full, scaled card, or open the notebook. Large panels shrink back to fit the screen at
+  the larger sizes.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
   startup. Use `-force-wayland` (as `Tools/play.sh` and the packaged `AlibiAndCo.sh` do; set
   `ALIBI_X11=1` to make the launcher skip it). The native Wayland backend isn't perfect either:
