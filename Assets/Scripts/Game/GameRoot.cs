@@ -273,6 +273,10 @@ namespace AlibiCo
             rec.solved = true;
             rec.bestBadges = Mathf.Max(rec.bestBadges, s.Badges);
             rec.bestTime = rec.bestTime <= 0 ? s.Elapsed : Mathf.Min(rec.bestTime, s.Elapsed);
+            rec.sealClean |= s.SealClean;
+            rec.sealUnaided |= s.SealUnaided;
+            rec.sealSwift |= s.SealSwift;
+            Debug.Log($"[Seals] {s.Case.Id}: clean={s.SealClean} unaided={s.SealUnaided} swift={s.SealSwift} (time {s.Elapsed:0}s, par {s.Case.ParSeconds}s)");
             SaveData.Current.inProgress = null;
             SaveData.Write();
             Screens.HideHud();

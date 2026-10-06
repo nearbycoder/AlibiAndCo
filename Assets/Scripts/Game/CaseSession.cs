@@ -24,6 +24,11 @@ namespace AlibiCo
         public bool Solved => Board.Solved;
         public int TrayCount => Board.TrayCards.Count();
         public bool UsedHints { get; private set; }
+
+        // Seals for this run (see SaveData.CaseRecord).
+        public bool SealClean => Board.Mistakes == 0;
+        public bool SealUnaided => !UsedHints;
+        public bool SealSwift => Case.ParSeconds > 0 && Elapsed <= Case.ParSeconds;
         public bool InputLocked;
         public event Action<CaseSession> SolvedEvent;
         public event Action BadgeLost;
@@ -158,6 +163,7 @@ namespace AlibiCo
             for (int i = 0; i < s.linkA.Count; i++) Board.Links.Add(new KeyValuePair<string, string>(s.linkA[i], s.linkB[i]));
             Board.Mistakes = s.mistakes;
             Elapsed = s.elapsed;
+            UsedHints = s.usedHints;
             seenMemos.UnionWith(s.seenMemos);
             Board.Refresh();
         }
@@ -165,7 +171,7 @@ namespace AlibiCo
         public void SaveProgress()
         {
             if (Solved) { SaveData.Current.inProgress = null; SaveData.Write(); return; }
-            var s = new SaveData.Snapshot { caseId = Case.Id, mistakes = Board.Mistakes, elapsed = Elapsed };
+            var s = new SaveData.Snapshot { caseId = Case.Id, mistakes = Board.Mistakes, elapsed = Elapsed, usedHints = UsedHints };
             s.unlocked.AddRange(Board.Unlocked);
             s.pinned.AddRange(Board.Pinned);
             s.calibrated.AddRange(Board.Calibrated);
@@ -1014,6 +1020,7 @@ namespace AlibiCo
             }
             Board.Accuse(lane);
             SaveData.Learn("accuse");
+            Memos.Clear();   // the reconstruction has the floor; no stray slip behind the case-closed panel
             InputLocked = true;
             Deselect();
             var fit = Board.Fits[lane];

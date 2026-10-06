@@ -80,7 +80,10 @@ It's played with a mouse and keyboard. There's no gamepad or touch support yet.
   inside the incident window, **OPEN** if they could. The incident can only be pinned when the
   tray is empty, nothing is contradicting, and it fits exactly one line, so a wrong accusation is
   impossible by construction.
-- Each case is rated with three badges (one lost per wrong confrontation or link) and a timer.
+- Each case is rated with three badges (one lost per wrong confrontation or link) and a timer,
+  and awards up to three seals: **Clean** (no badge lost), **Unaided** (no hint) and **Swift**
+  (under the case's par time). The case files keep the best of each, so a solved case still has
+  something to replay for.
 
 ## Features
 
@@ -138,7 +141,7 @@ answer, and no way to accuse the wrong person).
 | **3. The Last Light** | Saturday 1 November 1986 | 4 + Town | Unknown-person cards, camera date-back clocks and mistaken identity. About 15 minutes. |
 | **4. Remember, Remember** | Wednesday 5 November 1986 | 4 + Town | The finale, with returning faces. The crime itself was timed by a wrong clock, an honest witness turns red until it's fixed, and a nameless entry in a door book has to be traced. About 15–20 minutes. |
 
-Cases unlock in order, and the case files keep your best rating and time for each.
+Cases unlock in order, and the case files keep your best rating, time and seals for each.
 
 ## Screenshots
 

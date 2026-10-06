@@ -140,6 +140,9 @@ namespace AlibiCo
                 yield return Wait(1.5f);
                 s = root.Session;
             }
+            // 3c. Ask Connie once: the case can no longer earn the Unaided seal.
+            s.Hint();
+            yield return Wait(0.5f);
             // 4. Confront each liar by clicking the chip and then the Confront button.
             foreach (var id in new[] { "a_claim", "c_claim", "b_claim" })
             {
@@ -169,8 +172,10 @@ namespace AlibiCo
             yield return Wait(2f);
             yield return Shot("input_closed");
             if (root.Flow != Flow.Closed) { Debug.LogError("[AutoPilot] FAIL input: accusation by drag didn't close the case"); ok = false; }
+            var rec = SaveData.Current.Record(c.Id);
+            if (rec.sealUnaided || !rec.sealClean) { Debug.LogError($"[AutoPilot] FAIL input: after a hint, seals were clean={rec.sealClean} unaided={rec.sealUnaided}"); ok = false; }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, click, UI button, incident drag)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -325,8 +330,21 @@ namespace AlibiCo
                 }
                 if (errors > errorsBefore) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: {errors - errorsBefore} errors logged"); }
                 if (s.Badges != 3 - trapBadges) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: expected {3 - trapBadges} badges, got {s.Badges}"); }
+                // Seals: no hints and well under par, so Unaided and Swift; Clean unless the trap cost a badge.
+                var rec = SaveData.Current.Record(c.Id);
+                if (!rec.sealUnaided || !rec.sealSwift || rec.sealClean != (trapBadges == 0))
+                {
+                    ok = false;
+                    Debug.LogError($"[AutoPilot] FAIL {c.Id}: seals clean={rec.sealClean} unaided={rec.sealUnaided} swift={rec.sealSwift}");
+                }
                 Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {c.Id} \"{c.Title}\" badges={s.Badges} steps={step}");
                 if (ok) passed++;
+            }
+            if (capture)
+            {
+                root.ShowSelect();
+                yield return Wait(1.5f);
+                yield return Shot("case_files_sealed");
             }
             Debug.Log($"[AutoPilot] done: {passed}/{Cases.All.Count} cases passed, {errors} errors");
             yield return Wait(0.5f);

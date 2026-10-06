@@ -230,6 +230,8 @@ namespace AlibiCo
             public int bestBadges;
             public float bestTime;
             public int plays;
+            // Seals, best ever: no badge lost, no hint asked, under the case's par time.
+            public bool sealClean, sealUnaided, sealSwift;
         }
 
         [System.Serializable]
@@ -252,6 +254,7 @@ namespace AlibiCo
             public List<string> seenCards = new List<string>();
             public int mistakes;
             public float elapsed;
+            public bool usedHints;
         }
 
         public List<CaseRecord> cases = new List<CaseRecord>();

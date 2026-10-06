@@ -205,7 +205,8 @@ namespace AlibiCo
 
             string status;
             if (!unlocked) status = "<color=#3A2F25>LOCKED</color>\n<size=20>Close the previous case to open this file.</size>";
-            else if (rec.solved) status = $"<color=#2F6B4F>CLOSED</color>   {Stars(rec.bestBadges)}\n<size=20>Best time {Clock(rec.bestTime)}</size>";
+            // The CLOSED rubber stamp says it already: stars, best time and the seals earned so far.
+            else if (rec.solved) status = $"{Stars(rec.bestBadges)}   <size=20>Best time {Clock(rec.bestTime)}</size>\n<size=17>{Seals(rec.sealClean, rec.sealUnaided, rec.sealSwift, c.ParSeconds, false)}</size>";
             else if (inProgress) status = "<color=#8E2B2B>IN PROGRESS</color>\n<size=20>Pick up where you left off.</size>";
             else status = "<color=#8E2B2B>OPEN</color>\n<size=20>" + c.Lesson + "</size>";
             var st = UiKit.Text(inner, status, Art.SansBold, 28, Pal.Ink, TextAlignmentOptions.BottomLeft);
@@ -220,7 +221,7 @@ namespace AlibiCo
                 ci.color = Pal.Hex("8E969E");
                 ci.raycastTarget = false;
             }
-            if (rec.solved) Stamp(inner, "CLOSED", new Color(0.18f, 0.42f, 0.31f, 0.8f), new Vector2(-22, -462), -10f);
+            if (rec.solved) Stamp(inner, "CLOSED", new Color(0.18f, 0.42f, 0.31f, 0.8f), new Vector2(-22, -448), -10f);
 
             if (unlocked)
             {
@@ -248,6 +249,18 @@ namespace AlibiCo
             float h = ti.lineCount > 0 ? ti.lineInfo[0].ascender - ti.lineInfo[ti.lineCount - 1].descender : float.MaxValue;
             cut.gameObject.SetActive(h <= room);
             Debug.Log($"[Intro] {c.Id}: write-up {ti.lineCount} lines, {h:0} of {room:0} px, cutting {(h <= room ? "shown" : "left out")}");
+        }
+
+        /// <summary>
+        /// "✔ CLEAN  ✔ UNAIDED  SWIFT": the three seals, earned ones in green, missed ones greyed.
+        /// Clean: no badge lost. Unaided: no hint. Swift: under the case's par time.
+        /// </summary>
+        public static string Seals(bool clean, bool unaided, bool swift, int parSeconds, bool withPar)
+        {
+            string One(bool got, string name) => got ? $"<color=#2F6B4F>✔ {name}</color>" : $"<color=#A79C88>{name}</color>";
+            var line = One(clean, "CLEAN") + "   " + One(unaided, "UNAIDED");
+            if (parSeconds > 0) line += "   " + One(swift, "SWIFT") + (withPar ? $"<color=#8A7A6A><size=80%>  under {Clock(parSeconds)}</size></color>" : "");
+            return line;
         }
 
         public static string Stars(int n) => "<color=#B8862E>" + new string('★', n) + "</color><color=#9A9080>" + new string('☆', 3 - n) + "</color>";
@@ -769,10 +782,13 @@ namespace AlibiCo
             stats.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -242), new Vector2(-330, 50));
             var badgeNote = UiKit.Text(p, s.Badges == 3 ? "A clean case. Not a single wrong accusation." : (s.Badges == 2 ? "One false step along the way." : "Got there in the end. Connie would've been quicker."),
                 Art.SerifItalic, 24, Pal.InkSoft, TextAlignmentOptions.TopLeft);
-            badgeNote.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -292), new Vector2(-330, 40));
+            badgeNote.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -286), new Vector2(-330, 36));
+            var seals = UiKit.Text(p, Seals(s.SealClean, s.SealUnaided, s.SealSwift, c.ParSeconds, true), Art.SansBold, 21, Pal.Ink, TextAlignmentOptions.TopLeft);
+            seals.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(272, -318), new Vector2(-330, 30));
+            seals.characterSpacing = 3;
 
             var body = UiKit.Text(p, string.Join("\n\n", c.Epilogue), Art.Typewriter, 24, Pal.Ink, TextAlignmentOptions.TopLeft);
-            body.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -350), new Vector2(-120, 330));
+            body.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -366), new Vector2(-120, 318));
             body.lineSpacing = 6;
             body.gameObject.AddComponent<TypeReveal>().Begin(body, 120f, 1.2f);
 

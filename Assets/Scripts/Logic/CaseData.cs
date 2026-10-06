@@ -141,6 +141,8 @@ namespace AlibiCo.Logic
     {
         public string Id, Title, Tagline, Date, Weather, Lesson;
         public int SpanFrom, SpanTo;
+        /// <summary>Par time in seconds for the "Swift" seal ("par": "m:ss"); 0 when the case has none.</summary>
+        public int ParSeconds;
         public readonly List<string> Intro = new List<string>();
         public readonly List<string> Epilogue = new List<string>();
         public readonly List<Person> People = new List<Person>();
@@ -176,6 +178,8 @@ namespace AlibiCo.Logic
                 SpanFrom = TimeFmt.Parse(J.Str(root, "spanFrom")),
                 SpanTo = TimeFmt.Parse(J.Str(root, "spanTo")),
             };
+            var par = J.Str(root, "par");
+            if (!string.IsNullOrEmpty(par)) c.ParSeconds = TimeFmt.Parse(par);   // "m:ss" parses as minutes*60 + seconds
             c.Intro.AddRange(J.Strs(root, "intro"));
             c.Epilogue.AddRange(J.Strs(root, "epilogue"));
             c.ReconstructionLines.AddRange(J.Strs(root, "reconstruction"));
