@@ -56,6 +56,7 @@ namespace AlibiCo
 
             AudioDirector.Build();
             UiKit.Init();
+            PadCursor.Create(gameObject);
             Stage = Stage.Build();
             Screens = new Screens(this);
             Settings.Apply();
@@ -69,8 +70,9 @@ namespace AlibiCo
             int autoArg = Array.IndexOf(args, "-alibiAutoplay");
             int capArg = Array.IndexOf(args, "-alibiCapture");
             int inputArg = Array.IndexOf(args, "-alibiInputTest");
+            int padArg = Array.IndexOf(args, "-alibiPadTest");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            bool automated = inputArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            bool automated = inputArg >= 0 || padArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             if (automated) SaveData.UseVolatile();
@@ -86,6 +88,12 @@ namespace AlibiCo
                 int casesArg = Array.IndexOf(args, "-alibiRecordCases");
                 int maxCases = casesArg >= 0 && casesArg + 1 < args.Length && int.TryParse(args[casesArg + 1], out var n) ? n : 99;
                 gameObject.AddComponent<Showcase>().Run(dir, maxCases, args.Contains("-alibiTrailer"));
+                yield break;
+            }
+            if (padArg >= 0)
+            {
+                string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
+                gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
                 yield break;
             }
             if (inputArg >= 0)
@@ -157,12 +165,7 @@ namespace AlibiCo
             CheckTextSize();
             var kb = Keyboard.current;
             if (kb == null) return;
-            if (kb.escapeKey.wasPressedThisFrame)
-            {
-                if (Screens.CloseTopOverlay()) return;
-                if (Flow == Flow.Playing) SetPaused(!Paused);
-                else if (Flow == Flow.Select || Flow == Flow.Intro) ShowTitle(false);
-            }
+            if (kb.escapeKey.wasPressedThisFrame) BackOrPause();
             if (Flow == Flow.Playing && !Paused && Session != null)
             {
                 if (kb.f1Key.wasPressedThisFrame || kb.hKey.wasPressedThisFrame) Session.Hint();
@@ -170,6 +173,40 @@ namespace AlibiCo
             }
             if (kb.f11Key.wasPressedThisFrame) Settings.Fullscreen = !Settings.Fullscreen;
             if (kb.f12Key.wasPressedThisFrame) Capture(null);
+        }
+
+        /// <summary>Esc / Start: close the top overlay, else pause or resume, else back to the title.</summary>
+        public void BackOrPause(bool fromPad = false)
+        {
+            if (Screens.CloseTopOverlay()) return;
+            if (Flow == Flow.Playing) SetPaused(!Paused);
+            else if (Flow == Flow.Select || Flow == Flow.Intro) ShowTitle(false);
+        }
+
+        /// <summary>
+        /// Pad B: "back" everywhere except the live board, where it's the right button (send a card
+        /// back to the tray). Returns false when the caller should send the right click.
+        /// </summary>
+        public bool PadBack()
+        {
+            if (Screens.CloseTopOverlay()) return true;
+            if (Flow == Flow.Playing)
+            {
+                if (Paused) { SetPaused(false); return true; }
+                return false;
+            }
+            if (Flow == Flow.Select || Flow == Flow.Intro) ShowTitle(false);
+            return true;
+        }
+
+        public void PadNotebook()
+        {
+            if (Flow == Flow.Playing && !Paused && Session != null) Screens.ToggleNotebook();
+        }
+
+        public void PadHint()
+        {
+            if (Flow == Flow.Playing && !Paused && Session != null && !Screens.NotebookOpen) Session.Hint();
         }
 
         public static void Capture(string path)

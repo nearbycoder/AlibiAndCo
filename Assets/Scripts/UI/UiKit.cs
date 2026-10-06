@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -77,7 +78,12 @@ namespace AlibiCo
                 var es = new GameObject("EventSystem");
                 UnityEngine.Object.DontDestroyOnLoad(es);
                 es.AddComponent<EventSystem>();
-                es.AddComponent<InputSystemUIInputModule>();
+                var module = es.AddComponent<InputSystemUIInputModule>();
+                // A pad drives the UI through PadCursor's virtual mouse; the module's own pad
+                // navigation would fire buttons a second time on A.
+                module.move = null;
+                module.submit = null;
+                module.cancel = null;
             }
             rounded = MakeRounded(64, 18);
             roundedSmall = MakeRounded(32, 8);
@@ -513,6 +519,17 @@ namespace AlibiCo
         static PointerEventData ped;
 
         /// <summary>Is the mouse over an interactive piece of UI? (Explicit raycast; works with simulated input too.)</summary>
+        /// <summary>True if a click at this screen point would land on this object (or one of its children).</summary>
+        public static bool TopHitIs(Vector2 screen, GameObject target)
+        {
+            var es = EventSystem.current;
+            if (es == null) return false;
+            var data = new PointerEventData(es) { position = screen };
+            var hits = new List<RaycastResult>();
+            es.RaycastAll(data, hits);
+            return hits.Count > 0 && hits[0].gameObject.transform.IsChildOf(target.transform);
+        }
+
         public static bool PointerOverUi()
         {
             var es = EventSystem.current;

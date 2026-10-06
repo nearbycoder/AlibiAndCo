@@ -20,13 +20,193 @@ namespace AlibiCo
         int errors;
         int shot;
 
-        public void Run(string outDir, bool withCapture, bool inputTest = false)
+        public void Run(string outDir, bool withCapture, bool inputTest = false, bool padTest = false)
         {
             dir = outDir;
             capture = withCapture;
             Directory.CreateDirectory(dir);
             Application.logMessageReceived += OnLog;
-            StartCoroutine(inputTest ? InputTest() : Go());
+            StartCoroutine(padTest ? PadTest() : inputTest ? InputTest() : Go());
+        }
+
+        // ------------------------------------------------------------------ gamepad test
+
+        Gamepad pad;
+
+        void PadState(Vector2 stick, params GamepadButton[] held)
+        {
+            var st = new GamepadState { leftStick = stick };
+            foreach (var b in held) st = st.WithButton(b, true);
+            InputSystem.QueueStateEvent(pad, st);
+        }
+
+        /// <summary>Steer the pad cursor onto a screen point with the left stick, like a player would.</summary>
+        IEnumerator PadMoveTo(Vector2 target, params GamepadButton[] held)
+        {
+            for (int i = 0; i < 900; i++)
+            {
+                var d = target - PadCursor.I.Position;
+                if (d.magnitude < 3f) break;
+                var stick = Vector2.ClampMagnitude(d / (UnityEngine.Screen.height * 0.12f), 1f);
+                if (stick.magnitude < 0.3f) stick = stick.normalized * 0.3f;
+                PadState(stick, held);
+                yield return null;
+            }
+            PadState(Vector2.zero, held);
+            yield return null;
+            yield return null;
+        }
+
+        IEnumerator PadTap(GamepadButton b)
+        {
+            PadState(Vector2.zero, b);
+            yield return null;
+            yield return null;
+            PadState(Vector2.zero);
+            yield return Wait(0.25f);
+        }
+
+        IEnumerator PadDrag(Vector2 from, Vector2 to)
+        {
+            yield return PadMoveTo(from);
+            PadState(Vector2.zero, GamepadButton.South);
+            yield return Wait(0.15f);
+            yield return PadMoveTo(to, GamepadButton.South);
+            yield return Wait(0.2f);
+            PadState(Vector2.zero);
+            yield return Wait(0.4f);
+        }
+
+        Vector2 TrayPoint(CardView v) => Screen(v.transform.TransformPoint(new Vector3(-CardView.FullSize.x / 2 + 0.45f, 0.3f, 0)));
+
+        /// <summary>
+        /// -alibiPadTest: case 1 from the dealt tray to CASE CLOSED with nothing but a (simulated)
+        /// gamepad: stick, A, B, X, Y, LB/RB and Start.
+        /// </summary>
+        IEnumerator PadTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL pad: " + why); ok = false; }
+            pad = InputSystem.AddDevice<Gamepad>("TestPad");
+            pad.MakeCurrent();
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            var c = Cases.All[0];
+            root.StartCase(c, false);
+            yield return Wait(3f);
+            var s = root.Session;
+
+            // 1. Touching the pad hands it the pointer; RB jumps onto a card.
+            yield return PadTap(GamepadButton.RightShoulder);
+            if (!PadCursor.Active) Fail("touching the pad didn't activate the pad cursor");
+            var targets = s.CursorTargets();
+            if (!targets.Any(t => (t - PadCursor.I.Position).magnitude < 40f)) Fail("RB didn't land on a card");   // a hovered card lifts a little
+            yield return PadTap(GamepadButton.RightShoulder);
+            yield return Wait(0.6f);
+            yield return Shot("pad_jump_prompt");
+
+            // 2. Hold A and steer: drag the first tray card onto the board.
+            var firstId = s.Board.TrayCards.First().Id;
+            yield return PadDrag(TrayPoint(s.ViewOf(firstId)), Screen(Stage.I.BoardToWorld(Vector2.zero)));
+            yield return Wait(0.6f);
+            if (!s.Board.Pinned.Contains(firstId)) Fail($"A-drag didn't pin {firstId}");
+
+            // 3. Tap A on each remaining tray card to pin it.
+            foreach (var id in s.Board.TrayCards.Select(x => x.Id).ToList())
+            {
+                yield return PadMoveTo(TrayPoint(s.ViewOf(id)));
+                yield return PadTap(GamepadButton.South);
+                yield return Wait(0.5f);
+                if (!s.Board.Pinned.Contains(id)) Fail($"A didn't pin {id}");
+            }
+            yield return Wait(1f);
+
+            // 4. B on a pinned card sends it back; A in the tray pins it again.
+            var back = s.ViewOf("a_tab");
+            yield return PadMoveTo(Screen(back.transform.position));
+            yield return Wait(0.3f);
+            yield return PadTap(GamepadButton.East);
+            yield return Wait(0.7f);
+            if (s.Board.Pinned.Contains("a_tab")) Fail("B didn't send the card back");
+            yield return PadMoveTo(TrayPoint(back));
+            yield return PadTap(GamepadButton.South);
+            yield return Wait(0.7f);
+            if (!s.Board.Pinned.Contains("a_tab")) Fail("A didn't re-pin the card");
+
+            // 5. Y opens the notebook, B closes it; X asks for a hint; Start pauses and resumes.
+            yield return PadTap(GamepadButton.North);
+            yield return Wait(0.6f);
+            if (!root.Screens.NotebookOpen) Fail("Y didn't open the notebook");
+            yield return PadTap(GamepadButton.East);
+            yield return Wait(0.4f);
+            if (root.Screens.NotebookOpen) Fail("B didn't close the notebook");
+            int memos = s.Memos.History.Count;
+            yield return PadTap(GamepadButton.West);
+            yield return Wait(0.4f);
+            if (s.Memos.History.Count <= memos) Fail("X didn't ask for a hint");
+            yield return PadTap(GamepadButton.Start);
+            yield return Wait(0.8f);
+            if (!GameRoot.Paused) Fail("Start didn't pause");
+            yield return Shot("pad_pause_controls");
+            // LB/RB in a menu jump between the buttons you can actually press.
+            yield return PadTap(GamepadButton.RightShoulder);
+            var menuTargets = PadCursor.Targets();
+            if (menuTargets.Count < 5 || !menuTargets.Any(t => (t - PadCursor.I.Position).magnitude < 2f)) Fail($"RB in the pause menu didn't land on a button ({menuTargets.Count} targets)");
+            yield return PadTap(GamepadButton.Start);
+            yield return Wait(0.5f);
+            if (GameRoot.Paused) Fail("Start didn't resume");
+
+            // 6. Confront each liar: A on the chip, then A on Confront.
+            foreach (var id in new[] { "a_claim", "c_claim", "b_claim" })
+            {
+                yield return PadMoveTo(Screen(s.ViewOf(id).transform.position));
+                yield return PadTap(GamepadButton.South);
+                yield return Wait(0.5f);
+                var btn = root.Screens.ConfrontButtonScreen();
+                if (btn == null) { Fail($"no Confront button for {id}"); continue; }
+                if (id == "a_claim") yield return Shot("pad_actions");
+                yield return PadMoveTo(btn.Value);
+                yield return PadTap(GamepadButton.South);
+                yield return Wait(2.6f);
+                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it");
+                foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
+                {
+                    yield return PadMoveTo(TrayPoint(s.ViewOf(nid)));
+                    yield return PadTap(GamepadButton.South);
+                    yield return Wait(0.5f);
+                }
+            }
+            yield return Wait(1f);
+
+            // 7. Hold A on the incident card and drop it in the culprit's line.
+            var lane = s.View.LaneById[c.Incident.Culprit];
+            var fit = s.Board.Fits[c.Incident.Culprit];
+            var slot = Screen(Stage.I.BoardToWorld(new Vector2(s.View.TimeToX(fit.EarliestStart), lane.Track + 0.5f)));
+            yield return PadDrag(Screen(s.IncidentView.transform.position), slot);
+            float t = 0;
+            while (root.Flow != Flow.Closed && t < 60) { t += Clock.Dt; yield return null; }
+            yield return Wait(2f);
+            yield return Shot("pad_closed");
+            if (root.Flow != Flow.Closed) Fail("the incident drag didn't close the case");
+
+            // 8. Moving the real mouse hands control back.
+            if (Mouse.current != null && PadCursor.Active)
+            {
+                var real = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m.name != "PadCursor");
+                if (real != null)
+                {
+                    InputSystem.QueueStateEvent(real, new MouseState { position = new Vector2(200, 200), delta = new Vector2(40, 0) });
+                    yield return null;
+                    yield return null;
+                    if (PadCursor.Active) Fail("moving the mouse didn't hand control back");
+                }
+            }
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, mouse takes over)");
+            Debug.Log($"[AutoPilot] done: pad test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
         }
 
         // ------------------------------------------------------------------ real-input test

@@ -63,7 +63,18 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Esc** | Pause: resume, restart, case files, settings, quit |
 | **F11** / **F12** | Toggle fullscreen / save a screenshot |
 
-It's played with a mouse and keyboard. There's no gamepad or touch support yet.
+It's played with a mouse and keyboard, or a gamepad:
+
+| Gamepad | Action |
+|---|---|
+| **Left stick** (D-pad for fine steps) | Move the cursor |
+| **LB / RB** | Jump to the previous / next card (or button, in menus) |
+| **A** | Click: pin a card, open a statement, press a button. **Hold A and steer** to drag |
+| **B** | Send a pinned card back to the tray; back or close in menus |
+| **X** / **Y** | Ask Connie for a hint / the notebook |
+| **Start** | Pause and resume |
+
+Touching the mouse hands control straight back. There's no touch support.
 
 ### The rules
 
@@ -204,6 +215,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case through the real session code with the solver's moves (and, in the finale, confronts the honest witness on purpose to check she stands firm), saves a screenshot per step and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
+| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start) and prints PASS/FAIL. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
 Automated runs use a blank in-memory save, so they never touch your progress.
@@ -319,7 +331,9 @@ There are no stock assets, samples or third-party models in the project.
   layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
   first launch: right-click the app and choose Open, or allow it under System Settings → Privacy &
   Security.
-- **Mouse and keyboard only.** There's no gamepad or touch support.
+- **Gamepad support was tested with a simulated pad only.** A scripted test (`-alibiPadTest`)
+  plays case 1 to the end with nothing but stick and button events. It hasn't been tried with a
+  physical controller or on a Steam Deck, and there's no touch support.
 - **The mix was balanced by measurement**, not by ear: loudness per clip, peaks and loop seams
   were checked with `Tools/audio_qa.py`, not on speakers or headphones.
 - **Small screens are tight.** At 1280×720 (which starts at Large), the smallest chip text in the

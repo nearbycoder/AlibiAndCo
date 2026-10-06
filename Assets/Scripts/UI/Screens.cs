@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using AlibiCo.Logic;
 using TMPro;
@@ -118,7 +119,7 @@ namespace AlibiCo
             Size(UiKit.Button(btns, "Settings", () => ShowSettings(), Pal.Hex("232A31"), CreamDim, 28), 60);
             if (!Web) Size(UiKit.Button(btns, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 28), 60);
 
-            var foot = UiKit.Text(title.transform, "Mouse to play  ·  Esc pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
+            var foot = UiKit.Text(title.transform, "Mouse or gamepad  ·  Esc or Start pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(150, 34), new Vector2(0, 30));
         }
 
@@ -221,7 +222,7 @@ namespace AlibiCo
                 ci.color = Pal.Hex("8E969E");
                 ci.raycastTarget = false;
             }
-            if (rec.solved) Stamp(inner, "CLOSED", new Color(0.18f, 0.42f, 0.31f, 0.8f), new Vector2(-22, -448), -10f);
+            if (rec.solved) Stamp(inner, "CLOSED", new Color(0.18f, 0.42f, 0.31f, 0.8f), new Vector2(-4, -455), -10f);
 
             if (unlocked)
             {
@@ -467,7 +468,7 @@ namespace AlibiCo
             helpText.enableAutoSizing = true;
             helpText.fontSizeMin = 14;
             helpText.fontSizeMax = 21;
-            helpKeys = UiKit.Text(helpRoot, "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>right-click</b> sends a card back   ·   <b>Esc</b> menu and controls",
+            helpKeys = UiKit.Text(helpRoot, MouseKeys,
                 Art.Sans, 16, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Center);
             helpKeys.rectTransform.Place(new Vector2(0.18f, 0.5f), new Vector2(0.82f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -16), new Vector2(0, 24));
             helpKeys.enableAutoSizing = true;
@@ -517,9 +518,14 @@ namespace AlibiCo
             }
         }
 
+        const string MouseKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>right-click</b> sends a card back   ·   <b>Esc</b> menu and controls";
+        const string PadKeys = "<b>[Y]</b> notebook   ·   <b>[X]</b> hint   ·   <b>[B]</b> sends a card back   ·   <b>[Start]</b> menu and controls";
+
         void TickHelp()
         {
             string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
+            string keys = PadCursor.Active ? PadKeys : MouseKeys;
+            if (helpKeys.text != keys) helpKeys.text = keys;
             if (tip != null && tip != helpShown && helpGroup.alpha < 0.05f) { helpShown = tip; helpText.text = tip; }
             bool show = tip != null && tip == helpShown;
             helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, AlibiCo.Clock.Dt * 2.5f);
@@ -615,6 +621,21 @@ namespace AlibiCo
             return (Vector2)((corners[0] + corners[2]) / 2);
         }
 
+        /// <summary>Screen centres of the selected card's action buttons (for the pad's jumps), if shown.</summary>
+        public List<Vector2> ActionButtonsScreen()
+        {
+            var r = new List<Vector2>();
+            if (actions == null || !actions.gameObject.activeSelf || actions.alpha < 0.5f) return r;
+            foreach (var b in new[] { actionsConfront, actionsUnpin })
+            {
+                if (b == null || !b.gameObject.activeInHierarchy) continue;
+                var corners = new Vector3[4];
+                ((RectTransform)b.transform).GetWorldCorners(corners);
+                r.Add((corners[0] + corners[2]) / 2);
+            }
+            return r;
+        }
+
         void HideActions()
         {
             actionsCard = null;
@@ -626,6 +647,7 @@ namespace AlibiCo
         public void ShowPause()
         {
             if (pause == null) BuildPause();
+            if (controlsBody != null) controlsBody.text = ControlsText(PadCursor.Active);
             notebook?.Hide();
             Show(pause);
             HideActions();
@@ -658,14 +680,22 @@ namespace AlibiCo
         }
 
         /// <summary>The full controls list, next to the pause menu (the board itself only shows one tip at a time).</summary>
-        void BuildControlsCard(Transform parent)
+        TextMeshProUGUI controlsBody;
+
+        static string ControlsText(bool pad)
         {
-            var card = UiKit.Panel(parent, "controls", new Color(0.08f, 0.09f, 0.11f, 0.96f));
-            UiKit.DropShadow(card.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 0), new Vector2(500, 620));
-            var head = UiKit.Text(card.transform, "Controls", Art.Display, 44, Cream, TextAlignmentOptions.Center);
-            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(0, 64));
-            var rows = new[]
+            var rows = pad ? new[]
+            {
+                ("Left stick  ·  D-pad", "move the cursor (D-pad for fine steps)"),
+                ("[LB]  [RB]", "jump to the previous / next card"),
+                ("[A] on a card", "pin it; on a pinned statement, Confront"),
+                ("Hold [A] and steer", "drag: onto a line, onto a card to link"),
+                ("[B]", "send a pinned card back; back in menus"),
+                ("Hold [A] on the incident", "accuse: drop it on the one line it fits"),
+                ("[Y]  ·  [X]", "notebook  ·  Connie's hint"),
+                ("[Start]", "pause, resume"),
+                ("Move the mouse", "hands control back to the mouse"),
+            } : new[]
             {
                 ("Drag a card to the board", "pin it (or just click it)"),
                 ("Hover a card", "read it in full; see the walk"),
@@ -680,7 +710,18 @@ namespace AlibiCo
             };
             var sb = new System.Text.StringBuilder();
             foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b>\n<color=#B9AE98>").Append(v).Append("</color>\n");
-            var body = UiKit.Text(card.transform, sb.ToString().TrimEnd(), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
+            return sb.ToString().TrimEnd();
+        }
+
+        void BuildControlsCard(Transform parent)
+        {
+            var card = UiKit.Panel(parent, "controls", new Color(0.08f, 0.09f, 0.11f, 0.96f));
+            UiKit.DropShadow(card.rectTransform, 36f, 0.6f, new Vector2(0, -16));
+            card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 0), new Vector2(500, 620));
+            var head = UiKit.Text(card.transform, "Controls", Art.Display, 44, Cream, TextAlignmentOptions.Center);
+            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(0, 64));
+            var body = UiKit.Text(card.transform, ControlsText(false), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
+            controlsBody = body;
             body.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -36), new Vector2(-70, -140));
             body.lineSpacing = 2;
             body.enableAutoSizing = true;

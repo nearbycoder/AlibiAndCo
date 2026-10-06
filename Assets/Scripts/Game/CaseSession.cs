@@ -1150,14 +1150,19 @@ namespace AlibiCo
         public string CoachTip()
         {
             if (Solved || Board == null) return null;
+            bool pad = PadCursor.Active;
             if (!SaveData.Learned("pin") && Board.TrayCards.Any())
-                return "<b>Drag</b> a card onto the board, or <b>click</b> it   ·   <b>hover</b> any card to read it in full";
+                return pad ? "<b>[A]</b> on a card pins it   ·   hold <b>[A]</b> and steer to drag   ·   <b>[LB] [RB]</b> jump between cards"
+                           : "<b>Drag</b> a card onto the board, or <b>click</b> it   ·   <b>hover</b> any card to read it in full";
             if (!SaveData.Learned("confront") && Board.EstablishedConflicts.Any(k => k.A.Card.IsTestimony || k.B.Card.IsTestimony))
-                return "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
+                return pad ? "Point at a statement in the red, <b>[A]</b>, then <b>Confront</b> the witness"
+                           : "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
             if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))
-                return "One moment on two clocks? Drop one card <b>onto the other</b> to link them";
+                return pad ? "One moment on two clocks? Hold <b>[A]</b> on one card and drop it <b>onto the other</b>"
+                           : "One moment on two clocks? Drop one card <b>onto the other</b> to link them";
             if (!SaveData.Learned("accuse") && Board.CheckAccusation(Case.Incident.Culprit).Ok)
-                return "Drag the <b>incident card</b> (top left) onto the one line it fits";
+                return pad ? "Hold <b>[A]</b> on the <b>incident card</b> (top left) and drop it on the one line it fits"
+                           : "Drag the <b>incident card</b> (top left) onto the one line it fits";
             return null;
         }
 
@@ -1211,6 +1216,26 @@ namespace AlibiCo
         // ------------------------------------------------------------------ automation (autopilot & tests)
 
         public CardView ViewOf(string id) => views.TryGetValue(id, out var v) ? v : null;
+
+        /// <summary>
+        /// Screen points for the pad's LB/RB jumps, in reading order: chips lane by lane, the
+        /// incident card, then the tray left to right (aimed at each card's uncovered left edge).
+        /// </summary>
+        public List<Vector2> CursorTargets()
+        {
+            var cam = stage.Cam;
+            var r = new List<Vector2>();
+            var chipsOnBoard = AllViews().Where(v => v.Compact && !v.IsIncident && Board.Pinned.Contains(Primary(v).Id) && !Board.Struck.Contains(v.Id))
+                .Select(v => (Vector2)cam.WorldToScreenPoint(v.transform.position)).ToList();
+            chipsOnBoard.Sort((a, b) => Mathf.Abs(a.y - b.y) > 20 ? b.y.CompareTo(a.y) : a.x.CompareTo(b.x));
+            r.AddRange(chipsOnBoard);
+            if (!Solved) r.Add(cam.WorldToScreenPoint(incident.transform.position));
+            var tray = views.Values.Where(v => v.gameObject.activeSelf && !v.Compact && Board.Unlocked.Contains(v.Id) && !Board.Pinned.Contains(v.Id) && !Board.Struck.Contains(v.Id))
+                .Select(v => (Vector2)cam.WorldToScreenPoint(v.transform.TransformPoint(new Vector3(-CardView.FullSize.x / 2 + 0.45f, 0.3f, 0))))
+                .OrderBy(p => p.x);
+            r.AddRange(tray);
+            return r;
+        }
 
         /// <summary>Smallest on-screen em heights (time, place, source) over every chip on the board.</summary>
         public string LegibilityReport()
