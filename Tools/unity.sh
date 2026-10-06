@@ -11,6 +11,8 @@
 #   Tools/unity.sh validate        batch: run the case validator inside Unity
 #   Tools/unity.sh test            batch: EditMode tests (validator + solution replay)
 #   Tools/unity.sh build-linux     batch: Builds/Linux/AlibiAndCo.x86_64
+#   Tools/unity.sh build-mac       batch: Builds/macOS/AlibiAndCo.app (Universal, unsigned)
+#   Tools/unity.sh build-windows   batch: Builds/Windows/AlibiAndCo.exe (needs Windows Build Support)
 set -euo pipefail
 UNITY="${UNITY:-$HOME/Unity/Hub/Editor/6000.6.2f1/Editor/Unity}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,5 +27,7 @@ case "${1:-open}" in
   validate)    batch -executeMethod AlibiCo.EditorTools.BuildScript.ValidateCases ;;
   test)        "$UNITY" -batchmode -nographics -projectPath "$PROJECT" -runTests -testPlatform EditMode -testResults "$PROJECT/Logs/editmode-results.xml" -logFile "$LOG" ;;
   build-linux) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -executeMethod AlibiCo.EditorTools.BuildScript.BuildLinux ;;
-  *) echo "usage: $0 [open|setup|player|validate|test|build-linux]" >&2; exit 2 ;;
+  build-mac)   "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget OSXUniversal -executeMethod AlibiCo.EditorTools.BuildScript.BuildMac ;;
+  build-windows) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget Win64 -executeMethod AlibiCo.EditorTools.BuildScript.BuildWindows ;;
+  *) echo "usage: $0 [open|setup|player|validate|test|build-linux|build-mac|build-windows]" >&2; exit 2 ;;
 esac

@@ -253,6 +253,7 @@ namespace AlibiCo.EditorTools
         {
             PlayerSettings.productName = "Alibi & Co.";
             PlayerSettings.companyName = "AlibiAndCo";
+            PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone, BuildScript.BundleId);
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;

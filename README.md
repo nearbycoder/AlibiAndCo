@@ -156,8 +156,12 @@ It needs 64-bit Linux and a GPU with Vulkan or OpenGL 4.5 support. On a Wayland 
 window doesn't appear, start it with `./AlibiAndCo.x86_64 -force-wayland` (Unity's native Wayland
 backend). Progress and settings are stored in `~/.config/unity3d/AlibiAndCo/`.
 
-There are no Windows or macOS builds yet, but nothing in the project is Linux-specific, so you can
-build one from source.
+Archives made with `Tools/package.sh` (see below) also include `AlibiAndCo.sh`, which adds
+`-force-wayland` by itself on a Wayland desktop. The v0.1.0 zip predates it.
+
+There are no published Windows or macOS builds yet. A macOS build can be made from source on Linux
+(`Tools/unity.sh build-mac`), but it hasn't been run on a Mac. Windows needs Unity's Windows Build
+Support module.
 
 ## Build from source
 
@@ -170,6 +174,11 @@ git clone https://github.com/nearbycoder/AlibiAndCo.git && cd AlibiAndCo
 Tools/unity.sh build-linux      # batch build to Builds/Linux/AlibiAndCo.x86_64 (validates the cases first)
 Tools/play.sh                   # run the build at 1920x1080 (native Wayland when available)
 Tools/unity.sh                  # or open the project in the Editor
+
+Tools/unity.sh build-mac        # Builds/macOS/AlibiAndCo.app: Universal (Intel + Apple Silicon), Mono
+Tools/unity.sh build-windows    # Builds/Windows/AlibiAndCo.exe (needs Windows Build Support installed)
+Tools/package.sh [--no-build] [version] [linux] [mac] [windows] [webgl]
+                                # build, then zip into Builds/Release/ with SHA256SUMS (nothing is uploaded)
 ```
 
 The scripts expect the Editor at `~/Unity/Hub/Editor/6000.6.2f1/Editor/Unity`. Set `UNITY=/path/to/Unity`
@@ -288,6 +297,11 @@ There are no stock assets, samples or third-party models in the project.
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet.
+- **The macOS build is untested on a Mac.** It builds on Linux as a Universal app with the bundle id
+  `com.nearbycoder.alibiandco` and Unity's ad-hoc signature, and both architectures and the bundle
+  layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
+  first launch: right-click the app and choose Open, or allow it under System Settings → Privacy &
+  Security.
 - **Mouse and keyboard only.** There's no gamepad or touch support.
 - **The mix was balanced by measurement**, not by ear: loudness per clip, peaks and loop seams
   were checked with `Tools/audio_qa.py`, not on speakers or headphones.
@@ -296,6 +310,7 @@ There are no stock assets, samples or third-party models in the project.
   past the height of their lane. Hover a chip to read the full, scaled card, or open the notebook.
   Large panels shrink back to fit the screen at the larger sizes.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
-  startup. Use `-force-wayland` (as `Tools/play.sh` does).
+  startup. Use `-force-wayland` (as `Tools/play.sh` and the packaged `AlibiAndCo.sh` do; set
+  `ALIBI_X11=1` to make the launcher skip it).
 - The build scripts assume Unity Hub's default install path and are tested on Linux only.
 - **No licence has been chosen yet.** Until one is added, all rights are reserved by the author.
