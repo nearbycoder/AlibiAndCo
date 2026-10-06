@@ -258,3 +258,39 @@ by the end of the round, it doesn't ship.**
 
 Deferred again: Windows builds (owner installs the module), audio by ear (needs a person),
 Daily Docket (too risky for one round), hosting, signing and licences (owner decisions).
+
+## Round 2 results (6 Oct 2026)
+
+All four items landed on `improvements-2`. Screenshots are in `docs/media/improvements/round2/`
+(`r2-1-*` legibility, `r2-2-*` seals, `r2-3-*` gamepad, `r2-4-*` case 5).
+
+| # | Item | Commits | Verified by | Result |
+|---|---|---|---|---|
+| R2-1 | Chip legibility | cb2f706, fd88f80 | A new `[Legibility]` autoplay log: the smallest on-screen em height of every chip line, measured on `main` and after, at 1280×720 / Large | Met. Case 3: place 9.0 → 11.3 px (+26%), source 8.0 → 10.5 px (+31%). Case 4: 9.0 → 10.8, 8.5 → 9.5. No overlaps in the 1080p or 720p captures |
+| R2-2 | Case seals and the stray memo | 873f185 | Autoplay asserts every case's seals; the input test asks for a hint and checks Unaided is withheld; EditMode; screenshots | Met |
+| R2-3 | Gamepad | 53a1717, 175fa50 | `-alibiPadTest` plays case 1 from the dealt tray to CASE CLOSED with a simulated pad only, at 1920×1080 and 1280×720: 0 errors. Mouse input test and autoplay still pass | Met with a simulated pad. **No physical controller or Steam Deck was tried** |
+| R2-4 | Case 5, "The Wrenhaven Lily" | 204135a | Validator: AIRTIGHT, 8 states, trap `n_penrose`, 60 pin orders clean. EditMode 24/24, including a chain-of-clocks test. Autoplay 5/5 at 1080p and 720p | Met. Shipped |
+
+Found along the way:
+
+- **A real identity bug, now fixed (175fa50).** Unknown cards crossed out faces using only the
+  records already pinned. A player pinning one card at a time could have a card confirmed,
+  permanently, to the wrong person if the deciding record was still in the tray. The validator
+  pins everything at once, so it couldn't see this. Cases 1–4 happened to be safe; case 5's first
+  draft wasn't (autoplay caught it). Elimination now counts every unlocked record, and the
+  validator and EditMode tests replay each solution in 60 random pin orders.
+- **The pad test failed once** when the virtual mouse stopped getting input partway through
+  (the shared desktop's real pointer and device ordering). `PadCursor` now follows whichever pad
+  is in use, and the test ignores the real pointer until the step that checks the hand-back. It
+  passed on four later runs. A real-world hitch here is possible and untested.
+- Minor: the pin-order EditMode test went in with the case 5 commit, not the fix commit, and
+  case 4's epilogue no longer calls itself the last case.
+
+Not done, and why:
+
+- **Windows builds, signing and notarization, hosting the web build, licence, releases and
+  tags:** owner decisions, unchanged from round 1.
+- **The web build wasn't rebuilt this round.** `Tools/unity.sh build-webgl` still works, but this
+  round's changes weren't re-tested in a browser.
+- **Audio by ear:** still needs a person.
+- **Daily Docket:** still too risky for one round.
