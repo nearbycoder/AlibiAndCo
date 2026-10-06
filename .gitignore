@@ -69,3 +69,6 @@ desktop.ini
 *~
 *.swp
 *.log
+
+# Burst writes WebGL intermediates here during a WebGL build
+/Data/

@@ -712,7 +712,7 @@ namespace AlibiCo
             Row(UiKit.Toggle(col, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));
             var reset = UiKit.Button(col, "Erase all progress", () => Confirm("Erase every closed case and badge?", () => { SaveData.Reset(); if (root.Flow == Flow.Select) root.ShowSelect(); }), Pal.Hex("3A2526"), Pal.Hex("E8B4A8"), 20);
             Size(reset, 50);
-            var close = UiKit.Button(panel.transform, "Done", () => Hide(settings), Pal.Hex("8E2B2B"), Cream, 26);
+            var close = UiKit.Button(panel.transform, "Done", () => { PlayerPrefs.Save(); Hide(settings); }, Pal.Hex("8E2B2B"), Cream, 26);
             ((RectTransform)close.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(220, 60));
         }
 

@@ -13,6 +13,7 @@
 #   Tools/unity.sh build-linux     batch: Builds/Linux/AlibiAndCo.x86_64
 #   Tools/unity.sh build-mac       batch: Builds/macOS/AlibiAndCo.app (Universal, unsigned)
 #   Tools/unity.sh build-windows   batch: Builds/Windows/AlibiAndCo.exe (needs Windows Build Support)
+#   Tools/unity.sh build-webgl     batch: Builds/WebGL (browser build; serve it over HTTP)
 set -euo pipefail
 UNITY="${UNITY:-$HOME/Unity/Hub/Editor/6000.6.2f1/Editor/Unity}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,5 +30,6 @@ case "${1:-open}" in
   build-linux) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -executeMethod AlibiCo.EditorTools.BuildScript.BuildLinux ;;
   build-mac)   "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget OSXUniversal -executeMethod AlibiCo.EditorTools.BuildScript.BuildMac ;;
   build-windows) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget Win64 -executeMethod AlibiCo.EditorTools.BuildScript.BuildWindows ;;
-  *) echo "usage: $0 [open|setup|player|validate|test|build-linux|build-mac|build-windows]" >&2; exit 2 ;;
+  build-webgl) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget WebGL -executeMethod AlibiCo.EditorTools.BuildScript.BuildWebGL ;;
+  *) echo "usage: $0 [open|setup|player|validate|test|build-linux|build-mac|build-windows|build-webgl]" >&2; exit 2 ;;
 esac

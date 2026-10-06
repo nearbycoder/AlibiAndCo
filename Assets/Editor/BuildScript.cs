@@ -30,6 +30,20 @@ namespace AlibiCo.EditorTools
         [MenuItem("Alibi & Co/Build Windows Player")]
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/AlibiAndCo.exe", true);
 
+        /// <summary>
+        /// The browser build (a go/no-go spike): Brotli-compressed with the JavaScript decompression
+        /// fallback, so it also runs from a server that doesn't send Content-Encoding headers.
+        /// </summary>
+        [MenuItem("Alibi & Co/Build WebGL Player")]
+        public static void BuildWebGL()
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.template = "PROJECT:Alibi";   // Assets/WebGLTemplates/Alibi: full-window, saves synced to IndexedDB
+            Build(BuildTarget.WebGL, "Builds/WebGL", true);
+        }
+
         static string Build(BuildTarget target, string path, bool exitWhenBatch)
         {
             string Fail(string why)

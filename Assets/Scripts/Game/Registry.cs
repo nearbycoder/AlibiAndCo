@@ -307,6 +307,7 @@ namespace AlibiCo
         public static void Write()
         {
             if (Volatile) return;
+            if (Application.platform == RuntimePlatform.WebGLPlayer) PlayerPrefs.Save();   // settings live in IndexedDB too
             try { File.WriteAllText(PathOnDisk, JsonUtility.ToJson(Current, true)); }
             catch (System.Exception e) { Debug.LogWarning("[Save] couldn't write save: " + e.Message); }
         }

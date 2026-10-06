@@ -161,6 +161,10 @@ backend). Progress and settings are stored in `~/.config/unity3d/AlibiAndCo/`.
 Archives made with `Tools/package.sh` (see below) also include `AlibiAndCo.sh`, which adds
 `-force-wayland` by itself on a Wayland desktop. The v0.1.0 zip predates it.
 
+A browser build also works (`Tools/unity.sh build-webgl`, about 27 MB compressed). Serve
+`Builds/WebGL/` over HTTP (for example `python3 -m http.server` inside it) and open `index.html`.
+It isn't hosted anywhere yet.
+
 There are no published Windows or macOS builds yet. A macOS build can be made from source on Linux
 (`Tools/unity.sh build-mac`), but it hasn't been run on a Mac. Windows needs Unity's Windows Build
 Support module.
@@ -179,6 +183,7 @@ Tools/unity.sh                  # or open the project in the Editor
 
 Tools/unity.sh build-mac        # Builds/macOS/AlibiAndCo.app: Universal (Intel + Apple Silicon), Mono
 Tools/unity.sh build-windows    # Builds/Windows/AlibiAndCo.exe (needs Windows Build Support installed)
+Tools/unity.sh build-webgl      # Builds/WebGL: browser build (Assets/WebGLTemplates/Alibi page)
 Tools/package.sh [--no-build] [version] [linux] [mac] [windows] [webgl]
                                 # build, then zip into Builds/Release/ with SHA256SUMS (nothing is uploaded)
 ```
@@ -300,7 +305,12 @@ There are no stock assets, samples or third-party models in the project.
 **0.1.0** (three cases). The fourth case and the other changes on this branch aren't released yet.
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
-  build yet.
+  build yet. macOS and browser builds can be made from source (below), but neither is published.
+- **The browser build was tested in headless Chrome only.** On the dev machine's Radeon 8060S it
+  loads cold from localhost in about 6 seconds and holds 60 fps on a full board at 1920×993.
+  Progress survives a page reload. It hasn't been tried in Firefox or Safari or on a phone (touch
+  isn't supported), and its sound wasn't checked. There's no Quit button or resolution picker in
+  the browser, where the page sets the size.
 - **The macOS build is untested on a Mac.** It builds on Linux as a Universal app with the bundle id
   `com.nearbycoder.alibiandco` and Unity's ad-hoc signature, and both architectures and the bundle
   layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
