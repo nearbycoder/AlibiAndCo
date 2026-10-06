@@ -21,7 +21,28 @@ namespace AlibiCo.Tests
             Directory.GetFiles(Path.Combine(UnityEngine.Application.dataPath, "Resources", "Data"), "case*.json").OrderBy(f => f);
 
         [Test]
-        public void ThereAreFourCases() => Assert.AreEqual(4, CaseFiles().Count());
+        public void ThereAreFiveCases() => Assert.AreEqual(5, CaseFiles().Count());
+
+        /// <summary>
+        /// Case 5's clock chain: nothing on a reliable clock shares a moment with the glasshouse
+        /// clock, so it can only be set from the Yacht Club clock, once that one is mended.
+        /// </summary>
+        [Test]
+        public void CaseFiveNeedsAChainOfClocks()
+        {
+            var c = CaseDef.FromJson(File.ReadAllText(Path.Combine(DataDir, "case5.json")));
+            var glassEvents = c.Cards.Where(x => x.Clock == "glass" && x.Event != null).Select(x => x.Event).ToList();
+            Assert.IsNotEmpty(glassEvents);
+            foreach (var e in glassEvents)
+                Assert.IsFalse(c.Cards.Any(x => x.Event == e && c.ClockById[x.Clock].Reference), $"event {e} could set the glasshouse clock straight from a reference");
+            var b = new Board(c, Map(), autoPin: true);
+            var path = Solver.ShortestSolution(b);
+            var links = path.Where(m => m.Kind == "link").ToList();
+            Assert.AreEqual(2, links.Count, "expected two links");
+            Assert.IsNull(b.Clone().Link("t_lights", "t_frost").CalibratedClock, "the glasshouse clock shouldn't be settable before the Yacht Club clock");
+            Assert.AreEqual("club", b.Link(links[0].A, links[0].B).CalibratedClock);
+            Assert.AreEqual("glass", b.Link(links[1].A, links[1].B).CalibratedClock);
+        }
 
         /// <summary>The finale must punish reflex-confronting: a true statement turns red before its clock is fixed.</summary>
         [Test]
@@ -81,6 +102,42 @@ namespace AlibiCo.Tests
             Assert.IsNotNull(b.Link("t_coast", "t_hosking").CalibratedClock);
             Assert.IsFalse(b.EstablishedConflicts.Any(k => k.Involves("a_maud")), "fixing the Town Hall clock should clear Maud");
             Assert.AreEqual(b.Case.Incident.From - 10, b.IncidentFrom, "the incident window moves with its clock");
+        }
+
+        /// <summary>
+        /// Players pin cards one at a time, in any order. An unknown card's identity is confirmed for
+        /// good, so it must never be confirmed wrongly part-way through: pin in many random orders,
+        /// interleaved with the solution's moves, and check every confirmation.
+        /// </summary>
+        [TestCaseSource(nameof(CaseFiles))]
+        public void PinOrderNeverConfirmsTheWrongPerson(string file)
+        {
+            var c = CaseDef.FromJson(File.ReadAllText(file));
+            var map = Map();
+            var solution = Solver.ShortestSolution(new Board(c, map, autoPin: true));
+            var rng = new System.Random(1986);
+            for (int run = 0; run < 60; run++)
+            {
+                var b = new Board(c, map);
+                void PinAll()
+                {
+                    var tray = b.TrayCards.Select(x => x.Id).OrderBy(_ => rng.Next()).ToList();
+                    foreach (var id in tray)
+                    {
+                        b.PinAndSettle(id);
+                        foreach (var kv in b.Confirmed)
+                            Assert.AreEqual(c.CardById[kv.Key].TrueSubject, kv.Value, $"{c.Id}: '{kv.Key}' confirmed as {kv.Value} after pinning {id} (run {run})");
+                    }
+                }
+                PinAll();
+                foreach (var m in solution)
+                {
+                    var o = m.Kind == "link" ? b.Link(m.A, m.B) : b.Confront(m.A);
+                    Assert.IsTrue(o.Accepted, $"{c.Id}: {m} rejected after a random pin order (run {run}): {o.Message}");
+                    PinAll();
+                }
+                Assert.IsTrue(b.CheckAccusation(c.Incident.Culprit).Ok, $"{c.Id}: not accusable after a random pin order (run {run})");
+            }
         }
 
         [TestCaseSource(nameof(CaseFiles))]

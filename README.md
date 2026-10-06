@@ -10,7 +10,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 
 [![Unity 6000.6](https://img.shields.io/badge/Unity-6000.6.2f1%20·%20URP-222?logo=unity&logoColor=white)](https://unity.com/releases/editor/archive)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86__64-2f5d8a?logo=linux&logoColor=white)](https://github.com/nearbycoder/AlibiAndCo/releases)
-[![Cases: 4, proven airtight](https://img.shields.io/badge/cases-4%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
+[![Cases: 5, proven airtight](https://img.shields.io/badge/cases-5%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
 [![Blender 4.5](https://img.shields.io/badge/art-Blender%204.5-e87d0d?logo=blender&logoColor=white)](#rebuilding-the-generated-assets)
 [![Audio: synthesized](https://img.shields.io/badge/audio-100%25%20synthesized-c9a24a)](#rebuilding-the-generated-assets)
 
@@ -31,7 +31,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 ## About
 
 Wrenhaven, a harbour town in autumn 1986. You're the "& Co." at retired Detective Inspector
-Connie Alibi's two-desk agency. Four small crimes, four nights, one cork board.
+Connie Alibi's two-desk agency. Five small crimes, five nights, one cork board.
 
 Every receipt, phone log, ticket stub, press photo and witness statement says that **someone was
 somewhere at a certain time**. Pin them onto each suspect's line and the board measures the walk
@@ -141,8 +141,8 @@ controls list is in the pause menu.
 
 ## Content
 
-Four handcrafted cases on one shared town map. The first three each introduce one idea, and the
-fourth puts them together. Every case is proven airtight by the solver (exactly one consistent
+Five handcrafted cases on one shared town map. The first three each introduce one idea, and the
+last two combine them in new ways. Every case is proven airtight by the solver (exactly one consistent
 answer, and no way to accuse the wrong person).
 
 | Case | Night | Suspects | What it teaches |
@@ -150,7 +150,8 @@ answer, and no way to accuse the wrong person).
 | **1. Sugar and Spite** | Friday 10 October 1986 | 3 | Pinning, ribbons, contradictions, confronting, two-person statements, the incident pin. About 5 minutes. |
 | **2. The Regatta Cup** | Saturday 18 October 1986 | 3 + Town | Clocks and links: a calibration can clear one person and sink another. About 10 minutes. |
 | **3. The Last Light** | Saturday 1 November 1986 | 4 + Town | Unknown-person cards, camera date-back clocks and mistaken identity. About 15 minutes. |
-| **4. Remember, Remember** | Wednesday 5 November 1986 | 4 + Town | The finale, with returning faces. The crime itself was timed by a wrong clock, an honest witness turns red until it's fixed, and a nameless entry in a door book has to be traced. About 15–20 minutes. |
+| **4. Remember, Remember** | Wednesday 5 November 1986 | 4 + Town | Returning faces. The crime itself was timed by a wrong clock, an honest witness turns red until it's fixed, and a nameless entry in a door book has to be traced. About 15–20 minutes. |
+| **5. The Wrenhaven Lily** | Saturday 13 December 1986 | 3 + Town | A chain of clocks. One clock can't be checked against anything reliable, only against another wrong clock once that one is mended, and that clock timed the crime. About 15–20 minutes. |
 
 Cases unlock in order, and the case files keep your best rating, time and seals for each.
 
@@ -285,8 +286,10 @@ docs/media/             README and trailer media
   unlocked, clocks corrected, statements struck) using only legal moves. It checks that each
   case has exactly one consistent solution, that the solved state is reachable from every state,
   that every designed contradiction can be discovered, that unknown cards only ever resolve to the
-  right person, and that no state allows a wrong accusation. It also lists the case's traps: true
-  statements that can turn red, where confronting costs a badge and the real fix is elsewhere.
+  right person, and that no state allows a wrong accusation. It also replays every solution with
+  the cards pinned in 60 random orders, because players pin one at a time and an identity, once
+  confirmed, is permanent. And it lists the case's traps: true statements that can turn red, where
+  confronting costs a badge and the real fix is elsewhere.
 - **Clocks as data.** Every card names the clock that timed it, and each clock has a hidden
   offset. A link between two cards that share an event calibrates the untrusted clock, and the
   board recomputes every card's true time and walking feasibility (all-pairs shortest paths
@@ -316,8 +319,8 @@ There are no stock assets, samples or third-party models in the project.
 
 ## Status and known issues
 
-*Alibi & Co.* is a complete, small game: four cases, start to finish. The released version is
-**0.1.0** (three cases). The fourth case and the other changes on this branch aren't released yet.
+*Alibi & Co.* is a complete, small game: five cases, start to finish. The released version is
+**0.1.0** (three cases). Cases 4 and 5 and the other changes since then aren't released yet.
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.

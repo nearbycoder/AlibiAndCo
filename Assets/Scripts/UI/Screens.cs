@@ -159,7 +159,7 @@ namespace AlibiCo
 
             var row = UiKit.Rect(select.transform, "row");
             // Three folders fill 1560 px; a fourth widens the row (FitInCanvas scales it back if needed).
-            float rowWidth = Cases.All.Count > 3 ? 1760 : 1560;
+            float rowWidth = Cases.All.Count > 4 ? 1840 : Cases.All.Count > 3 ? 1760 : 1560;
             row.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(rowWidth, 640));
             UiKit.FitInCanvas(row, 70, 205);   // keep clear of the heading
             var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -189,29 +189,37 @@ namespace AlibiCo
             paper.rectTransform.Stretch(26);
             var inner = paper.rectTransform;
 
-            bool narrow = Cases.All.Count > 3;   // four folders to a row: slightly smaller type
-            var t = UiKit.Text(inner, c.Title, Art.Serif, narrow ? 44 : 50, Pal.Ink, TextAlignmentOptions.TopLeft);
-            t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -36), new Vector2(-68, 130));
-            var tg = UiKit.Text(inner, c.Tagline, Art.SerifItalic, narrow ? 25 : 28, Pal.InkSoft, TextAlignmentOptions.TopLeft);
-            tg.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -168), new Vector2(-68, 50));
-            var d = UiKit.Text(inner, (c.Date + "\n" + c.Weather).ToUpperInvariant(), Art.SansBold, 19, Pal.InkSoft, TextAlignmentOptions.TopLeft);
-            d.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -232), new Vector2(-68, 60));
-            d.characterSpacing = 3;
-
-            var suspects = string.Join("\n", c.Suspects.Select(p => "· " + p.Name));
-            var sp = UiKit.Text(inner, "SUSPECTS", Art.SansBold, 18, Pal.Oxblood, TextAlignmentOptions.TopLeft);
-            var spl = UiKit.Text(inner, suspects, Art.Typewriter, narrow ? 21 : 25, Pal.Ink, TextAlignmentOptions.TopLeft);
-            spl.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -340), new Vector2(-68, 150));
-            sp.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -312), new Vector2(-68, 170));
+            // The file's front sheet, stacked top to bottom by a layout group so a long title or a
+            // narrow folder (four or five to a row) pushes the lines below down instead of under.
+            int n = Cases.All.Count;
+            float k = n <= 3 ? 1f : n == 4 ? 0.88f : 0.74f;
+            int pad = n <= 4 ? 34 : 24;
+            var col = UiKit.Rect(inner, "sheet");
+            col.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, 1), new Vector2(pad, -30), new Vector2(-2 * pad, -150));
+            var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.childControlWidth = true; vl.childControlHeight = true; vl.childForceExpandHeight = false; vl.childForceExpandWidth = true;
+            vl.spacing = 10 * k;
+            void Line(string text, string font, float size, Color color, float spacing = 0, float gapAfter = 0)
+            {
+                var t = UiKit.Text(col, text, font, size * k, color, TextAlignmentOptions.TopLeft);
+                t.characterSpacing = spacing;
+                t.enableAutoSizing = false;
+                if (gapAfter > 0) t.margin = new Vector4(0, 0, 0, gapAfter * k);
+            }
+            Line(c.Title, Art.Serif, 50, Pal.Ink, 0, 4);
+            Line(c.Tagline, Art.SerifItalic, 28, Pal.InkSoft, 0, 6);
+            Line((c.Date + "\n" + c.Weather).ToUpperInvariant(), Art.SansBold, 19, Pal.InkSoft, 3, 8);
+            Line("SUSPECTS", Art.SansBold, 18, Pal.Oxblood);
+            Line(string.Join("\n", c.Suspects.Select(p => "· " + p.Name)), Art.Typewriter, 25, Pal.Ink);
 
             string status;
             if (!unlocked) status = "<color=#3A2F25>LOCKED</color>\n<size=20>Close the previous case to open this file.</size>";
             // The CLOSED rubber stamp says it already: stars, best time and the seals earned so far.
-            else if (rec.solved) status = $"{Stars(rec.bestBadges)}   <size=20>Best time {Clock(rec.bestTime)}</size>\n<size=17>{Seals(rec.sealClean, rec.sealUnaided, rec.sealSwift, c.ParSeconds, false)}</size>";
+            else if (rec.solved) status = $"{Stars(rec.bestBadges)}   <size=20>Best {Clock(rec.bestTime)}</size>\n<size={(n <= 4 ? 17 : 15)}>{Seals(rec.sealClean, rec.sealUnaided, rec.sealSwift, c.ParSeconds, false)}</size>";
             else if (inProgress) status = "<color=#8E2B2B>IN PROGRESS</color>\n<size=20>Pick up where you left off.</size>";
             else status = "<color=#8E2B2B>OPEN</color>\n<size=20>" + c.Lesson + "</size>";
-            var st = UiKit.Text(inner, status, Art.SansBold, 28, Pal.Ink, TextAlignmentOptions.BottomLeft);
-            st.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(34, 30), new Vector2(-68, 90));
+            var st = UiKit.Text(inner, status, Art.SansBold, 28 * Mathf.Max(k, 0.85f), Pal.Ink, TextAlignmentOptions.BottomLeft);
+            st.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(pad, 30), new Vector2(-2 * pad, 90));
             if (unlocked)
             {
                 var clip = UiKit.Rect(folder.transform, "clip");

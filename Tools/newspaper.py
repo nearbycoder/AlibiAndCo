@@ -31,6 +31,9 @@ PAGES = {
     "case4": dict(date="THURSDAY 6 NOVEMBER 1986", head="LIFEBOAT BOX STOLEN ON BONFIRE NIGHT",
                   sub="A year of the Appeal taken from the Mayor's parlour as the town watched the sky",
                   pic=("Textures/map_town.png", (0.46, 0.22, 0.70, 0.54)), caption="Market Square and the Town Hall, whose clock struck the hour."),
+    "case5": dict(date="MONDAY 15 DECEMBER 1986", head="WRENHAVEN LILY CUT ON EVE OF SHOW",
+                  sub="Once-in-seven-years orchid lifted from the Park Glasshouse in a hard frost",
+                  pic=("Textures/map_town.png", (0.02, 0.30, 0.30, 0.66)), caption="Penrose Park and its Victorian glasshouse."),
 }
 
 WORDS = ("the harbour council said on friday that a new survey of the quay would begin after the winter storms and that "

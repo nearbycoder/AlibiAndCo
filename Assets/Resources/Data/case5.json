@@ -1,0 +1,190 @@
+{
+  "id": "case5",
+  "title": "The Wrenhaven Lily",
+  "tagline": "Some clocks can only be set by other clocks.",
+  "date": "Saturday 13 December 1986",
+  "weather": "Hard frost · −3°C",
+  "lesson": "Fix one clock with another.",
+  "spanFrom": "20:30",
+  "spanTo": "23:00",
+  "par": "20:00",
+  "intro": [
+    "On the eve of the Winter Flower Show, the Wrenhaven Lily, an orchid that blooms once in seven years, was cut from the Park Glasshouse.",
+    "Penrose's last round was at a quarter past nine by the glasshouse clock. At six past ten, same clock, the door was forced. Lifting a lily takes six careful minutes.",
+    "Connie's advice: “If you can't check a clock against the church, check it against one you've mended.”"
+  ],
+  "people": [
+    { "id": "ines", "name": "Ines Delacroix", "role": "suspect", "blurb": "Wintering her yacht at the Club. Her grandmother bred a white orchid in Roscoff once, and sold it when times were hard." },
+    { "id": "cole", "name": "Bertram Cole",   "role": "suspect", "blurb": "Doorman at the Grand, and runner-up for the orchid cup five years in a row. Says he's given up flowers." },
+    { "id": "nell", "name": "Nell Garrow",    "role": "suspect", "blurb": "Apprentice gardener at the Park since the autumn. The last person seen in the orchid house." }
+  ],
+  "clocks": [
+    { "id": "ref",   "name": "Exchange, coastguard, railway & church bells" },
+    { "id": "club",  "name": "Yacht Club bar clock", "offset": 7, "note": "The Commodore keeps it fast to hurry closing time." },
+    { "id": "glass", "name": "Glasshouse clock", "offset": -9, "note": "Old Penrose winds it on Sundays. It loses in a frost." }
+  ],
+  "incident": {
+    "title": "The Wrenhaven Lily",
+    "short": "Lily stolen",
+    "text": "The prize orchid was cut from its pot in the Park Glasshouse. Last round 21:15, found broken into at 22:06, both by the glasshouse clock. Lifting it takes 6 minutes.",
+    "location": "glasshouse",
+    "clock": "glass",
+    "from": "21:15",
+    "to": "22:06",
+    "duration": 6,
+    "culprit": "ines"
+  },
+  "cards": [
+    {
+      "id": "t_lights", "kind": "ledger", "start": true, "town": true,
+      "title": "Bar book", "source": "record", "sourceName": "Yacht Club · steward's book",
+      "text": "Lights out all over the clubhouse. Candles on the tables. Back on in four minutes.",
+      "location": "boathouse", "at": "21:47", "clock": "club", "event": "powercut"
+    },
+    {
+      "id": "t_frost", "kind": "ledger", "town": true,
+      "title": "Frost log", "source": "record", "sourceName": "Park Glasshouse · boiler room",
+      "text": "Heaters tripped. Supply cut on the west feeder, back after four minutes. Thermometer held at 51°F.",
+      "location": "glasshouse", "at": "21:31", "clock": "glass", "event": "powercut"
+    },
+    {
+      "id": "i_coast", "kind": "call", "start": true,
+      "title": "Coastguard log", "source": "record", "sourceName": "HM Coastguard, Hayle Head",
+      "text": "Radio check from the yacht Mouette at the Club moorings. Skipper: I. Delacroix.",
+      "subjects": ["ines"], "location": "boathouse", "at": "21:05", "event": "radiocheck"
+    },
+    {
+      "id": "i_radio", "kind": "ledger", "start": true,
+      "title": "Radio book", "source": "record", "sourceName": "Yacht Club · VHF set",
+      "text": "Mlle Delacroix called Hayle Head coastguard from the Club set. Signal good.",
+      "subjects": ["ines"], "location": "boathouse", "at": "21:12", "clock": "club", "event": "radiocheck"
+    },
+    {
+      "id": "i_barman", "kind": "statement", "start": true,
+      "title": "Jory Tregear", "source": "witness", "sourceName": "Barman, Yacht Club",
+      "text": "“Miss Delacroix sat by the window from nine by our clock until the lights went out at a quarter to ten. Then I lost sight of her for the candles.”",
+      "subjects": ["ines"], "location": "boathouse", "from": "21:00", "to": "21:47", "clock": "club",
+      "firm": "“Nine till the lights went, by the clock over the bar. I'm sure of it.”"
+    },
+    {
+      "id": "i_tab", "kind": "receipt", "start": true,
+      "title": "Bar tab", "source": "record", "sourceName": "Yacht Club",
+      "text": "I. DELACROIX · 2 × hot toddy · settled\nTimed off the clock over the bar.",
+      "subjects": ["ines"], "location": "boathouse", "at": "21:59", "clock": "club"
+    },
+    {
+      "id": "i_call", "kind": "call", "start": true,
+      "title": "Exchange log", "source": "record", "sourceName": "Wrenhaven Telephone Exchange",
+      "text": "Yacht Club payphone → ROSCOFF, FRANCE\nTrunk call · 4 minutes · caller “Delacroix”",
+      "subjects": ["ines"], "location": "boathouse", "at": "22:22"
+    },
+    {
+      "id": "i_claim", "kind": "statement", "start": true,
+      "title": "Ines Delacroix", "source": "ines", "sourceName": "Ines, in her own words",
+      "text": "“I was at the Yacht Club from nine until long after eleven. In the bar, then on my boat at the Club moorings. I never went near the Park.”",
+      "subjects": ["ines"], "location": "boathouse", "from": "21:00", "to": "22:45",
+      "truth": "lie",
+      "reply": "“…The lily was my grandmother's. She bred it in Roscoff and sold it for bread in 1946. I walked to the Park when the lights went out. I have nothing more to say without a lawyer.”"
+    },
+    {
+      "id": "u_gate", "kind": "ledger", "start": true,
+      "title": "Gate book", "source": "record", "sourceName": "Park Glasshouse · night gate",
+      "text": "Side gate unlatched and relatched. Visitor not signed in. (Woman's footprints in the frost, small boots. — A.P.)\nTimed by the glasshouse clock.",
+      "candidates": ["ines", "nell"], "trueSubject": "ines",
+      "location": "glasshouse", "at": "21:54", "clock": "glass"
+    },
+    {
+      "id": "n_luggage", "kind": "ticket", "start": true,
+      "title": "Left-luggage ticket", "source": "record", "sourceName": "Wrenhaven Station",
+      "text": "One holdall deposited. Name: N. GARROW.",
+      "subjects": ["nell"], "location": "station", "at": "20:35"
+    },
+    {
+      "id": "n_penrose", "kind": "statement", "start": true,
+      "title": "Mr Penrose", "source": "witness", "sourceName": "Head gardener, Park Glasshouse",
+      "text": "“Nell helped me pot up the cyclamen from twenty to nine until my last round at a quarter past. Then she was off to the station. Good girl, that one.”",
+      "subjects": ["nell"], "location": "glasshouse", "from": "20:40", "to": "21:15", "clock": "glass",
+      "firm": "“Twenty to nine till a quarter past, by the house clock. I've told you the truth, Detective.”"
+    },
+    {
+      "id": "n_platform", "kind": "ticket", "start": true,
+      "title": "Platform ticket", "source": "record", "sourceName": "Wrenhaven Station",
+      "text": "Platform ticket, 1d.\nClipped at the barrier: N. GARROW (staff pass, Park).",
+      "subjects": ["nell"], "location": "station", "at": "21:38"
+    },
+    {
+      "id": "n_buffet", "kind": "receipt", "start": true,
+      "title": "Buffet chit", "source": "record", "sourceName": "Station buffet",
+      "text": "Tea, Bath bun. On the Park's account: N. GARROW.",
+      "subjects": ["nell"], "location": "station", "at": "22:00"
+    },
+    {
+      "id": "n_collector", "kind": "statement", "start": true,
+      "title": "Mr Hendy", "source": "witness", "sourceName": "Ticket collector, Wrenhaven Station",
+      "text": "“Miss Garrow met the 22:25 from Truro. Young Davey Penhale. She'd been on that bench since half nine, nearly froze.”",
+      "subjects": ["nell"], "location": "station", "at": "22:28",
+      "firm": "“The 22:25 was three minutes late. She was there to meet it.”"
+    },
+    {
+      "id": "c_claim", "kind": "statement", "start": true,
+      "title": "Bertram Cole", "source": "cole", "sourceName": "Cole, in his own words",
+      "text": "“I was on the Grand's door from nine till gone eleven. Never left the step. I've given up orchids, whatever they say.”",
+      "subjects": ["cole"], "location": "hotel", "from": "21:00", "to": "23:00",
+      "truth": "lie",
+      "reply": "“I nipped down the depot for a parcel off the Truro bus. Orchid compost. All right? I haven't given up. But I was back on the door by ten past ten, ask the taxi rank.”",
+      "unlocks": ["c_taxi"]
+    },
+    {
+      "id": "c_night", "kind": "ledger", "start": true,
+      "title": "Night book", "source": "record", "sourceName": "The Grand Hotel · front desk",
+      "text": "Doorman on duty: B. COLE. Signed in.",
+      "subjects": ["cole"], "location": "hotel", "at": "21:30"
+    },
+    {
+      "id": "c_parcel", "kind": "ticket", "start": true,
+      "title": "Parcel docket", "source": "record", "sourceName": "Route 4 conductor",
+      "text": "1 parcel (sack, 28 lb) handed over at the depot. Signed: B. COLE.",
+      "subjects": ["cole"], "location": "depot", "at": "21:55"
+    },
+    {
+      "id": "c_taxi", "kind": "call", "title": "Exchange log", "source": "record", "sourceName": "Wrenhaven Telephone Exchange",
+      "text": "Grand Hotel front door → Wrenhaven Taxis · 1 minute\nCaller: “Cole, on the door.”",
+      "subjects": ["cole"], "location": "hotel", "at": "22:15"
+    }
+  ],
+  "triggers": [
+    { "on": "conflict", "a": "n_penrose", "b": "n_luggage",
+      "question": "Mr Penrose has Nell at the glasshouse from twenty to nine by his clock, yet she left a holdall at the station at 20:35, ten minutes' walk away. Is Penrose lying, or is his clock?" },
+    { "on": "conflict", "a": "c_claim", "b": "c_parcel",
+      "question": "Cole swears he never left the Grand's door, but he signed for a parcel at the bus depot at 21:55." },
+    { "on": "conflict", "a": "i_claim", "b": "u_gate",
+      "question": "The footprints at the Park gate can only be Ines's, and Ines says she never left the Yacht Club." },
+    { "on": "calibrate", "a": "club", "unlocks": ["t_frost"],
+      "memo": "The Yacht Club clock is seven minutes fast. And now its “lights out” is worth something: the Glasshouse's boiler logged the same power cut." },
+    { "on": "calibrate", "a": "glass",
+      "memo": "The glasshouse clock is nine minutes slow, and so was the crime: 21:24 to 22:15. Penrose was telling the truth all along." },
+    { "on": "confirm", "a": "u_gate", "memo": "Only one pair of small boots fits. They came from the Yacht Club." }
+  ],
+  "memos": [
+    { "when": "start", "text": "Two clocks tonight that nobody's ever checked. Mend the one you can. Then see what else it can mend." },
+    { "when": "firstConflict", "text": "Before you call Penrose a liar, look at whose clock he reads, and whether anything can set it." },
+    { "when": "unknown", "text": "Small boots, no name. Nobody fits yet, so something on the board is still wrong. Probably a clock." }
+  ],
+  "truth": {
+    "ines": [ { "at": "boathouse", "from": "20:40", "to": "21:52" }, { "at": "glasshouse", "from": "22:03", "to": "22:10" }, { "at": "boathouse", "from": "22:21", "to": "22:45" } ],
+    "nell": [ { "at": "station", "from": "20:30", "to": "20:36" }, { "at": "glasshouse", "from": "20:46", "to": "21:24" }, { "at": "station", "from": "21:34", "to": "22:40" } ],
+    "cole": [ { "at": "hotel", "from": "21:00", "to": "21:42" }, { "at": "depot", "from": "21:51", "to": "21:58" }, { "at": "hotel", "from": "22:07", "to": "23:00" } ]
+  },
+  "reconstruction": [
+    "21:40. The lights go out at the Yacht Club. Ines slips away in the dark.",
+    "21:52. A hot toddy settled at the bar, timed by a clock seven minutes fast. Then out into the frost.",
+    "22:03. The Park's side gate. Penrose's clock says 21:54, nine minutes slow.",
+    "22:04. Six careful minutes with a pruning knife and a hatbox.",
+    "22:22. Back at the Club payphone, calling Roscoff: “Elle rentre à la maison.”"
+  ],
+  "epilogue": [
+    "The lily was in a hatbox in the Mouette's forward cabin, wrapped in a jumper and still in bloom. Ines had meant to sail for Roscoff on the morning tide.",
+    "The Flower Show committee, after a long and heated meeting, sent the Lily to the Roscoff botanical garden on loan, with a brass plate in her grandmother's name. Cole won the orchid cup at last and cried a little.",
+    "Penrose bought a new clock. Connie's note: “Five for five, partner. A clock you've mended is as good as the church. Merry Christmas.”"
+  ]
+}

@@ -217,6 +217,27 @@ clock**. Forcing the door and the bureau took 5 minutes.
   has two minutes to spare. **Culprit: Rolf**, the collector everyone trusted.
 - The validator finds 24 reachable states (the most of any case) and one solution.
 
+### Case 5 — "The Wrenhaven Lily" (about 15–20 min; added in improvement round 2)
+*Saturday 13 December, hard frost.* The Wrenhaven Lily, an orchid that blooms once in seven
+years, was cut from its pot in the Park Glasshouse. Penrose's last round was at 21:15 and he found
+the door forced at 22:06, both **by the glasshouse clock**. Lifting the lily took 6 minutes.
+- Lanes: **Ines Delacroix**, **Bertram Cole** and **Nell Garrow**, plus TOWN. All have existing
+  portraits.
+- Teaches: **a chain of clocks**. A mended clock is as good as the church, so it can mend another.
+- Beats: Nell's lock reads OPEN under the printed window (she was the last in the orchid house),
+  but Penrose's true statement about her collides with her own left-luggage ticket. That's the
+  trap, and it stays red until his clock is fixed. Cole lied about leaving the Grand's door (he
+  fetched a sack of orchid compost from the depot). The coastguard's 21:05 radio check and the
+  Yacht Club's radio book are one moment, so the Club clock is 7 minutes fast. That unlocks the
+  glasshouse frost log. Its "heaters tripped" and the Club's "lights out" are the same power cut,
+  so the glasshouse clock is 9 minutes slow. The crime moves to 21:24–22:15, Penrose and Nell
+  clear, and the gate book's small bootprints fit only Ines. Her "never left the Club" falls.
+  With the Club's tab now at 21:52 and her Roscoff call at 22:22, she has two minutes to spare.
+  **Culprit: Ines**, taking her grandmother's lily home.
+- Nothing on a reliable clock shares a moment with the glasshouse clock, so the chain can't be
+  shortcut. An EditMode test checks this. The validator finds 8 reachable states and one
+  solution.
+
 ### Difficulty curve
 | Case | Lanes | Cards | Contradictions | New idea | Target time |
 |---|---|---|---|---|---|
@@ -224,6 +245,7 @@ clock**. Forcing the door and the bureau took 5 minutes.
 | 2 | 3 + TOWN | 14 | 4 | clocks and links | 8–12 min |
 | 3 | 4 + TOWN | 18 | 5 | identity, camera clocks | 12–18 min |
 | 4 | 4 + TOWN | 19 | 5 | the crime's own clock, an honest witness in the red | 15–20 min |
+| 5 | 3 + TOWN | 18 | 3 | a chain of clocks: mend one clock with another | 15–20 min |
 
 ### Validator ("airtight" proof)
 `Tools/CaseValidator` (a .NET console app compiled against the **same C# logic files the game
@@ -241,6 +263,10 @@ uses**) and a Unity EditMode test both run these checks on every case:
 6. **No accidental contradictions**: in the solved state no true card is in conflict.
 7. **Identity**: unknown cards are only ever confirmed to their true subject.
 8. Every card gets unlocked, and there are no dangling ids.
+9. **Pin order** (added in improvement round 2): the solution is replayed with the tray pinned in
+   60 seeded random orders. No unknown card may ever be confirmed to the wrong person, and the case
+   must still close. Identity elimination counts every unlocked record, pinned or not, so it
+   doesn't depend on the order the player pins in.
 
 ## 7. Art direction
 
