@@ -294,3 +294,89 @@ Not done, and why:
   round's changes weren't re-tested in a browser.
 - **Audio by ear:** still needs a person.
 - **Daily Docket:** still too risky for one round.
+
+## Round 3 scope (6 Oct 2026, branch `improvements-3`)
+
+Baseline on `bab361d`: the validator proves all five cases airtight (60 pin orders each), and
+autoplay passes 5/5 at 1920×1080 and at 1280×800 with Large text (Steam Deck size; 16:10 hadn't
+been captured before, and its layout holds up). Two things a player would hit stood out:
+
+- **Red is the game's main signal, and it fades for colour-blind players.** In a protanopia or
+  deuteranopia simulation (Machado 2009, full severity) of a case 4 board, the red glow that marks
+  the cards in a contradiction turns into a faint olive edge, and the OPEN and COVERED locks come
+  out the same colour. Only the "TWO PLACES AT ONCE" label still reads clearly. About 1 man in 12
+  has some red-green colour blindness.
+- **One crash can wipe a player's progress.** The save is written in place with
+  `File.WriteAllText`, and a crash during that write (Unity's Wayland backend has segfaulted
+  before) leaves a broken file. On the next launch the game can't read it, starts a blank save, and
+  overwrites the broken file the first time it saves.
+
+I'll build these items in this order. The riskiest one goes last, so the others land regardless.
+Screenshots go to `docs/media/improvements/round3/`.
+
+### R3-1. Crash-safe saves
+
+Saves are written to a temporary file and then moved into place, so a crash leaves either the old
+save or the new one, never half of one. The previous good save is kept as `alibi_save.json.bak`.
+If the main file can't be read, the game loads the backup, and the unreadable file is moved aside
+(`alibi_save.unreadable.json`) instead of being overwritten. The file logic lives in plain C#
+next to the board logic so it can be tested outside Unity.
+
+**Acceptance:** EditMode tests cover a normal save and load, a truncated main file (the backup
+loads), a missing main file with a backup present, both files unreadable (blank save, nothing
+deleted), and a stale temporary file left by a crash. A real player run, pointed at a throwaway
+config folder that holds a truncated save and a good backup, comes up with the backup's progress
+and logs the recovery. The real save under `~/.config/unity3d` is byte-identical before and
+after the round.
+**Verify:** `Tools/unity.sh test`, the throwaway-folder run with a screenshot of the case files,
+and checksums of the real save files.
+
+### R3-2. Contradictions you can see without colour
+
+Every card in a contradiction also gets a shape cue that doesn't rely on red: a warning tab on
+the chip (the same triangle as the "TWO PLACES AT ONCE" label) and a heavier, dashed outline.
+The cue is still there with Reduced motion on, when the glow's pulse stops. The lock captions
+get distinct icons and weights, not just a red or green tint.
+
+**Acceptance:** in protanopia, deuteranopia and tritanopia simulations of the autoplay
+screenshots (case 2 after the pin, case 4 pinned, case 5 pinned), every card in a contradiction
+is marked and no other card is. That's checked by eye on the simulated images and logged by
+autoplay (a new `[Conflicts]` line listing the marked chips against the board's established
+conflicts). Autoplay, the input test and the pad test still pass.
+**Verify:** autoplay at 1080p and 1280×800, CVD simulations before and after, side-by-side crops.
+
+### R3-3. The browser build, rebuilt and played to the end in two engines
+
+Round 2 didn't rebuild the web build. I'll rebuild it, and add a way to run autoplay inside the
+browser: the page passes `?autoplay` (and `?padtest`) to the player as its command-line flags,
+which only switches on the self-tests and changes nothing else. A small Playwright script
+(`Tools/webtest.mjs`) serves `Builds/WebGL/` locally, plays every case in headless Chromium and in
+WebKit (Safari's engine), and records the load time, console errors and screenshots.
+
+**Acceptance:** the build is under 60 MB compressed. Autoplay reports 5/5 PASS with 0 errors in
+Chromium, and also in WebKit if WebKit can run WebGL 2 headless here (if it can't, that's written
+down, not glossed over). Progress survives a page reload. The README's browser notes are updated
+with what was actually tested.
+**Verify:** `Tools/webtest.mjs` output and screenshots. **Still not tested:** Firefox (no
+Playwright Firefox build on this machine), real Safari on a Mac, phones, and the sound.
+
+### R3-4. Daily Docket (gated: it ships only if it holds up)
+
+A short generated case for each calendar day: three of the town's regulars, a small crime at one
+of the map's places, a few records and statements, one liar who isn't the culprit, and on some
+days a wrong clock. The generator is seeded by the date and lives in the logic core, and
+**every docket is proven airtight by the same `CaseValidator` before it's offered.** If a seed
+doesn't produce an airtight case, the generator moves on to the next variation. The case files get
+a Docket folder that keeps the best result per day.
+
+**Acceptance:** for 1,000 consecutive dates, the generator produces a case that the validator
+proves airtight (including the 60 pin orders), with no date failing. Autoplay plays today's
+docket and three fixed dates to CASE CLOSED. An EditMode test covers the generator. I'll read
+ten dockets through and they have to make sense as small stories, not just sums. **If any of
+this doesn't hold by the end of the round, the Docket doesn't ship** and this file says why.
+**Verify:** a validator mode that sweeps dates (`Tools/validate.sh --docket 1000`), EditMode
+tests, autoplay, screenshots and a read-through.
+
+Deferred: Windows builds, signing and notarization, hosting, the licence, releases and tags (owner
+decisions); audio by ear and a physical controller or Steam Deck (they need a person and
+hardware).
