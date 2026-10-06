@@ -279,20 +279,29 @@ namespace AlibiCo
         {
             current = null;
             Volatile = false;
+            LoadedFrom = SafeFile.Source.None;
             UnlockAll = false;
         }
         static string PathOnDisk => System.IO.Path.Combine(Application.persistentDataPath, "alibi_save.json");
+
+        static bool Parses(string json)
+        {
+            if (!SafeFile.IsCompleteJsonObject(json)) return false;
+            try { return JsonUtility.FromJson<SaveData>(json) != null; }
+            catch (System.Exception) { return false; }
+        }
 
         public static SaveData Current
         {
             get
             {
                 if (current != null) return current;
-                try
-                {
-                    if (File.Exists(PathOnDisk)) current = JsonUtility.FromJson<SaveData>(File.ReadAllText(PathOnDisk));
-                }
-                catch (System.Exception e) { Debug.LogWarning("[Save] couldn't read save: " + e.Message); }
+                // The save is written crash-safe (Logic/SafeFile): an unreadable file is moved aside
+                // and the previous save is loaded instead, rather than starting blank and overwriting it.
+                var text = SafeFile.Read(PathOnDisk, Parses, out var source, m => Debug.LogWarning("[Save] " + m));
+                if (text != null) current = JsonUtility.FromJson<SaveData>(text);
+                LoadedFrom = source;
+                if (source == SafeFile.Source.Backup) Debug.LogWarning("[Save] recovered progress from the backup save");
                 if (current == null) current = new SaveData();
                 return current;
             }
@@ -307,11 +316,16 @@ namespace AlibiCo
 
         public static bool Volatile { get; private set; }
 
+        /// <summary>Where the save came from on launch (the backup means the main file was unreadable).</summary>
+        public static SafeFile.Source LoadedFrom { get; private set; }
+
+        public static string Folder => Application.persistentDataPath;
+
         public static void Write()
         {
             if (Volatile) return;
             if (Application.platform == RuntimePlatform.WebGLPlayer) PlayerPrefs.Save();   // settings live in IndexedDB too
-            try { File.WriteAllText(PathOnDisk, JsonUtility.ToJson(Current, true)); }
+            try { SafeFile.Write(PathOnDisk, JsonUtility.ToJson(Current, true)); }
             catch (System.Exception e) { Debug.LogWarning("[Save] couldn't write save: " + e.Message); }
         }
 

@@ -217,9 +217,15 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case through the real session code with the solver's moves (and, in the finale, confronts the honest witness on purpose to check she stands firm), saves a screenshot per step and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
 | `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start) and prints PASS/FAIL. |
+| `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
 Automated runs use a blank in-memory save, so they never touch your progress.
+
+Saves are crash-safe: each one is written to a temporary file and renamed into place, and the
+previous save is kept as `alibi_save.json.bak`. If the save can't be read (say, after a crash or a
+full disk), the game loads the backup and moves the broken file aside as
+`alibi_save.unreadable-<date>.json` rather than overwriting it.
 
 ### Rebuilding the generated assets
 

@@ -82,6 +82,13 @@ namespace AlibiCo
             if (resArg >= 0 && resArg + 1 < args.Length) Settings.ApplyResolution(args[resArg + 1]);
             UiKit.ApplyScale();
             yield return null;
+            int saveCheckArg = Array.IndexOf(args, "-alibiSaveCheck");
+            if (saveCheckArg >= 0)
+            {
+                string dir = saveCheckArg + 1 < args.Length && !args[saveCheckArg + 1].StartsWith("-") ? args[saveCheckArg + 1] : "Captures/save-check";
+                StartCoroutine(SaveCheck(dir));
+                yield break;
+            }
             if (recordArg >= 0)
             {
                 string dir = recordArg + 1 < args.Length && !args[recordArg + 1].StartsWith("-") ? args[recordArg + 1] : "/tmp/alibi-record";
@@ -114,6 +121,37 @@ namespace AlibiCo
                 if (c != null) { StartCase(c, false); yield break; }
             }
             ShowTitle(true);
+        }
+
+        /// <summary>
+        /// -alibiSaveCheck [dir]: load the save the way a player's launch does, log what came back,
+        /// capture the title and the case files, save once and quit. It refuses to run against the
+        /// real save folder, so point XDG_CONFIG_HOME at a throwaway folder first.
+        /// </summary>
+        IEnumerator SaveCheck(string dir)
+        {
+            var home = Environment.GetEnvironmentVariable("HOME") ?? "~";
+            var real = System.IO.Path.Combine(home, ".config", "unity3d");
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")) || SaveData.Folder.StartsWith(real))
+            {
+                Debug.LogError("[SaveCheck] FAIL: refusing to run against the real save folder " + SaveData.Folder + " (set XDG_CONFIG_HOME)");
+                Quit();
+                yield break;
+            }
+            var save = SaveData.Current;
+            var solved = string.Join(",", save.cases.Where(c => c.solved).Select(c => c.id));
+            Debug.Log($"[SaveCheck] folder={SaveData.Folder} loadedFrom={SaveData.LoadedFrom} solved=[{solved}] inProgress={save.inProgress?.caseId ?? "none"}");
+            ShowTitle(true);
+            yield return new WaitForSecondsRealtime(3f);
+            Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "title.png"), Screen.width, Screen.height));
+            ShowSelect();
+            yield return new WaitForSecondsRealtime(2f);
+            Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "case_files.png"), Screen.width, Screen.height));
+            SaveData.Write();
+            var files = System.IO.Directory.GetFiles(SaveData.Folder).Select(System.IO.Path.GetFileName).OrderBy(f => f);
+            Debug.Log("[SaveCheck] files after one save: " + string.Join(", ", files));
+            Debug.Log("[SaveCheck] done");
+            Quit();
         }
 
         float lastAspect, aspectCheck;
