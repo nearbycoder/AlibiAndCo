@@ -118,6 +118,28 @@ namespace AlibiCo
             if (s.Board.Pinned.Contains("a_tab")) { Debug.LogError("[AutoPilot] FAIL input: right-click didn't unpin"); ok = false; }
             yield return Drag(Grab(rc), Screen(Stage.I.BoardToWorld(Vector2.zero)));
             yield return Wait(0.8f);
+            // 3b. Changing the text size mid-case rebuilds the board in place: same pins, bigger chips.
+            {
+                int pinned = s.Board.Pinned.Count;
+                float chip = s.View.ChipScale;
+                int memos = s.Memos.History.Count;
+                Settings.TextSizeOverride = 2;
+                UiKit.ApplyScale();
+                root.TextSizeChanged();
+                yield return Wait(1.5f);
+                var s2 = root.Session;
+                if (s2 == s || s2 == null || s2.Board.Pinned.Count != pinned || s2.Memos.History.Count != memos || s2.View.ChipScale <= chip)
+                {
+                    Debug.LogError($"[AutoPilot] FAIL input: text size rebuild (pins {pinned}->{(s2 ? s2.Board.Pinned.Count : -1)}, chips {chip}->{(s2 ? s2.View.ChipScale : -1)})");
+                    ok = false;
+                }
+                yield return Shot("input_text_larger");
+                Settings.TextSizeOverride = -1;
+                UiKit.ApplyScale();
+                root.TextSizeChanged();
+                yield return Wait(1.5f);
+                s = root.Session;
+            }
             // 4. Confront each liar by clicking the chip and then the Confront button.
             foreach (var id in new[] { "a_claim", "c_claim", "b_claim" })
             {
@@ -148,7 +170,7 @@ namespace AlibiCo
             yield return Shot("input_closed");
             if (root.Flow != Flow.Closed) { Debug.LogError("[AutoPilot] FAIL input: accusation by drag didn't close the case"); ok = false; }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, click, UI button, incident drag)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, click, UI button, incident drag)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -249,6 +271,14 @@ namespace AlibiCo
                         yield return Shot(c.Id + "_notebook");
                         GameRoot.I.Screens.ToggleNotebook();
                         yield return Wait(0.5f);
+                        if (capture && c == Cases.All[0])
+                        {
+                            root.SetPaused(true);
+                            yield return Wait(0.8f);
+                            yield return Shot(c.Id + "_pause");
+                            root.SetPaused(false);
+                            yield return Wait(0.5f);
+                        }
                     }
                     if (step > 20) { ok = false; Debug.LogError("[AutoPilot] FAIL too many steps"); break; }
                 }

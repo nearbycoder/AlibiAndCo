@@ -18,6 +18,9 @@ namespace AlibiCo
         CardView actionsCard;
         Notebook notebook;
         CanvasGroup helpGroup;
+        RectTransform helpRect;
+        TextMeshProUGUI helpText, helpKeys;
+        string helpShown;
 
         static readonly Color Cream = Pal.Hex("F1E6CF");
         static readonly Color CreamDim = Pal.Hex("C9BFA8");
@@ -47,6 +50,11 @@ namespace AlibiCo
         {
             Hide(title); Hide(select); Hide(intro); Hide(closed); Hide(pause); Hide(settings); Hide(confirm);
         }
+
+        /// <summary>Settings or a confirmation box is on screen.</summary>
+        public bool AnyOverlayOpen =>
+            (confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.01f) ||
+            (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.01f);
 
         public bool CloseTopOverlay()
         {
@@ -410,25 +418,26 @@ namespace AlibiCo
             var menu = UiKit.Button(pill.transform, "Menu", () => root.SetPaused(true), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)menu.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(86, 42));
 
-            // A soft dark band so the reminder reads over whatever paper is lying on the desk. It steps
-            // aside when the tray needs a second row, whose times sit right where it would be.
+            // The controls strip: one contextual tip at a time, set on the board's dark lower frame so it
+            // never covers the tray. Each tip retires once the player has used that gesture; the full
+            // list of controls lives in the pause menu.
             var helpRoot = UiKit.Rect(hud.transform, "help");
-            helpRoot.Stretch();
+            helpRoot.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0.5f), new Vector2(0, 300), new Vector2(0, 64));
+            helpRect = helpRoot;
             helpGroup = helpRoot.gameObject.AddComponent<CanvasGroup>();
             helpGroup.blocksRaycasts = false;
-            var helpShade = UiKit.FadeUp(helpRoot, "helpShade", new Color(0.02f, 0.02f, 0.025f, 0.86f));
-            helpShade.rectTransform.Place(new Vector2(0.18f, 0), new Vector2(0.77f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 150));
-            var help = UiKit.Text(helpRoot,
-                "<b>Drag</b> a card onto the board   ·   drop it <b>onto another card</b> if they're one moment   ·   <b>click</b> a pinned statement to confront\n" +
-                "<b>right-click</b> sends it back   ·   <b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Esc</b> menu",
-                Art.Sans, 18, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Bottom);
-            // Between the memo slip (left) and the town map (right), so it never sits on paper.
-            help.rectTransform.Place(new Vector2(0.2f, 0), new Vector2(0.75f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(0, 56));
-            help.lineSpacing = 6;
-            // Stays two lines at every text size; it's a reminder, not something to read closely.
-            help.enableAutoSizing = true;
-            help.fontSizeMin = 12;
-            help.fontSizeMax = 18;
+            helpGroup.alpha = 0;
+            helpText = UiKit.Text(helpRoot, "", Art.Sans, 21, new Color(1, 0.95f, 0.85f, 0.92f), TextAlignmentOptions.Center);
+            helpText.rectTransform.Place(new Vector2(0.18f, 0.5f), new Vector2(0.82f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 9), new Vector2(0, 30));
+            helpText.enableAutoSizing = true;
+            helpText.fontSizeMin = 14;
+            helpText.fontSizeMax = 21;
+            helpKeys = UiKit.Text(helpRoot, "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>right-click</b> sends a card back   ·   <b>Esc</b> menu and controls",
+                Art.Sans, 16, new Color(1, 0.95f, 0.85f, 0.55f), TextAlignmentOptions.Center);
+            helpKeys.rectTransform.Place(new Vector2(0.18f, 0.5f), new Vector2(0.82f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -16), new Vector2(0, 24));
+            helpKeys.enableAutoSizing = true;
+            helpKeys.fontSizeMin = 12;
+            helpKeys.fontSizeMax = 16;
 
             BuildActions();
         }
@@ -461,11 +470,7 @@ namespace AlibiCo
 
         public void Tick()
         {
-            if (helpGroup != null)
-            {
-                bool show = hudSession != null && !hudSession.Solved && hudSession.TrayCount <= 7;
-                helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, AlibiCo.Clock.Dt * 3f);
-            }
+            if (helpGroup != null) TickHelp();
             if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {
                 hudSession.View.Timer.text = Settings.ShowTimer ? Clock(hudSession.Elapsed) : "";
@@ -475,6 +480,21 @@ namespace AlibiCo
                 if (!actionsCard) { HideActions(); return; }
                 PositionActions(Stage.I.WorldToScreen(actionsCard.transform.position));
             }
+        }
+
+        void TickHelp()
+        {
+            string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
+            if (tip != null && tip != helpShown && helpGroup.alpha < 0.05f) { helpShown = tip; helpText.text = tip; }
+            bool show = tip != null && tip == helpShown;
+            helpGroup.alpha = Mathf.MoveTowards(helpGroup.alpha, show ? 1f : 0f, AlibiCo.Clock.Dt * 2.5f);
+            if (helpGroup.alpha <= 0 || Stage.I == null) return;
+            // Centre it on the strip of frame between the bottom of the board and the top of the tray.
+            var st = Stage.I;
+            float yBoard = st.WorldToScreen(st.BoardToWorld(new Vector2(0, st.Board.yMin))).y;
+            float yTray = st.WorldToScreen(st.DeskToWorld(new Vector2(0, st.Tray.yMax))).y;
+            float scale = UiKit.Canvas != null ? UiKit.Canvas.scaleFactor : 1f;
+            helpRect.anchoredPosition = new Vector2(0, (yBoard + yTray) * 0.5f / Mathf.Max(0.01f, scale));
         }
 
         void BuildActions()
@@ -586,7 +606,8 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(pause.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.96f));
             UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520, 620));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-280, 0), new Vector2(520, 620));
+            BuildControlsCard(pause.transform);
             var t = UiKit.Text(panel.transform, "Paused", Art.Display, 66, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(0, 90));
             var col = UiKit.Rect(panel.transform, "col");
@@ -599,6 +620,37 @@ namespace AlibiCo
             Size(UiKit.Button(col, "Settings", () => ShowSettings(), Pal.Hex("2B3540"), Cream, 24), 56);
             Size(UiKit.Button(col, "Title screen", () => { root.SetPaused(false); root.ShowTitle(false); }, Pal.Hex("2B3540"), Cream, 24), 56);
             Size(UiKit.Button(col, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 22), 50);
+        }
+
+        /// <summary>The full controls list, next to the pause menu (the board itself only shows one tip at a time).</summary>
+        void BuildControlsCard(Transform parent)
+        {
+            var card = UiKit.Panel(parent, "controls", new Color(0.08f, 0.09f, 0.11f, 0.96f));
+            UiKit.DropShadow(card.rectTransform, 36f, 0.6f, new Vector2(0, -16));
+            card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 0), new Vector2(500, 620));
+            var head = UiKit.Text(card.transform, "Controls", Art.Display, 44, Cream, TextAlignmentOptions.Center);
+            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(0, 64));
+            var rows = new[]
+            {
+                ("Drag a card to the board", "pin it (or just click it)"),
+                ("Hover a card", "read it in full; see the walk"),
+                ("Drop a card on a card", "link: one moment, two clocks"),
+                ("Click a pinned statement", "Confront, or send it back"),
+                ("Right-click a pinned card", "back to the tray"),
+                ("Drag the incident card", "accuse: the one line it fits"),
+                ("Hover the town map", "zoom in on Wrenhaven"),
+                ("Tab  ·  H or F1", "notebook  ·  Connie's hint"),
+                ("Space or click", "skip a memo"),
+                ("F11  ·  F12", "fullscreen  ·  screenshot"),
+            };
+            var sb = new System.Text.StringBuilder();
+            foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b>\n<color=#B9AE98>").Append(v).Append("</color>\n");
+            var body = UiKit.Text(card.transform, sb.ToString().TrimEnd(), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
+            body.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -36), new Vector2(-70, -140));
+            body.lineSpacing = 2;
+            body.enableAutoSizing = true;
+            body.fontSizeMin = 12;
+            body.fontSizeMax = 19;
         }
 
         public void ShowSettings()

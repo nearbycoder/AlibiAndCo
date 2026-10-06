@@ -142,11 +142,14 @@ namespace AlibiCo
         public static readonly string[] TextSizeNames = { "Normal", "Large", "Larger" };
         static readonly float[] TextScales = { 1f, 1.15f, 1.3f };
 
-        /// <summary>Index into TextSizeNames. Automated runs always use Normal so captures are comparable.</summary>
+        /// <summary>
+        /// Index into TextSizeNames. Until the player picks one, small windows (under 900 px tall, such as
+        /// 720p laptops and handhelds) start at Large. Automated runs always use Normal so captures are comparable.
+        /// </summary>
         public static int TextSize
         {
-            get => Mathf.Clamp(TextSizeOverride >= 0 ? TextSizeOverride : SaveData.Volatile ? 0 : PlayerPrefs.GetInt("text_size", 0), 0, TextScales.Length - 1);
-            set { PlayerPrefs.SetInt("text_size", value); UiKit.ApplyScale(); }
+            get => Mathf.Clamp(TextSizeOverride >= 0 ? TextSizeOverride : SaveData.Volatile ? 0 : PlayerPrefs.GetInt("text_size", Screen.height < 900 ? 1 : 0), 0, TextScales.Length - 1);
+            set { PlayerPrefs.SetInt("text_size", value); UiKit.ApplyScale(); GameRoot.I?.TextSizeChanged(); }
         }
 
         /// <summary>-alibiTextSize n on the command line (for capturing the larger sizes).</summary>
@@ -254,6 +257,17 @@ namespace AlibiCo
         public List<CaseRecord> cases = new List<CaseRecord>();
         public Snapshot inProgress;
         public bool seenIntro;
+        /// <summary>Gestures the player has used at least once; the controls strip stops teaching them.</summary>
+        public List<string> learned = new List<string>();
+
+        public static bool Learned(string what) => Current.learned.Contains(what);
+
+        public static void Learn(string what)
+        {
+            if (Learned(what)) return;
+            Current.learned.Add(what);
+            Write();
+        }
 
         static SaveData current;
 

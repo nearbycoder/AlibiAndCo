@@ -369,6 +369,12 @@ namespace AlibiCo
 
         public Vector2 Size => Compact ? ChipSize : FullSize;
 
+        /// <summary>
+        /// Pop the card. The body always rests at scale 1, and the compact/full swap animates that same
+        /// scale, so a punch that started mid-swap used to "restore" a half-shrunk chip and leave it small.
+        /// </summary>
+        public void Punch(float amount = 0.15f, float dur = 0.35f) => Body.Punch(amount, dur, Vector3.one);
+
         public void SetTimes(int from, int to, Board board)
         {
             int corr = board != null ? board.Correction(Def.Clock) : 0;
@@ -437,7 +443,7 @@ namespace AlibiCo
             {
                 stamp.transform.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, k);
                 stamp.alpha = k;
-            }, Ease.InCubic, () => { Body.Punch(0.06f, 0.25f); });
+            }, Ease.InCubic, () => { Punch(0.06f, 0.25f); });
         }
 
         public void ClearStamp() => stamp.gameObject.SetActive(false);

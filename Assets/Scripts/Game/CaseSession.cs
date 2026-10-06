@@ -57,12 +57,13 @@ namespace AlibiCo
 
         // ------------------------------------------------------------------ lifecycle
 
-        public static CaseSession Begin(Stage stage, CaseDef c, SaveData.Snapshot snap)
+        /// <param name="quiet">Rebuilding the same board (a text size change), so no "case reopened" memo.</param>
+        public static CaseSession Begin(Stage stage, CaseDef c, SaveData.Snapshot snap, bool quiet = false)
         {
             var go = new GameObject("CaseSession_" + c.Id);
             var s = go.AddComponent<CaseSession>();
             Current = s;
-            s.Init(stage, c, snap);
+            s.Init(stage, c, snap, quiet);
             return s;
         }
 
@@ -78,7 +79,7 @@ namespace AlibiCo
             Destroy(gameObject);
         }
 
-        void Init(Stage stage, CaseDef c, SaveData.Snapshot snap)
+        void Init(Stage stage, CaseDef c, SaveData.Snapshot snap, bool quiet)
         {
             this.stage = stage;
             Case = c;
@@ -136,7 +137,8 @@ namespace AlibiCo
                 Deal();
                 Tween.Delay(1.1f, () => PostCaseMemo("start", null));
             }
-            else Memos.Post(MemoKind.Notice, "CASE REOPENED", "Right where you left it. Every pin is still in place.");
+            else if (!quiet) Memos.Post(MemoKind.Notice, "CASE REOPENED", "Right where you left it. Every pin is still in place.");
+            else if (Memos.History.Count > 0) Memos.Reshow(Memos.History[Memos.History.Count - 1]);
             AudioDirector.I?.PlayMusic("music_board", 3f);
             stage.SetNewspaper(c.Id);
         }
@@ -710,13 +712,13 @@ namespace AlibiCo
             if (v.IsIncident)
             {
                 Memos.Post(MemoKind.Notice, "THE INCIDENT", "Drag this card onto the one line it fits. If it fits more than one, or none, keep working.");
-                v.Body.Punch(0.08f);
+                v.Punch(0.08f);
                 return;
             }
             bool pinned = Board.Pinned.Contains(v.Id);
             if (Board.Struck.Contains(v.Id))
             {
-                v.Body.Punch(0.06f);
+                v.Punch(0.06f);
                 Memos.Post(MemoKind.Notice, "ON THE SPIKE", $"“{v.Def.Title}” was struck off. It's no longer part of the timeline.");
                 return;
             }
@@ -735,7 +737,7 @@ namespace AlibiCo
         {
             if (selected != null && selected != v) selected.LiftTarget = 0;
             selected = v;
-            v.Body.Punch(0.06f, 0.25f);
+            v.Punch(0.06f, 0.25f);
             Sfx.Play("paper_touch", 0.35f);
             UpdateGlows();
             ShowActions?.Invoke(v, stage.WorldToScreen(v.transform.position));
@@ -882,6 +884,7 @@ namespace AlibiCo
             var before = ConflictKeys();
             bool wasPinned = Board.Pinned.Contains(v.Id);
             var o = Board.PinAndSettle(v.Id, lane);
+            SaveData.Learn("pin");
             freshCards.Remove(v.Id);
             Relayout(true);
             // Landing: pin thunk, dust and a little punch.
@@ -889,7 +892,7 @@ namespace AlibiCo
             {
                 if (!v) return;
                 Sfx.Play("pin", 0.75f);
-                v.Body.Punch(0.12f, 0.3f);
+                v.Punch(0.12f, 0.3f);
                 Fx.Dust(v.transform.position);
             });
             AfterAction(o, before, v);
@@ -914,6 +917,7 @@ namespace AlibiCo
             Deselect();
             var before = ConflictKeys();
             var o = Board.Link(a.Id, b.Id);
+            SaveData.Learn("link");
             if (o.Accepted && !Board.Pinned.Contains(a.Id) && !a.Def.IsUnknown) Board.Pin(a.Id);
             if (o.CalibratedClock != null)
             {
@@ -924,7 +928,7 @@ namespace AlibiCo
                 Tween.Delay(0.25f, () => Sfx.Play("clock_ratchet", 0.75f));
                 stage.Shake(0.05f, 0.2f);
                 Relayout(true, 0.38f, o.CalibratedClock);
-                foreach (var v in AllViews().Where(x => x.Def.Clock == o.CalibratedClock)) Tween.Delay(1.2f, () => { if (v) v.Body.Punch(0.08f, 0.25f); });
+                foreach (var v in AllViews().Where(x => x.Def.Clock == o.CalibratedClock)) Tween.Delay(1.2f, () => { if (v) v.Punch(0.08f, 0.25f); });
                 int m = Mathf.Abs(o.Shift);
                 Memos.Post(MemoKind.Notice, "CLOCK CORRECTED",
                     $"{clock.Name}: {m} minutes {(o.Shift < 0 ? "fast" : "slow")}. Every card timed by it has moved {m} minutes {(o.Shift < 0 ? "earlier" : "later")}." + (string.IsNullOrEmpty(clock.Note) ? "" : "\n\n" + clock.Note));
@@ -960,6 +964,7 @@ namespace AlibiCo
             Deselect();
             var before = ConflictKeys();
             var o = Board.Confront(v.Id);
+            SaveData.Learn("confront");
             var who = v.Def.Title;
             InputLocked = true;
             v.Body.Shake(0.08f, 0.5f, 30f);
@@ -1006,6 +1011,7 @@ namespace AlibiCo
                 return;
             }
             Board.Accuse(lane);
+            SaveData.Learn("accuse");
             InputLocked = true;
             Deselect();
             var fit = Board.Fits[lane];
@@ -1020,7 +1026,7 @@ namespace AlibiCo
                 Sfx.Play("pin", 1f, 0.8f);
                 Sfx.Play("lock_break", 0.8f);
                 stage.Shake(0.14f, 0.3f);
-                incident.Body.Punch(0.2f, 0.4f);
+                incident.Punch(0.2f, 0.4f);
                 Fx.Dust(incident.transform.position);
             });
             SaveData.Current.inProgress = null;
@@ -1124,6 +1130,26 @@ namespace AlibiCo
             var m = Case.Memos.FirstOrDefault(x => x.When == when);
             var text = m != null ? m.Text : fallback;
             if (!string.IsNullOrEmpty(text)) Memos.Post(MemoKind.Connie, null, text);
+        }
+
+        // ------------------------------------------------------------------ controls strip
+
+        /// <summary>
+        /// The one gesture worth reminding the player of right now, or null. Each tip retires for good
+        /// once the player has used that gesture (SaveData.learned).
+        /// </summary>
+        public string CoachTip()
+        {
+            if (Solved || Board == null) return null;
+            if (!SaveData.Learned("pin") && Board.TrayCards.Any())
+                return "<b>Drag</b> a card onto the board, or <b>click</b> it   ·   <b>hover</b> any card to read it in full";
+            if (!SaveData.Learned("confront") && Board.EstablishedConflicts.Any(k => k.A.Card.IsTestimony || k.B.Card.IsTestimony))
+                return "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
+            if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))
+                return "One moment on two clocks? Drop one card <b>onto the other</b> to link them";
+            if (!SaveData.Learned("accuse") && Board.CheckAccusation(Case.Incident.Culprit).Ok)
+                return "Drag the <b>incident card</b> (top left) onto the one line it fits";
+            return null;
         }
 
         // ------------------------------------------------------------------ hints

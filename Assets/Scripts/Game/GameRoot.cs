@@ -136,9 +136,24 @@ namespace AlibiCo
             }
         }
 
+        bool textSizeDirty;
+
+        /// <summary>Chips, labels and memo slips are sized when the board is built, so a new text size rebuilds it.</summary>
+        public void TextSizeChanged() => textSizeDirty = true;
+
+        /// <summary>Once the menus are closed, rebuild the open case's board in place at the new text size.</summary>
+        void CheckTextSize()
+        {
+            if (!textSizeDirty || Paused || Screens.AnyOverlayOpen) return;
+            textSizeDirty = false;
+            if (Flow != Flow.Playing || Session == null || Session.Solved) return;
+            StartCase(Session.Case, true, true);
+        }
+
         void Update()
         {
             CheckAspect();
+            CheckTextSize();
             var kb = Keyboard.current;
             if (kb == null) return;
             if (kb.escapeKey.wasPressedThisFrame)
@@ -202,7 +217,7 @@ namespace AlibiCo
             Screens.ShowIntro(c);
         }
 
-        public void StartCase(CaseDef c, bool resume)
+        public void StartCase(CaseDef c, bool resume, bool quiet = false)
         {
             EndSession();
             Flow = Flow.Playing;
@@ -215,7 +230,7 @@ namespace AlibiCo
             var rec = SaveData.Current.Record(c.Id);
             if (!resume) rec.plays++;
             SaveData.Write();
-            Session = CaseSession.Begin(Stage, c, snap);
+            Session = CaseSession.Begin(Stage, c, snap, quiet);
             Session.SolvedEvent += OnSolved;
             Screens.ShowHud(Session);
         }

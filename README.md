@@ -117,8 +117,13 @@ typewriter keys for memos, a paper-and-pin foley set, and a glass-and-piano hit 
 breaks. All of it is synthesized from code.
 
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
-Large, Larger) for menus, the HUD, the notebook and the enlarged hover card; fullscreen; reduced
-motion; and an optional case timer. Progress and settings save automatically.
+Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
+the board's labels and the memo slips (windows under 900 pixels tall start at Large); fullscreen;
+reduced motion; and an optional case timer. Progress and settings save automatically.
+
+**Controls when you need them.** A single line on the board's frame shows the gesture that matters
+right now (pin, confront, link, accuse), and each tip retires once you've used it. The full
+controls list is in the pause menu.
 
 ## Content
 
@@ -286,8 +291,9 @@ There are no stock assets, samples or third-party models in the project.
 - **Mouse and keyboard only.** There's no gamepad or touch support.
 - **The mix was balanced by measurement**, not by ear: loudness per clip, peaks and loop seams
   were checked with `Tools/audio_qa.py`, not on speakers or headphones.
-- **Text size doesn't enlarge everything.** The small chips pinned on the board and the memo slips
-  on the desk stay the same size. Hover a chip to read the full, scaled card, or open the notebook.
+- **Small screens are tight.** At 1280×720, a chip's time is about 10 pixels tall at Large and
+  Larger, but its place and source lines are only 6–7 pixels in the busiest case. Chips can't grow
+  past the height of their lane. Hover a chip to read the full, scaled card, or open the notebook.
   Large panels shrink back to fit the screen at the larger sizes.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
   startup. Use `-force-wayland` (as `Tools/play.sh` does).

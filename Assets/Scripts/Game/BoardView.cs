@@ -58,6 +58,9 @@ namespace AlibiCo
 
         const float ZStrip = -0.012f, ZGrid = -0.016f, ZRibbon = -0.022f, ZMarker = -0.028f, ZLabel = -0.034f;
 
+        /// <summary>The text size setting, applied to the board's own labels as well as the chips.</summary>
+        static float TextScale => Settings.TextScale;
+
         public BoardView(Stage stage, CaseDef c)
         {
             this.stage = stage;
@@ -129,8 +132,16 @@ namespace AlibiCo
                 y -= h;
             }
 
+            // Chips grow when lanes are roomy and with the text size setting, but never past one row's
+            // height above the track (so a crowded lane still has somewhere to put them).
             var personLane = Lanes.FirstOrDefault(l => !l.IsTown);
-            if (personLane != null) ChipScale = Mathf.Clamp((personLane.Height - 0.42f) / 1.15f, 1.0f, 1.4f);
+            if (personLane != null)
+            {
+                float roomy = Mathf.Clamp((personLane.Height - 0.42f) / 1.15f, 1.0f, 1.4f);
+                float fits = (personLane.Top - 0.08f - (personLane.Track + 0.2f)) / CardView.ChipSize.y;
+                ChipScale = Mathf.Max(roomy * TextScale, Mathf.Min(fits, 1.15f));
+                ChipScale = Mathf.Max(1f, Mathf.Min(ChipScale, Mathf.Max(roomy, fits), 1.7f));
+            }
 
             BuildRuler();
             BuildIncidentBand();
@@ -176,10 +187,10 @@ namespace AlibiCo
             if (lane.IsTown)
             {
                 Shapes.Icon(root, "bell", 0.42f, Pal.InkSoft, new Vector3(colLeft + 0.4f, (lane.Top + lane.Bottom) / 2 + 0.05f, ZLabel));
-                Txt.Make(root, "townName", "TOWN", Art.SansBold, 0.22f, Pal.Ink, new Vector2(1.6f, 0.3f), TextAlignmentOptions.Left,
+                Txt.Make(root, "townName", "TOWN", Art.SansBold, 0.22f * TextScale, Pal.Ink, new Vector2(1.6f, 0.3f), TextAlignmentOptions.Left,
                     new Vector3(colLeft + 0.75f + 0.8f, (lane.Top + lane.Bottom) / 2 + 0.12f, ZLabel), false);
-                Txt.Make(root, "townNote", "radio, clocks, power", Art.Hand, 0.24f, Pal.InkSoft, new Vector2(1.7f, 0.3f), TextAlignmentOptions.Left,
-                    new Vector3(colLeft + 0.75f + 0.85f, (lane.Top + lane.Bottom) / 2 - 0.16f, ZLabel), false);
+                Txt.Make(root, "townNote", "radio, clocks, power", Art.Hand, 0.24f * TextScale, Pal.InkSoft, new Vector2(1.7f, 0.3f), TextAlignmentOptions.Left,
+                    new Vector3(colLeft + 0.75f + 0.85f, (lane.Top + lane.Bottom) / 2 - 0.16f, ZLabel), false).Fit(0.2f);
                 return;
             }
             float ph = Mathf.Min(h - 0.2f, 1.3f);
@@ -190,10 +201,10 @@ namespace AlibiCo
             Pin(root, pr.localPosition + new Vector3(0, portraitSize.y / 2 - 0.1f, -0.06f), Pal.Hex("B8402F"), 0.08f);
             float tx = colLeft + portraitSize.x + 0.2f;
             float tw = X0 - 0.45f - tx;
-            var role = Txt.Make(root, "role", lane.Person.IsSuspect ? "SUSPECT" : "WITNESS", Art.SansBold, 0.12f, lane.Person.IsSuspect ? Pal.Oxblood : Pal.InkSoft,
+            var role = Txt.Make(root, "role", lane.Person.IsSuspect ? "SUSPECT" : "WITNESS", Art.SansBold, 0.12f * TextScale, lane.Person.IsSuspect ? Pal.Oxblood : Pal.InkSoft,
                 new Vector2(tw, 0.2f), TextAlignmentOptions.Left, new Vector3(tx + tw / 2, lane.Top - 0.3f, ZLabel), false);
             role.characterSpacing = 8;
-            var nm = Txt.Make(root, "name", lane.Person.Name.Replace("Capt. ", "Capt.\u00A0").Replace(" ", "\n").Replace("\u00A0", " "), Art.Serif, 0.21f, Pal.Ink,
+            var nm = Txt.Make(root, "name", lane.Person.Name.Replace("Capt. ", "Capt.\u00A0").Replace(" ", "\n").Replace("\u00A0", " "), Art.Serif, 0.21f * TextScale, Pal.Ink,
                 new Vector2(tw + 0.05f, 0.78f), TextAlignmentOptions.TopLeft, new Vector3(tx + tw / 2, lane.Top - 0.82f, ZLabel), true);
             nm.lineSpacing = -18;
             nm.fontStyle = FontStyles.Bold;
@@ -210,11 +221,11 @@ namespace AlibiCo
             lane.LockRoot.localPosition = new Vector3(X1 + 0.35f + (b.xMax - X1 - 0.35f) / 2, (lane.Top + lane.Bottom) / 2 + 0.05f, ZLabel);
             Shapes.Slab(lane.LockRoot, "tag", new Vector2(1.36f, 1.12f), 0.015f, Art.Lit(Pal.Hex("EEE6D2"), "paper", 0.1f), new Vector3(0, 0, 0.03f));
             lane.LockIcon = Shapes.Icon(lane.LockRoot, "lock", 0.46f, Pal.Green, new Vector3(0, 0.24f, -0.01f));
-            lane.LockLabel = Txt.Make(lane.LockRoot, "label", "COVERED", Art.SansBold, 0.17f, Pal.Green, new Vector2(1.3f, 0.26f), TextAlignmentOptions.Center,
-                new Vector3(0, -0.12f, -0.01f), false);
+            lane.LockLabel = Txt.Make(lane.LockRoot, "label", "COVERED", Art.SansBold, 0.17f * TextScale, Pal.Green, new Vector2(1.3f, 0.26f), TextAlignmentOptions.Center,
+                new Vector3(0, -0.12f, -0.01f), false).Fit(0.14f);
             lane.LockLabel.characterSpacing = 6;
-            lane.LockNote = Txt.Make(lane.LockRoot, "note", "", Art.Sans, 0.13f, Pal.Ink, new Vector2(1.3f, 0.22f), TextAlignmentOptions.Center,
-                new Vector3(0, -0.34f, -0.01f), false);
+            lane.LockNote = Txt.Make(lane.LockRoot, "note", "", Art.Sans, 0.13f * TextScale, Pal.Ink, new Vector2(1.3f, 0.22f), TextAlignmentOptions.Center,
+                new Vector3(0, -0.34f, -0.01f), false).Fit(0.11f);
         }
 
         void BuildRuler()
@@ -228,7 +239,7 @@ namespace AlibiCo
             {
                 float x = TimeToX(m);
                 bool hour = m % 60 == 0;
-                Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, hour ? 0.24f : 0.19f, hour ? Pal.Ink : Pal.InkSoft,
+                Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, (hour ? 0.24f : 0.19f) * Mathf.Min(TextScale, 1.2f), hour ? Pal.Ink : Pal.InkSoft,
                     new Vector2(1.2f, 0.3f), TextAlignmentOptions.Center, new Vector3(x, y + 0.04f, ZLabel), false);
                 Line(root, new Vector3(x, y - 0.18f, ZGrid), new Vector3(x, y - 0.06f, ZGrid), 0.02f, new Color(0.1f, 0.12f, 0.16f, 0.6f));
             }
@@ -248,7 +259,7 @@ namespace AlibiCo
             Line(root, new Vector3(x0, bottom, ZGrid - 0.002f), new Vector3(x0, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
             Line(root, new Vector3(x1, bottom, ZGrid - 0.002f), new Vector3(x1, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
             incidentLabel = Txt.Make(root, "incidentLabel", $"INCIDENT WINDOW  {TimeFmt.Format(c.Incident.From)}–{TimeFmt.Format(c.Incident.To)}  ·  {c.Incident.Duration} MIN AT {Locations.Short(c.Incident.Location).ToUpperInvariant()}",
-                Art.SansBold, 0.14f, Pal.Oxblood, new Vector2(Mathf.Max(4.5f, x1 - x0), 0.25f), TextAlignmentOptions.Center,
+                Art.SansBold, 0.14f * TextScale, Pal.Oxblood, new Vector2(Mathf.Max(4.5f, x1 - x0), 0.25f * TextScale), TextAlignmentOptions.Center,
                 new Vector3((x0 + x1) / 2, top - 0.16f, ZLabel), false);
         }
 
@@ -260,14 +271,16 @@ namespace AlibiCo
             clockLegend = new GameObject("clocks").transform;
             clockLegend.SetParent(root, false);
             clockLegend.localPosition = new Vector3(b.xMax - 7.4f, b.yMax - 0.5f, ZLabel);   // clear of the HUD pill at every text size
-            float h = 0.34f + clocks.Count * 0.3f;
+            // The legend sits just above the ruler, so only its type grows with the text size.
+            float ts = Mathf.Min(TextScale, 1.15f), step = 0.29f;
+            float h = 0.34f + clocks.Count * step;
             Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, -h / 2 + 0.22f, 0.03f))
                 .transform.localRotation = Quaternion.Euler(0, 0, -0.8f);
-            Txt.Make(clockLegend, "head", "CLOCKS IN THIS CASE", Art.SansBold, 0.12f, Pal.InkSoft, new Vector2(4.2f, 0.2f), TextAlignmentOptions.Left, new Vector3(0, 0.06f, 0), false);
+            Txt.Make(clockLegend, "head", "CLOCKS IN THIS CASE", Art.SansBold, 0.12f * ts, Pal.InkSoft, new Vector2(4.2f, 0.2f), TextAlignmentOptions.Left, new Vector3(0, 0.06f, 0), false);
             for (int i = 0; i < clocks.Count; i++)
             {
-                var row = Txt.Make(clockLegend, "clock_" + clocks[i].Id, "", Art.Sans, 0.15f, Pal.Ink, new Vector2(4.2f, 0.26f), TextAlignmentOptions.Left,
-                    new Vector3(0, -0.22f - i * 0.29f, 0), false);
+                var row = Txt.Make(clockLegend, "clock_" + clocks[i].Id, "", Art.Sans, 0.15f * ts, Pal.Ink, new Vector2(4.2f, 0.26f), TextAlignmentOptions.Left,
+                    new Vector3(0, -0.22f - i * step, 0), false);
                 row.Fit(0.1f);
                 clockRows[clocks[i].Id] = row;
             }
@@ -503,6 +516,7 @@ namespace AlibiCo
         /// <summary>A solid tag with white type, left edge at x: readable over ribbons, lines and lane edges.</summary>
         static TextMeshPro Pill(Transform parent, string text, float x, float y, Color bg, float size, string icon = null)
         {
+            size *= Mathf.Min(TextScale, 1.2f);
             float pad = size * 0.6f, iconW = icon != null ? size * 1.35f : 0f, h = size * 1.85f;
             var t = Txt.Make(parent, "pill", text, Art.SansBold, size, Color.white, new Vector2(6f, h), TextAlignmentOptions.Left,
                 new Vector3(0, y, ZLabel - 0.004f), false);
@@ -518,7 +532,8 @@ namespace AlibiCo
 
         static TextMeshPro Label(Transform parent, string text, float x, float y, Color col, float size, bool bold, float width = 3f)
         {
-            return Txt.Make(parent, "label", text, bold ? Art.SansBold : Art.Sans, size, col, new Vector2(width, 0.25f), TextAlignmentOptions.Center,
+            float k = Mathf.Min(TextScale, 1.2f);
+            return Txt.Make(parent, "label", text, bold ? Art.SansBold : Art.Sans, size * k, col, new Vector2(width * k, 0.25f * k), TextAlignmentOptions.Center,
                 new Vector3(x, y, ZLabel), false);
         }
 

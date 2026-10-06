@@ -157,9 +157,14 @@ namespace AlibiCo
         }
 
         /// <summary>A quick scale punch (overshoot and settle).</summary>
-        public static void Punch(this Transform t, float amount = 0.15f, float dur = 0.35f)
+        /// <summary>
+        /// A quick scale pop. Pass <paramref name="rest"/> when another tween may be resizing the
+        /// object at the same moment: the pop then settles on that scale, not on whatever in-between
+        /// size it caught when it started.
+        /// </summary>
+        public static void Punch(this Transform t, float amount = 0.15f, float dur = 0.35f, Vector3? rest = null)
         {
-            var baseScale = t.localScale;
+            var baseScale = rest ?? t.localScale;
             Tween.Run((t, "punch"), dur, k =>
             {
                 if (!t) return;

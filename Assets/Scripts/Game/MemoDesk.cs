@@ -71,6 +71,16 @@ namespace AlibiCo
             else if (queue.Count > 0) Next();
         }
 
+        /// <summary>Put a memo back on the desk as it was, already typed (the board was rebuilt).</summary>
+        public void Reshow(Memo m)
+        {
+            if (m == null) return;
+            if (current != null) Destroy(current.gameObject);
+            current = BuildSlip(m);
+            typing = false;
+            holdTimer = 3f;
+        }
+
         public bool Contains(Vector2 deskLocal) => stage.Notes.Contains(deskLocal);
 
         void Next()
@@ -127,6 +137,9 @@ namespace AlibiCo
                     head = "MEMO · C. ALIBI";
                     break;
             }
+            // Text size setting: the slip's type grows with it and shrinks back to fit a long memo.
+            float baseSize = textSize;
+            textSize *= Settings.TextScale;
             Shapes.Slab(root, "paper", size, 0.02f, Art.Lit(paper, "paper", 0.1f), Vector3.zero);
             // A memo pad sheet: two older sheets peeking out underneath and the agency's letterhead at the foot.
             for (int i = 1; i <= 2; i++)
@@ -142,12 +155,12 @@ namespace AlibiCo
             }
             Shapes.Quad(root, "shadow", size * 1.18f, Art.Unlit(new Color(0, 0, 0, 0.3f), true, "shadow"), new Vector3(0.08f, -0.1f, 0.01f));
             var headCol = m.Kind == MemoKind.Firm || m.Kind == MemoKind.Question ? Pal.Oxblood : Pal.InkSoft;
-            Txt.Make(root, "head", head, Art.SansBold, 0.15f, headCol, new Vector2(size.x - 0.4f, 0.3f), TextAlignmentOptions.Left,
+            Txt.Make(root, "head", head, Art.SansBold, 0.15f * Mathf.Min(Settings.TextScale, 1.2f), headCol, new Vector2(size.x - 0.4f, 0.3f), TextAlignmentOptions.Left,
                 new Vector3(0, size.y / 2 - 0.3f, -0.03f), false).Fit(0.1f);
             Shapes.Quad(root, "rule", new Vector2(size.x - 0.4f, 0.015f), Art.Unlit(new Color(0.2f, 0.2f, 0.25f, 0.35f), true), new Vector3(0, size.y / 2 - 0.5f, -0.03f));
             body = Txt.Make(root, "body", m.Text, font, textSize, ink, new Vector2(size.x - 0.45f, size.y - 1.15f), TextAlignmentOptions.TopLeft,
                 new Vector3(0, -0.05f, -0.03f));   // stops above the letterhead
-            body.Fit(textSize * 0.62f);
+            body.Fit(baseSize * 0.62f);
             if (m.Kind == MemoKind.Witness || m.Kind == MemoKind.Firm) body.lineSpacing = -14;
             // Paper clip.
             Shapes.Icon(root, "clip", 0.55f, Pal.Hex("9AA3AB"), new Vector3(-size.x / 2 + 0.55f, size.y / 2 - 0.02f, -0.06f), 8);
