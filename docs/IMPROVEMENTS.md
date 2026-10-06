@@ -143,10 +143,49 @@ document why in this file and leave the code paths out.
 **Verify:** serve the build locally and drive it in a browser preview, taking screenshots of the
 title, a pinned board and the case-closed panel.
 
+## Round 2 results (6 Oct 2026)
+
+All four items landed on `improvements`. Screenshots are in `docs/media/improvements/`
+(`r1-*` readability, `r2-*` case 4, `r4-*` web).
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| 1 | Readability | 1b65ef1 | Autoplay at 1920×1080 and 1280×720, at Normal and at Larger (`-alibiTextSize 2`); input test, which now changes the text size mid-case | Met, with one honest gap (below) |
+| 3 | Packaging and macOS | 75bfde0, f91c0d6 | `Tools/package.sh`. The Linux zip was unpacked in /tmp and passed autoplay through `AlibiAndCo.sh`, which picked the Wayland backend. The Mac bundle round-trips byte-identical; `file` shows x86_64 + arm64; both slices are ad-hoc signed; Info.plist has the bundle id and version | Met. **Not run on a Mac** |
+| 2 | Case 4 | 563d647 | `Tools/validate.sh`: airtight, 24 reachable states (the old maximum was 12), trap `a_maud`; EditMode 15/15; autoplay 4/4, which confronts Maud on purpose and checks she stands firm and costs a badge | Met |
+| 4 | WebGL spike | 0235988 | Headless Chrome on the Radeon 8060S (ANGLE GL-EGL): cold load from localhost about 6 s, 60 fps on a full board at 1920×993 (worst frame 20 ms), progress survives a reload | **Go**. 26 MB, under the 60 MB limit |
+
+What the round found and fixed along the way:
+
+- **A real bug behind the "small chips".** `Transform.Punch` saved whatever scale the card body
+  had when it started. A pin landing (punch at 0.3 s) during the 0.44 s chip/full-card swap
+  saved an in-between scale and "restored" it, so some chips stayed stuck at about 0.6× or 1.5×.
+  The card body now always rests at scale 1.
+- **The intro's press cutting** was placed by `GetPreferredValues`, which reports about 13 px at
+  that point, so case 3's last line ran into the cutting. That was already true at baseline. The
+  cutting is now placed after layout, only when the text clears it.
+- **The browser build lost progress on reload** until the page template turned on
+  `autoSyncPersistentDataPath`.
+
+Honest gaps:
+
+- **Item 1:** at 1280×720 in the busiest case (case 3), a chip's time is about 10 px tall, but
+  its place and source lines are only 6–7 px, even at Larger. Chips can't grow past their lane's
+  height. Windows under 900 px tall now start at Large, which is set in code but untested in a
+  non-automated run (automated runs force Normal and never touch the player's prefs). The
+  acceptance target of "no chip text under about 10 px at 720p" is met for times, not for the
+  small lines.
+- **Unity's native Wayland backend** segfaulted once in about a dozen automated runs (inside
+  `wl_display_dispatch_queue_pending`, between cases). A rerun passed. This is noted in the
+  README.
+- **Web:** tested only in headless Chrome. Not tested in Firefox, Safari or on phones (touch
+  isn't supported), and the sound wasn't checked.
+
 ## Needs a decision from the owner
 
-- **Windows builds:** install *Windows Build Support (Mono)* for 6000.6.2f1 in Unity Hub. After
-  that, a Windows zip is an S-sized addition to `Tools/package.sh`.
+- **Windows builds:** install *Windows Build Support (Mono)* for 6000.6.2f1 in Unity Hub. The entry
+  points are already in place (`Tools/unity.sh build-windows`, `Tools/package.sh windows`). The
+  build refuses cleanly until the module is there. It's untested.
 - **Publishing:** whether a v0.2.0 release (macOS zip, and the web build if it's a go) should be
   cut, and where a web build would live (itch.io, GitHub Pages or the blog). Nothing gets pushed
   or published from this round.
