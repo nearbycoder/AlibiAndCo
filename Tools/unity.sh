@@ -26,9 +26,7 @@ case "${1:-open}" in
   setup)       batch -executeMethod AlibiCo.EditorTools.ProjectSetup.Apply ;;
   player)      batch -executeMethod AlibiCo.EditorTools.ProjectSetup.ApplyPlayerSettings ;;
   validate)    batch -executeMethod AlibiCo.EditorTools.BuildScript.ValidateCases ;;
-  # The test runner also writes TestResults.xml into the game's save folder under ~/.config/unity3d,
-  # so point that at a scratch folder in Logs/ (the player's real save and settings stay untouched).
-  test)        XDG_CONFIG_HOME="${ALIBI_TEST_CONFIG:-$PROJECT/Logs/unity-config}" "$UNITY" -batchmode -nographics -projectPath "$PROJECT" -runTests -testPlatform EditMode -testResults "$PROJECT/Logs/editmode-results.xml" -logFile "$LOG" ;;
+  test)        "$UNITY" -batchmode -nographics -projectPath "$PROJECT" -runTests -testPlatform EditMode -testResults "$PROJECT/Logs/editmode-results.xml" -logFile "$LOG" ;;
   build-linux) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -executeMethod AlibiCo.EditorTools.BuildScript.BuildLinux ;;
   build-mac)   "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget OSXUniversal -executeMethod AlibiCo.EditorTools.BuildScript.BuildMac ;;
   build-windows) "$UNITY" -batchmode -quit -projectPath "$PROJECT" -logFile "$LOG" -buildTarget Win64 -executeMethod AlibiCo.EditorTools.BuildScript.BuildWindows ;;
