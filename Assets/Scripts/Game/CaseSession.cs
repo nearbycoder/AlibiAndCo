@@ -463,7 +463,9 @@ namespace AlibiCo
             foreach (var k in Board.Conflicts) if (k.Established) { established.Add(k.A.Card.Id); established.Add(k.B.Card.Id); }
             foreach (var v in AllViews())
             {
-                v.SetConflict(established.Contains(v.Id) && !Board.Struck.Contains(v.Id) && v.Compact);
+                // The marker lives on the chip face, so it's set even while a just-pinned card is
+                // still shrinking into a chip; it shows the moment the chip does.
+                v.SetConflict(established.Contains(v.Id) && !Board.Struck.Contains(v.Id));
                 GlowKind g = GlowKind.None;
                 if (conflictCards.Contains(v.Id)) g = GlowKind.Conflict;
                 if (v == selected) g = GlowKind.Selected;
@@ -1254,6 +1256,22 @@ namespace AlibiCo
             }
             return n == 0 ? "no chips" : $"time {t:0.0} px ({tId}), place {l:0.0} px ({lId}), source {w:0.0} px ({wId}); em, min over {n} chips at {Screen.width}x{Screen.height}, text size {Settings.TextSizeNames[Settings.TextSize]}, chip scale {View.ChipScale:0.00}, lane {View.Lanes[0].Height:0.00} track +{View.Lanes[0].Track - View.Lanes[0].Bottom:0.00}";
         }
+        /// <summary>
+        /// Chips showing the contradiction marker against the cards in established contradictions
+        /// (pinned, not struck). They must match; the autopilot logs and checks this.
+        /// </summary>
+        public string ConflictReport(out bool match)
+        {
+            var expected = new SortedSet<string>();
+            foreach (var k in Board.Conflicts)
+                if (k.Established)
+                    foreach (var id in new[] { k.A.Card.Id, k.B.Card.Id })
+                        if (!Board.Struck.Contains(id)) expected.Add(id);
+            var marked = new SortedSet<string>(AllViews().Where(v => v.ConflictMarked).Select(v => v.Id));
+            match = expected.SetEquals(marked);
+            return $"marked [{string.Join(",", marked)}] expected [{string.Join(",", expected)}]";
+        }
+
         public CardView IncidentView => incident;
         public void AutoPin(string id) { var v = views[id]; if (!Board.Pinned.Contains(id)) PinCard(v, null); }
         public void AutoLink(string a, string b) => LinkCards(views[a], views[b]);

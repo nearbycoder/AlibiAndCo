@@ -29,6 +29,14 @@ namespace AlibiCo
             StartCoroutine(padTest ? PadTest() : inputTest ? InputTest() : Go());
         }
 
+        /// <summary>Every card in an established contradiction carries the shape marker, and no other card does.</summary>
+        void CheckConflictMarks(CaseSession s, string when)
+        {
+            var report = s.ConflictReport(out bool match);
+            if (match) Debug.Log($"[Conflicts] {when}: {report}");
+            else Debug.LogError($"[AutoPilot] FAIL conflict markers {when}: {report}");
+        }
+
         // ------------------------------------------------------------------ gamepad test
 
         Gamepad pad;
@@ -425,6 +433,7 @@ namespace AlibiCo
                 yield return Wait(1.6f);
                 yield return Shot(c.Id + "_pinned");
                 Debug.Log($"[Legibility] {c.Id} pinned: {s.LegibilityReport()}");
+                CheckConflictMarks(s, c.Id + " pinned");
                 // Hover a contradiction card so the inspector shows up in captures.
                 int step = 0;
                 bool ok = true;
@@ -443,6 +452,7 @@ namespace AlibiCo
                     s.Confront(s.ViewOf("a_maud"));
                     yield return Wait(2.5f);
                     yield return Shot(c.Id + "_trap_stands_firm");
+                    CheckConflictMarks(s, c.Id + " trap");
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("a_maud")
                                 && s.Memos.History.Any(m => m.Kind == MemoKind.Firm);
                     Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting Maud {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
@@ -472,6 +482,7 @@ namespace AlibiCo
                     }
                     yield return Wait(1.2f);
                     yield return Shot($"{c.Id}_step{++step}_{m.Kind}");
+                    CheckConflictMarks(s, $"{c.Id} step {step}");
                     if (step == 2)
                     {
                         GameRoot.I.Screens.ToggleNotebook();

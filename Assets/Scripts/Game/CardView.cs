@@ -29,7 +29,7 @@ namespace AlibiCo
         Transform full, chip, faceRow;
         MeshRenderer glow, softShadow, chipPaper, fullPaper, newTag;
         TextMeshPro chipTime, chipLine, chipWho, fullTime, stamp, chipStampMark, fullClock;
-        MeshRenderer chipClockIcon, chipHypIcon;
+        MeshRenderer chipClockIcon, chipHypIcon, chipKindIcon;
         BoxCollider col;
         readonly List<(string who, Transform root, MeshRenderer cross)> faces = new List<(string, Transform, MeshRenderer)>();
         readonly List<TextMeshPro> allText = new List<TextMeshPro>();
@@ -303,7 +303,8 @@ namespace AlibiCo
             chipWho = Txt(chip, "who", ShortSource(), AlibiCo.Art.Sans, 0.185f, Color.Lerp(Pal.InkSoft, Pal.Ink, 0.55f), new Vector2(whoW, 0.21f), TextAlignmentOptions.Left,
                 new Vector3(-size.x / 2 + 0.16f + whoW / 2, -size.y / 2 + 0.125f, z), false);
             chipWho.Fit(0.1f);
-            Shapes.Icon(chip, Def.Kind, 0.2f, Pal.InkFaint, new Vector3(size.x / 2 - 0.15f, size.y / 2 - 0.14f, z));
+            var kindPos = new Vector3(size.x / 2 - 0.15f, size.y / 2 - 0.14f, z);
+            chipKindIcon = Shapes.Icon(chip, Def.Kind, 0.2f, Pal.InkFaint, kindPos);
             if (!Case.ClockById[Def.Clock].Reference)
             {
                 chipClockIcon = Shapes.Icon(chip, "clock", 0.17f, Pal.Red, new Vector3(size.x / 2 - 0.15f, -size.y / 2 + 0.13f, z));
@@ -313,7 +314,10 @@ namespace AlibiCo
             chipHypIcon = Shapes.Icon(chip, "question", 0.26f, Pal.Blue, new Vector3(size.x / 2 - 0.16f, -0.02f, z - 0.002f));
             chipHypIcon.gameObject.SetActive(false);
 
-            // Contradiction marker: a red border and an alert badge that pulse while the card is in the red.
+            // Contradiction marker: a red border that pulses while the card is in the red, and a solid
+            // warning triangle in place of the kind icon. The triangle is a dark shape on light paper,
+            // so it reads without colour vision (the red glow and border alone fade to olive for
+            // red-green colour-blind players).
             conflictMark = new GameObject("conflict").transform;
             conflictMark.SetParent(chip, false);
             conflictMat = Art.Unlit(Pal.RedBright, true);
@@ -324,9 +328,13 @@ namespace AlibiCo
             Shapes.Quad(conflictMark, "right", new Vector2(bw, size.y + bw), conflictMat, new Vector3(size.x / 2, 0, z - 0.003f));
             var badge = new GameObject("badge").transform;
             badge.SetParent(conflictMark, false);
-            badge.localPosition = new Vector3(size.x / 2 - 0.02f, size.y / 2 - 0.02f, z - 0.006f);
-            Shapes.Quad(badge, "disc", new Vector2(0.3f, 0.3f), Art.Unlit(Pal.Red, true, "dot"), Vector3.zero);
-            Shapes.Icon(badge, "alert", 0.17f, Pal.PaperWhite, new Vector3(0, 0.005f, -0.002f));
+            // On the corner, clear of the time (a range like 20:00–21:20 runs under the kind icon),
+            // with a cream outline so it also reads where it overhangs the cork.
+            badge.localPosition = new Vector3(size.x / 2 - 0.03f, size.y / 2 - 0.03f, z - 0.01f);
+            var rim = Shapes.Icon(badge, "alert", 0.36f, Pal.PaperWhite, new Vector3(0, -0.005f, 0));
+            var tri = Shapes.Icon(badge, "alert", 0.27f, Pal.Hex("8E1F1A"), new Vector3(0, 0, -0.006f));
+            rim.sortingOrder = 1;   // transparent quads this close together sort unreliably; pin the order
+            tri.sortingOrder = 2;
             conflictBadge = badge;
             conflictMark.gameObject.SetActive(false);
         }
@@ -520,7 +528,11 @@ namespace AlibiCo
             if (on && !inConflict && conflictBadge != null) conflictBadge.Punch(0.6f, 0.45f);
             inConflict = on;
             conflictMark.gameObject.SetActive(on);
+            if (chipKindIcon) chipKindIcon.gameObject.SetActive(!on);
         }
+
+        /// <summary>True while the chip shows the contradiction marker (border and warning triangle).</summary>
+        public bool ConflictMarked => inConflict && conflictMark != null && conflictMark.gameObject.activeInHierarchy;
 
         public void SetGlow(GlowKind kind)
         {

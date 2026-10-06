@@ -109,6 +109,10 @@ clock that timed it, and some of those clocks are wrong. Link a record to one yo
 telephone exchange, the BBC, the church bells, the Electricity Board) and every card on the bad
 clock glides to its true time. That's how one receipt moving five minutes can sink an alibi.
 
+**Readable without red.** Every card in a contradiction also wears a dark warning triangle on its
+corner, and the locks say COVERED or OPEN with different icons, so the board can be read by
+colour-blind players too (checked with protanopia, deuteranopia and tritanopia simulations).
+
 **Confront, and be wrong.** Liars crack, the mistaken correct themselves, and the truthful stand
 firm and cost you a badge. Being lied to isn't the same as finding the culprit.
 
