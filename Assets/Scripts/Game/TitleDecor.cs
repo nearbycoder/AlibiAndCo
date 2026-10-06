@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using AlibiCo.Logic;
 using UnityEngine;
 
 namespace AlibiCo
 {
     /// <summary>
-    /// The board behind the menus: evidence from all three cases pinned up at odd angles with red
+    /// The board behind the menus: evidence from the first three cases pinned up at odd angles with red
     /// string between them, a few polaroids. Pure decoration; removed when a case opens.
     /// </summary>
     public sealed class TitleDecor : MonoBehaviour
@@ -26,8 +27,10 @@ namespace AlibiCo
             // The menu column covers the left ~40% of the screen, so the wall is composed on the right:
             // a loose ring of evidence round the suspects, joined by string. The left gets only a few
             // small, dim cards so the logo has calm ground.
+            // Composed from the first three files (the cover art); later files bring back the same faces.
+            var files = Cases.All.Take(3).ToList();
             var picks = new List<(CardDef card, CaseDef c)>();
-            foreach (var c in Cases.All)
+            foreach (var c in files)
                 foreach (var card in c.Cards)
                     if (card.StartsAvailable && !card.Town) picks.Add((card, c));
             for (int i = picks.Count - 1; i > 0; i--) { int j = rnd.Next(i + 1); (picks[i], picks[j]) = (picks[j], picks[i]); }
@@ -64,7 +67,7 @@ namespace AlibiCo
             }
             // Every suspect's polaroid in a band across the middle of the right half.
             var who = new List<(string id, CaseDef c)>();
-            foreach (var c in Cases.All)
+            foreach (var c in files)
                 foreach (var p in c.Suspects) who.Add((p.Id, c));
             int n = who.Count;
             for (int i = 0; i < n; i++)

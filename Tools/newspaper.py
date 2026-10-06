@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Front pages of the Wrenhaven Gazette, one per case, for the newspaper lying on the desk.
 
-    .venv/bin/python Tools/newspaper.py      writes Assets/Resources/Textures/news_<case>.png
+    .venv/bin/python Tools/newspaper.py [case4 ...]     writes Assets/Resources/Textures/news_<case>.png
 
 Each page reports the incident the morning after (never a suspect), with a halftoned picture,
 a masthead, column rules and body text set small enough to read as newsprint texture.
@@ -28,6 +28,9 @@ PAGES = {
     "case3": dict(date="MONDAY 3 NOVEMBER 1986", head="WREN POINT LIGHT GOES DARK",
                   sub="Trawler Merry Wren lost on Mallow Rocks as Harvest Ball gale rages",
                   pic=("Photos/flicker.png", (0.0, 0.0, 1.0, 1.0)), caption="Harvest Ball at the Grand, Saturday. Photograph: Wendell Fry."),
+    "case4": dict(date="THURSDAY 6 NOVEMBER 1986", head="LIFEBOAT BOX STOLEN ON BONFIRE NIGHT",
+                  sub="A year of the Appeal taken from the Mayor's parlour as the town watched the sky",
+                  pic=("Textures/map_town.png", (0.46, 0.22, 0.70, 0.54)), caption="Market Square and the Town Hall, whose clock struck the hour."),
 }
 
 WORDS = ("the harbour council said on friday that a new survey of the quay would begin after the winter storms and that "
@@ -136,5 +139,8 @@ def page(cid, p):
 
 
 if __name__ == "__main__":
+    import sys
+    only = sys.argv[1:]
     for cid, p in PAGES.items():
-        page(cid, p)
+        if not only or cid in only:
+            page(cid, p)

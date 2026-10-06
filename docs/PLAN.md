@@ -196,12 +196,34 @@ Nobody died, but the boat was lost. Someone spent at least 6 minutes jamming the
   his "never left the ballroom" (and his wife's echo of it) collapse. **Culprit: the man who
   reported his own boat lost.**
 
+### Case 4 — "Remember, Remember" (the finale, about 15–20 min; added in round 2)
+*Wednesday 5 November, Bonfire Night.* The Lifeboat Appeal box was taken from the Mayor's
+parlour at the Town Hall, locked away at 20:50 and found gone at 21:40, both **by the Town Hall
+clock**. Forcing the door and the bureau took 5 minutes.
+- Lanes: four returning faces: **Agnes Trelawney**, **Clem Hollis**, **Elias Garrow**,
+  **Rolf Abernethy**, plus TOWN. No new portraits are needed.
+- Teaches: the crime's own window can be on a wrong clock, and a red card isn't always a liar.
+- Beats: three innocent lies sit in the red from the start (Agnes was at Maud's bakery, Clem
+  nipped to the Lantern for a rum, Elias stopped at Fenwick's for a torch for Nell), and each
+  confession brings its own paper. Agnes's confession unlocks Maud's statement, which is **true**
+  but timed by the Town Hall clock, so it collides with Agnes's 22:02 bus pass. Confronting Maud
+  costs a badge (the validator lists her as the case's trap). Under the printed window Clem's
+  lock reads OPEN, a decoy. The caretaker's "first rocket at twenty to nine by our clock" and the
+  coastguard's maroon at 20:30 are one moment, so the Town Hall clock runs 10 minutes fast.
+  Linking them clears Maud, closes Clem's lock, **slides the incident window to 20:40–21:30**,
+  and crosses Elias's face off the anonymous door-book entry ("tin No. 6 handed in, collector
+  didn't sign"): only Rolf fits. His "on the pier till ten to nine" is now against his own tin,
+  handed in at 20:42, and with Sid's (known-slow) clock putting him in the Lantern at 20:58 he
+  has two minutes to spare. **Culprit: Rolf**, the collector everyone trusted.
+- The validator finds 24 reachable states (the most of any case) and one solution.
+
 ### Difficulty curve
 | Case | Lanes | Cards | Contradictions | New idea | Target time |
 |---|---|---|---|---|---|
 | 1 | 3 | 8 | 3 | pin / confront / incident | 4–6 min |
 | 2 | 3 + TOWN | 14 | 4 | clocks and links | 8–12 min |
 | 3 | 4 + TOWN | 18 | 5 | identity, camera clocks | 12–18 min |
+| 4 | 4 + TOWN | 19 | 5 | the crime's own clock, an honest witness in the red | 15–20 min |
 
 ### Validator ("airtight" proof)
 `Tools/CaseValidator` (a .NET console app compiled against the **same C# logic files the game

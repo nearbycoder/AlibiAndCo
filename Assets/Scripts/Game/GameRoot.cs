@@ -45,7 +45,8 @@ namespace AlibiCo
         void Awake()
         {
             I = this;
-            Application.targetFrameRate = 120;
+            // In a browser, requestAnimationFrame paces the frames.
+            Application.targetFrameRate = Application.platform == RuntimePlatform.WebGLPlayer ? -1 : 120;
             QualitySettings.vSyncCount = 1;
             foreach (var cam in FindObjectsByType<Camera>()) Destroy(cam.gameObject);
             foreach (var l in FindObjectsByType<Light>()) Destroy(l.gameObject);
@@ -74,7 +75,7 @@ namespace AlibiCo
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             if (automated) SaveData.UseVolatile();
             // A saved resolution choice; automated runs keep the size they were launched with.
-            else if (PlayerPrefs.HasKey("resolution")) Settings.ApplyResolution();
+            else if (PlayerPrefs.HasKey("resolution") && Application.platform != RuntimePlatform.WebGLPlayer) Settings.ApplyResolution();
             int resArg = Array.IndexOf(args, "-alibiResolution");
             if (resArg >= 0 && resArg + 1 < args.Length) Settings.ApplyResolution(args[resArg + 1]);
             UiKit.ApplyScale();

@@ -10,7 +10,7 @@ namespace AlibiCo
 {
     /// <summary>
     /// Self-test: launched with -alibiAutoplay [dir] (or -alibiCapture dir for screenshots) the game
-    /// plays all three cases through the real session code, using the solver's moves, and prints
+    /// plays every case through the real session code, using the solver's moves, and prints
     /// PASS/FAIL lines to the log. Exceptions during the run fail it.
     /// </summary>
     public sealed class AutoPilot : MonoBehaviour
@@ -240,6 +240,27 @@ namespace AlibiCo
                 // Hover a contradiction card so the inspector shows up in captures.
                 int step = 0;
                 bool ok = true;
+                int trapBadges = 0;
+                if (c.Id == "case4")
+                {
+                    // The finale's trap, played on purpose: Agnes's lie gives way to Maud, whose true
+                    // statement is red only because of the Town Hall clock. Confronting her must cost a
+                    // badge and leave the card standing.
+                    s.Confront(s.ViewOf("a_claim"));
+                    yield return Wait(3f);
+                    foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                    yield return Wait(1.2f);
+                    int before = s.Board.Mistakes;
+                    bool canConfront = s.Board.CanConfront("a_maud", out var why);
+                    s.Confront(s.ViewOf("a_maud"));
+                    yield return Wait(2.5f);
+                    yield return Shot(c.Id + "_trap_stands_firm");
+                    bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("a_maud")
+                                && s.Memos.History.Any(m => m.Kind == MemoKind.Firm);
+                    Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting Maud {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
+                    if (!firm) ok = false;
+                    trapBadges = 1;
+                }
                 while (true)
                 {
                     var shadow = Solver.Shadow(s.Board);
@@ -301,6 +322,7 @@ namespace AlibiCo
                     yield return Shot(c.Id + "_closed");
                 }
                 if (errors > errorsBefore) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: {errors - errorsBefore} errors logged"); }
+                if (s.Badges != 3 - trapBadges) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: expected {3 - trapBadges} badges, got {s.Badges}"); }
                 Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {c.Id} \"{c.Title}\" badges={s.Badges} steps={step}");
                 if (ok) passed++;
             }

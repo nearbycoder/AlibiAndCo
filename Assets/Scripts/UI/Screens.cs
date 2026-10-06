@@ -51,6 +51,9 @@ namespace AlibiCo
             Hide(title); Hide(select); Hide(intro); Hide(closed); Hide(pause); Hide(settings); Hide(confirm);
         }
 
+        /// <summary>Running in a browser: no Quit, and no resolution picker.</summary>
+        static bool Web => Application.platform == RuntimePlatform.WebGLPlayer;
+
         /// <summary>Settings or a confirmation box is on screen.</summary>
         public bool AnyOverlayOpen =>
             (confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.01f) ||
@@ -113,7 +116,7 @@ namespace AlibiCo
             Size(titleContinueBtn, 72);
             Size(UiKit.Button(btns, "Case Files", () => { root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 32), 72);
             Size(UiKit.Button(btns, "Settings", () => ShowSettings(), Pal.Hex("232A31"), CreamDim, 28), 60);
-            Size(UiKit.Button(btns, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 28), 60);
+            if (!Web) Size(UiKit.Button(btns, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 28), 60);
 
             var foot = UiKit.Text(title.transform, "Mouse to play  ·  Esc pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(150, 34), new Vector2(0, 30));
@@ -154,7 +157,9 @@ namespace AlibiCo
             sub.characterSpacing = 5;
 
             var row = UiKit.Rect(select.transform, "row");
-            row.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(1560, 640));
+            // Three folders fill 1560 px; a fourth widens the row (FitInCanvas scales it back if needed).
+            float rowWidth = Cases.All.Count > 3 ? 1760 : 1560;
+            row.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -30), new Vector2(rowWidth, 640));
             UiKit.FitInCanvas(row, 70, 205);   // keep clear of the heading
             var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 40; hl.childControlWidth = true; hl.childControlHeight = true; hl.childForceExpandWidth = true;
@@ -183,9 +188,10 @@ namespace AlibiCo
             paper.rectTransform.Stretch(26);
             var inner = paper.rectTransform;
 
-            var t = UiKit.Text(inner, c.Title, Art.Serif, 50, Pal.Ink, TextAlignmentOptions.TopLeft);
+            bool narrow = Cases.All.Count > 3;   // four folders to a row: slightly smaller type
+            var t = UiKit.Text(inner, c.Title, Art.Serif, narrow ? 44 : 50, Pal.Ink, TextAlignmentOptions.TopLeft);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -36), new Vector2(-68, 130));
-            var tg = UiKit.Text(inner, c.Tagline, Art.SerifItalic, 28, Pal.InkSoft, TextAlignmentOptions.TopLeft);
+            var tg = UiKit.Text(inner, c.Tagline, Art.SerifItalic, narrow ? 25 : 28, Pal.InkSoft, TextAlignmentOptions.TopLeft);
             tg.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -168), new Vector2(-68, 50));
             var d = UiKit.Text(inner, (c.Date + "\n" + c.Weather).ToUpperInvariant(), Art.SansBold, 19, Pal.InkSoft, TextAlignmentOptions.TopLeft);
             d.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -232), new Vector2(-68, 60));
@@ -193,7 +199,7 @@ namespace AlibiCo
 
             var suspects = string.Join("\n", c.Suspects.Select(p => "· " + p.Name));
             var sp = UiKit.Text(inner, "SUSPECTS", Art.SansBold, 18, Pal.Oxblood, TextAlignmentOptions.TopLeft);
-            var spl = UiKit.Text(inner, suspects, Art.Typewriter, 25, Pal.Ink, TextAlignmentOptions.TopLeft);
+            var spl = UiKit.Text(inner, suspects, Art.Typewriter, narrow ? 21 : 25, Pal.Ink, TextAlignmentOptions.TopLeft);
             spl.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -340), new Vector2(-68, 150));
             sp.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(34, -312), new Vector2(-68, 170));
 
@@ -226,6 +232,22 @@ namespace AlibiCo
                 hv.Hot = Pal.Hex("E6C98F");
                 btn.onClick.AddListener(() => { Sfx.Play("folder", 0.8f); root.ShowIntro(c); });
             }
+        }
+
+        /// <summary>
+        /// The press cutting sits under the write-up, so it only goes in if the text, once laid out,
+        /// ends above it (the layout isn't ready on the frame the screen is built).
+        /// </summary>
+        static System.Collections.IEnumerator ShowCuttingIfRoom(CaseDef c, TextMeshProUGUI body, RectTransform cut, float room)
+        {
+            yield return null;
+            yield return null;
+            if (!body || !cut) yield break;
+            body.ForceMeshUpdate();
+            var ti = body.textInfo;
+            float h = ti.lineCount > 0 ? ti.lineInfo[0].ascender - ti.lineInfo[ti.lineCount - 1].descender : float.MaxValue;
+            cut.gameObject.SetActive(h <= room);
+            Debug.Log($"[Intro] {c.Id}: write-up {ti.lineCount} lines, {h:0} of {room:0} px, cutting {(h <= room ? "shown" : "left out")}");
         }
 
         public static string Stars(int n) => "<color=#B8862E>" + new string('★', n) + "</color><color=#9A9080>" + new string('☆', 3 - n) + "</color>";
@@ -261,11 +283,9 @@ namespace AlibiCo
             d.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -186), new Vector2(-120, 30));
             d.characterSpacing = 3;
             var body = UiKit.Text(p, string.Join("\n\n", c.Intro), Art.Typewriter, 25, Pal.Ink, TextAlignmentOptions.TopLeft);
-            body.rectTransform.Place(new Vector2(0, 1), new Vector2(0.62f, 1), new Vector2(0, 1), new Vector2(60, -236), new Vector2(-40, 520));
+            // Ends 30 px short of the suspects column so a full line never runs into "SUSPECTS".
+            body.rectTransform.Place(new Vector2(0, 1), new Vector2(0.62f, 1), new Vector2(0, 1), new Vector2(60, -236), new Vector2(-70, 520));
             body.lineSpacing = 8;
-            // Measure the write-up before the typewriter hides it.
-            body.ForceMeshUpdate();
-            float bodyH = body.GetPreferredValues(body.text, 1240 * 0.62f - 100, 0).y;
             var reveal = body.gameObject.AddComponent<TypeReveal>();
             reveal.Begin(body, 160f);
 
@@ -284,7 +304,7 @@ namespace AlibiCo
             var stampCol = rec.solved ? new Color(0.18f, 0.42f, 0.31f, 0.85f) : new Color(0.66f, 0.14f, 0.17f, 0.82f);
             Stamp(p, stampText, stampCol, new Vector2(-70, -64), -8f);
             var news = Art.Tex("news_" + c.Id);
-            if (news != null && 236 + bodyH + 30 < 900 - 140 - 150)
+            if (news != null)
             {
                 var cut = UiKit.Rect(p, "cutting");
                 cut.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(64, 146), new Vector2(560, 140));
@@ -294,6 +314,8 @@ namespace AlibiCo
                 raw.texture = news;
                 raw.uvRect = new Rect(0.03f, 0.64f, 0.94f, 0.335f);   // masthead, headline and standfirst
                 raw.raycastTarget = false;
+                cut.gameObject.SetActive(false);
+                root.StartCoroutine(ShowCuttingIfRoom(c, body, cut, 900 - 146 - 140 - 236 - 24));
             }
 
             // Suspects column.
@@ -619,7 +641,7 @@ namespace AlibiCo
             Size(UiKit.Button(col, "Case files", () => { root.SetPaused(false); root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 24), 56);
             Size(UiKit.Button(col, "Settings", () => ShowSettings(), Pal.Hex("2B3540"), Cream, 24), 56);
             Size(UiKit.Button(col, "Title screen", () => { root.SetPaused(false); root.ShowTitle(false); }, Pal.Hex("2B3540"), Cream, 24), 56);
-            Size(UiKit.Button(col, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 22), 50);
+            if (!Web) Size(UiKit.Button(col, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 22), 50);
         }
 
         /// <summary>The full controls list, next to the pause menu (the board itself only shows one tip at a time).</summary>
@@ -678,9 +700,12 @@ namespace AlibiCo
             Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
             Row(UiKit.Slider(col, "Music", Settings.Music, v => Settings.Music = v));
             Row(UiKit.Slider(col, "Sound effects", Settings.Effects, v => { Settings.Effects = v; Sfx.Play("pin", 0.6f); }));
-            var resChoices = Settings.ResolutionChoices();
-            Row(UiKit.Stepper(col, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
-                resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
+            if (!Web)   // in a browser the page decides the canvas size
+            {
+                var resChoices = Settings.ResolutionChoices();
+                Row(UiKit.Stepper(col, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
+                    resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
+            }
             Row(UiKit.Stepper(col, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
             Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
             Row(UiKit.Toggle(col, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
@@ -789,7 +814,9 @@ namespace AlibiCo
             }
             if (last)
             {
-                var fin = UiKit.Text(p, "Three for three. Wrenhaven sleeps a little easier.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                string[] words = { "None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" };
+                string n = Cases.All.Count < words.Length ? words[Cases.All.Count] : Cases.All.Count.ToString();
+                var fin = UiKit.Text(p, $"{n} for {n.ToLowerInvariant()}. Wrenhaven sleeps a little easier.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
                 fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
             }
             Show(closed);

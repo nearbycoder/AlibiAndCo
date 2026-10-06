@@ -1,0 +1,205 @@
+{
+  "id": "case4",
+  "title": "Remember, Remember",
+  "tagline": "Even the crime has a clock.",
+  "date": "Wednesday 5 November 1986",
+  "weather": "Cold and clear · fireworks at half eight",
+  "lesson": "Check who timed the crime.",
+  "spanFrom": "20:00",
+  "spanTo": "22:10",
+  "intro": [
+    "Bonfire Night. Half of Wrenhaven was on the pier for the fireworks and the rest were in the pub. Nobody was minding the Town Hall.",
+    "The Mayor locked the Lifeboat Appeal box, a year of pennies and pound notes, in his parlour at ten to nine by the Town Hall clock. At twenty to ten by the same clock, the caretaker found the door forced. Someone needed five minutes with a jemmy.",
+    "Four faces you know, four stories. Connie's only advice: “Every card names its clock. So does the crime.”"
+  ],
+  "people": [
+    { "id": "agnes", "name": "Agnes Trelawney", "role": "suspect", "blurb": "WI treasurer and the Bake-Off's eternal runner-up. Says she and Maud Penhallow have made it up. Nobody quite believes it." },
+    { "id": "clem",  "name": "Clem Hollis",     "role": "suspect", "blurb": "Caterer. Roasts chestnuts at the pier head every Fifth of November. Owes the bank more than he lets on." },
+    { "id": "elias", "name": "Elias Garrow",    "role": "suspect", "blurb": "Keeper of Wren Point and St Brigid's steadiest bell-ringer. Money's been tight since the night the lamp went dark." },
+    { "id": "rolf",  "name": "Rolf Abernethy",  "role": "suspect", "blurb": "Retired boathouse steward, lifeboat collector for thirty years. Everybody trusts Rolf." }
+  ],
+  "clocks": [
+    { "id": "ref",     "name": "Exchange, coastguard & church bells" },
+    { "id": "lantern", "name": "The Lantern's bar clock", "offset": -10, "known": true, "note": "Ten minutes slow. Sid will never change it." },
+    { "id": "hall",    "name": "Town Hall clock", "offset": 10, "note": "Mr Hosking winds it on Mondays and sets it by guesswork." }
+  ],
+  "incident": {
+    "title": "The Lifeboat Box",
+    "short": "Box stolen",
+    "text": "The Lifeboat Appeal box was taken from the Mayor's parlour at the Town Hall. Locked away at 20:50 and found gone at 21:40, both by the Town Hall clock. Forcing the door and the bureau takes 5 minutes.",
+    "location": "townhall",
+    "clock": "hall",
+    "from": "20:50",
+    "to": "21:40",
+    "duration": 5,
+    "culprit": "rolf"
+  },
+  "cards": [
+    {
+      "id": "t_coast", "kind": "ledger", "start": true, "town": true,
+      "title": "Coastguard log", "source": "record", "sourceName": "HM Coastguard, Hayle Head",
+      "text": "Display maroon fired from Wrenhaven pier head at the Mayor's signal. Fireworks under way.",
+      "location": "pier", "at": "20:30", "event": "maroon"
+    },
+    {
+      "id": "t_hosking", "kind": "statement", "start": true, "town": true,
+      "title": "Mr Hosking", "source": "witness", "sourceName": "Caretaker, Town Hall",
+      "text": "“The first rocket went up just as our clock said twenty to nine. I remember, because the Mayor told me half past and I said he was late.”",
+      "location": "townhall", "at": "20:40", "clock": "hall", "event": "maroon",
+      "firm": "“Twenty to nine by the Town Hall clock. I wind it myself, every Monday.”"
+    },
+    {
+      "id": "a_wi", "kind": "receipt", "start": true,
+      "title": "Cash book", "source": "record", "sourceName": "Wrenhaven W.I. · tea stall",
+      "text": "Bonfire Night takings: £14.62\nHanded over by Mrs A. TRELAWNEY, treasurer.",
+      "subjects": ["agnes"], "location": "bandstand", "at": "20:30"
+    },
+    {
+      "id": "a_claim", "kind": "statement", "start": true,
+      "title": "Agnes Trelawney", "source": "agnes", "sourceName": "Agnes, in her own words",
+      "text": "“I ran the WI tea stall at the bandstand from eight o'clock till the last rocket. I never stirred from behind that urn.”",
+      "subjects": ["agnes"], "location": "bandstand", "from": "20:00", "to": "21:20",
+      "truth": "lie",
+      "reply": "“…Fine. I handed over the takings and went round to Maud Penhallow's. We're friends again, if you must know. She's teaching me her lemon curd. If the WI hears of it, I'm finished.”",
+      "unlocks": ["a_maud"]
+    },
+    {
+      "id": "a_call", "kind": "call", "start": true,
+      "title": "Exchange log", "source": "record", "sourceName": "Wrenhaven Telephone Exchange",
+      "text": "Penhallow's Bakery → Polgarth 2741 · 4 minutes\nCaller: “Mrs Trelawney, for her sister.”",
+      "subjects": ["agnes"], "location": "bakery", "from": "21:05", "to": "21:09"
+    },
+    {
+      "id": "a_bus", "kind": "ticket", "start": true,
+      "title": "Bus pass", "source": "record", "sourceName": "Route 4 · Wrenhaven → Polgarth",
+      "text": "Last bus. Pensioner's pass clipped by the conductor at the depot: A. TRELAWNEY.",
+      "subjects": ["agnes"], "location": "depot", "at": "22:02"
+    },
+    {
+      "id": "a_maud", "kind": "statement",
+      "title": "Maud Penhallow", "source": "witness", "sourceName": "Penhallow's Bakery",
+      "text": "“Agnes came in at my back door as the Town Hall clock said six minutes to nine, and she didn't leave till it struck ten. I can see that clock from my kitchen window.”",
+      "subjects": ["agnes"], "location": "bakery", "from": "20:54", "to": "22:00", "clock": "hall",
+      "firm": "“Six minutes to nine till ten o'clock by the Town Hall clock. I'd swear to it in church. Ask me about my lemon curd and I'll swear to that too.”"
+    },
+    {
+      "id": "c_claim", "kind": "statement", "start": true,
+      "title": "Clem Hollis", "source": "clem", "sourceName": "Clem, in his own words",
+      "text": "“I never left my brazier at the pier head. Eight o'clock till twenty past nine, roasting chestnuts for the lifeboat.”",
+      "subjects": ["clem"], "location": "pier", "from": "20:00", "to": "21:20",
+      "truth": "lie",
+      "reply": "“Ten minutes for a rum at the Lantern. Roasting's thirsty work. Then PC Treloar had a go at me for standing too near the rail. Ask him.”",
+      "unlocks": ["c_police"]
+    },
+    {
+      "id": "c_kiosk", "kind": "ledger", "start": true,
+      "title": "Kiosk book", "source": "record", "sourceName": "Pier kiosk",
+      "text": "1 sack of charcoal for the chestnut brazier.\nOn account: C. HOLLIS.",
+      "subjects": ["clem"], "location": "pier", "at": "20:40"
+    },
+    {
+      "id": "c_slate", "kind": "ledger", "start": true,
+      "title": "Darts slate", "source": "record", "sourceName": "The Lantern",
+      "text": "C. HOLLIS · 1 × dark rum · settled\nTime chalked off the clock over the bar.",
+      "subjects": ["clem"], "location": "lantern", "at": "20:52", "clock": "lantern"
+    },
+    {
+      "id": "c_police", "kind": "note",
+      "title": "Constable's notebook", "source": "record", "sourceName": "PC Treloar, Wrenhaven Police",
+      "text": "Pier head. Advised C. Hollis to move chestnut brazier back from the rail. Complied, with remarks.",
+      "subjects": ["clem"], "location": "pier", "at": "21:20"
+    },
+    {
+      "id": "e_claim", "kind": "statement", "start": true,
+      "title": "Elias Garrow", "source": "elias", "sourceName": "Elias, in his own words",
+      "text": "“I was up St Brigid's tower from half past eight, ringing for Bonfire Night till gone half nine. Ask any of the ringers.”",
+      "subjects": ["elias"], "location": "church", "from": "20:30", "to": "21:35",
+      "truth": "lie",
+      "reply": "“…I stopped at Fenwick's on the way. A torch, for Nell. She's always in the dark up that tower. Don't tell her. I signed the ringers' book when I got there.”",
+      "unlocks": ["e_book", "e_peal"]
+    },
+    {
+      "id": "e_fenwick", "kind": "receipt", "start": true,
+      "title": "Till receipt", "source": "record", "sourceName": "Fenwick's Hardware",
+      "text": "1 × rubber torch, 2 × batteries\nON ACCOUNT: E. GARROW",
+      "subjects": ["elias"], "location": "hardware", "at": "20:33"
+    },
+    {
+      "id": "e_book", "kind": "ledger",
+      "title": "Ringers' book", "source": "record", "sourceName": "St Brigid's tower",
+      "text": "Bonfire peal. E. GARROW signed in.",
+      "subjects": ["elias"], "location": "church", "at": "20:45"
+    },
+    {
+      "id": "e_peal", "kind": "ledger",
+      "title": "Peal board", "source": "record", "sourceName": "St Brigid's tower",
+      "text": "Grandsire Doubles, rung in 35 minutes.\nTreble: E. Garrow.",
+      "subjects": ["elias"], "location": "church", "from": "21:00", "to": "21:35"
+    },
+    {
+      "id": "r_kiosk", "kind": "ledger", "start": true,
+      "title": "Kiosk book", "source": "record", "sourceName": "Pier kiosk",
+      "text": "Hot Bovril for the lifeboat collectors, on the Appeal.\nSigned: R. ABERNETHY.",
+      "subjects": ["rolf"], "location": "pier", "at": "20:25"
+    },
+    {
+      "id": "r_claim", "kind": "statement", "start": true,
+      "title": "Rolf Abernethy", "source": "rolf", "sourceName": "Rolf, in his own words",
+      "text": "“I rattled my tin on the pier from ten past eight till the last rocket at ten to nine. Then straight to the Lantern to thaw out.”",
+      "subjects": ["rolf"], "location": "pier", "from": "20:10", "to": "20:50",
+      "truth": "lie",
+      "reply": "“…All right. I took my tin up to the Town Hall before the finale, to get the money under lock and key. In and out of the foyer in a minute. Is that a crime now, handing in a collection?”"
+    },
+    {
+      "id": "r_sid", "kind": "statement", "start": true,
+      "title": "Sid Barrow", "source": "witness", "sourceName": "Landlord of the Lantern",
+      "text": "“Rolf came in out of the cold at ten to nine by our clock, wet through, and sat by the fire till twenty-five to ten.”",
+      "subjects": ["rolf"], "location": "lantern", "from": "20:48", "to": "21:35", "clock": "lantern",
+      "firm": "“Ten to nine by the clock. Ten minutes slow, yes, I know. Add it on yourself.”"
+    },
+    {
+      "id": "u_book", "kind": "ledger", "start": true,
+      "title": "Door book", "source": "record", "sourceName": "Town Hall · caretaker's door book",
+      "text": "Lifeboat tin No. 6 handed in at the front desk.\nCollector didn't sign. (Sou'wester, oilskin, wet through. Didn't see his face. — J.H.)",
+      "candidates": ["clem", "elias", "rolf"], "trueSubject": "rolf",
+      "location": "townhall", "at": "20:52", "clock": "hall"
+    }
+  ],
+  "triggers": [
+    { "on": "conflict", "a": "a_claim", "b": "a_call",
+      "question": "Agnes says she never left the tea urn at the bandstand, yet at 21:05 a “Mrs Trelawney” telephoned Polgarth from Penhallow's Bakery." },
+    { "on": "conflict", "a": "a_maud", "b": "a_bus",
+      "question": "Maud keeps Agnes in her kitchen till ten by the Town Hall clock, but Agnes's pass was clipped at the depot at 22:02, twelve minutes' walk away. Is Maud lying, or is her clock?" },
+    { "on": "conflict", "a": "c_claim", "b": "c_slate",
+      "question": "Clem swears he never left his brazier, but the Lantern chalked a rum to him at 21:02." },
+    { "on": "conflict", "a": "e_claim", "b": "e_fenwick",
+      "question": "Elias says he was up the bell tower from half past eight. Fenwick's sold him a torch at 20:33, eight minutes' walk from St Brigid's." },
+    { "on": "conflict", "a": "r_claim", "b": "u_book",
+      "question": "The collector in the door book can only be Rolf, and Rolf says he was on the pier until ten to nine." },
+    { "on": "calibrate", "a": "hall", "memo": "The Town Hall clock is ten minutes fast, and so was the crime: the Mayor locked up at 20:40 and the box was found gone at 21:30. Every alibi has to be read again." },
+    { "on": "confirm", "a": "u_book", "memo": "Only one face is left. Rolf took tin No. 6 up to the Town Hall himself." }
+  ],
+  "memos": [
+    { "when": "start", "text": "Last file, partner. Read the incident card as carefully as the others. It names its clock too." },
+    { "when": "firstConflict", "text": "Careful. Red means something on the board is wrong, not necessarily someone. Check whose clock it is before you confront anybody." },
+    { "when": "unknown", "text": "Nobody saw the collector's face. Let the paper cross the faces off." }
+  ],
+  "truth": {
+    "agnes": [ { "at": "bandstand", "from": "20:00", "to": "20:31" }, { "at": "bakery", "from": "20:43", "to": "21:50" }, { "at": "depot", "from": "22:02", "to": "22:10" } ],
+    "clem":  [ { "at": "pier", "from": "20:00", "to": "20:56" }, { "at": "lantern", "from": "20:59", "to": "21:09" }, { "at": "pier", "from": "21:12", "to": "21:45" } ],
+    "elias": [ { "at": "hardware", "from": "20:30", "to": "20:35" }, { "at": "church", "from": "20:43", "to": "21:40" } ],
+    "rolf":  [ { "at": "pier", "from": "20:05", "to": "20:27" }, { "at": "townhall", "from": "20:41", "to": "20:47" }, { "at": "lantern", "from": "20:58", "to": "21:45" } ]
+  },
+  "reconstruction": [
+    "20:27. Rolf slips off the pier with his tin while every face is turned to the sky.",
+    "20:41. He hands tin No. 6 in at the Town Hall. Hosking writes down what his clock says: 20:52.",
+    "20:42. Up the back stairs to the Mayor's parlour. Five minutes with a jemmy.",
+    "20:58. Into the Lantern, soaked through, for a pint by the fire.",
+    "By the Town Hall clock, the box was locked away at 20:50. He was counting on it."
+  ],
+  "epilogue": [
+    "The committee had cut Rolf's pension after the Regatta Cup business: a steward, they said, should have noticed. Thirty years of rattling tins for the lifeboat, he told Connie, and not one of them ever counted him in.",
+    "The box turned up under the spare oars in the lifeboat house, every penny still in it. The Appeal raised a record sum by Christmas. Agnes and Maud shared the WI cup for lemon curd.",
+    "The Town Hall clock went to Exeter to be mended. Connie's note: “Four for four, partner. That's the last of the year's trouble, I hope. Mind the clocks.”"
+  ]
+}

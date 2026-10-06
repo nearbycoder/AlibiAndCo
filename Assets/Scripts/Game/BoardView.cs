@@ -245,22 +245,58 @@ namespace AlibiCo
             }
         }
 
-        MeshRenderer incidentBand;
+        Transform incidentRoot;
         TextMeshPro incidentLabel;
+        int bandFrom;
 
+        /// <summary>
+        /// The red band for the incident window, drawn at the printed times. If the crime itself was
+        /// timed by an untrusted clock, <see cref="RefreshIncident"/> slides it when that clock is corrected.
+        /// </summary>
         void BuildIncidentBand()
         {
             var suspects = Lanes.Where(l => l.Person != null && l.Person.IsSuspect).ToList();
             if (suspects.Count == 0) return;
+            incidentRoot = new GameObject("incident").transform;
+            incidentRoot.SetParent(root, false);
+            bandFrom = c.Incident.From;
             float top = suspects.Max(l => l.Top) - 0.04f, bottom = suspects.Min(l => l.Bottom) + 0.04f;
             float x0 = TimeToX(c.Incident.From), x1 = TimeToX(c.Incident.To);
-            incidentBand = Shapes.Quad(root, "incidentBand", new Vector2(x1 - x0, top - bottom),
+            Shapes.Quad(incidentRoot, "incidentBand", new Vector2(x1 - x0, top - bottom),
                 Art.Unlit(new Color(0.75f, 0.12f, 0.1f, 0.11f), true), new Vector3((x0 + x1) / 2, (top + bottom) / 2, ZGrid - 0.001f));
-            Line(root, new Vector3(x0, bottom, ZGrid - 0.002f), new Vector3(x0, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
-            Line(root, new Vector3(x1, bottom, ZGrid - 0.002f), new Vector3(x1, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
-            incidentLabel = Txt.Make(root, "incidentLabel", $"INCIDENT WINDOW  {TimeFmt.Format(c.Incident.From)}–{TimeFmt.Format(c.Incident.To)}  ·  {c.Incident.Duration} MIN AT {Locations.Short(c.Incident.Location).ToUpperInvariant()}",
-                Art.SansBold, 0.14f * TextScale, Pal.Oxblood, new Vector2(Mathf.Max(4.5f, x1 - x0), 0.25f * TextScale), TextAlignmentOptions.Center,
+            Line(incidentRoot, new Vector3(x0, bottom, ZGrid - 0.002f), new Vector3(x0, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
+            Line(incidentRoot, new Vector3(x1, bottom, ZGrid - 0.002f), new Vector3(x1, top + 0.2f, ZGrid - 0.002f), 0.025f, new Color(0.7f, 0.15f, 0.12f, 0.55f));
+            incidentLabel = Txt.Make(incidentRoot, "incidentLabel", IncidentLabel(null),
+                Art.SansBold, 0.14f * TextScale, Pal.Oxblood, new Vector2(Mathf.Max(6.5f, x1 - x0), 0.25f * TextScale), TextAlignmentOptions.Center,
                 new Vector3((x0 + x1) / 2, top - 0.16f, ZLabel), false);
+            incidentLabel.Fit(0.1f);
+        }
+
+        string IncidentLabel(Board board)
+        {
+            var inc = c.Incident;
+            int from = board != null ? board.IncidentFrom : inc.From, to = board != null ? board.IncidentTo : inc.To;
+            string where = $"{inc.Duration} MIN AT {Locations.Short(inc.Location).ToUpperInvariant()}";
+            var clock = c.ClockById[inc.Clock];
+            string when = $"INCIDENT WINDOW  {TimeFmt.Format(from)}–{TimeFmt.Format(to)}";
+            if (clock.Reference) return when + "  ·  " + where;
+            bool trusted = board != null && board.IsTrusted(inc.Clock);
+            return trusted
+                ? when + " (CORRECTED)  ·  " + where
+                : when + " ON THE " + clock.Name.ToUpperInvariant() + " ?";
+        }
+
+        /// <summary>Slide the incident band to the board's current window (after its clock is corrected).</summary>
+        public void RefreshIncident(Board board, bool animate)
+        {
+            if (incidentRoot == null) return;
+            incidentLabel.text = IncidentLabel(board);
+            int from = board.IncidentFrom;
+            if (from == bandFrom) return;
+            var target = incidentRoot.localPosition + new Vector3(TimeToX(from) - TimeToX(bandFrom), 0, 0);
+            bandFrom = from;
+            if (animate) incidentRoot.MoveLocal(target, 1.25f, Ease.InOutCubic);
+            else incidentRoot.localPosition = target;
         }
 
         void BuildClockLegend()

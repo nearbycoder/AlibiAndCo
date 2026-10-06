@@ -88,6 +88,9 @@ namespace AlibiCo.Logic
         public readonly List<string> Warnings = new List<string>();
         public readonly List<string> Info = new List<string>();
         public List<Move> Solution;
+        /// <summary>True statements that sit in an established contradiction in some reachable state:
+        /// confronting them costs a badge, and the way out is a link or another card.</summary>
+        public readonly SortedSet<string> Traps = new SortedSet<string>(StringComparer.Ordinal);
         public bool Ok => Errors.Count == 0;
     }
 
@@ -260,7 +263,11 @@ namespace AlibiCo.Logic
                 everUnlocked.UnionWith(b.Unlocked);
                 everStruck.UnionWith(b.Struck);
                 foreach (var k in b.EstablishedConflicts)
+                {
                     conflictPairsSeen.Add(Pair(k.A.Card.Id, k.B.Card.Id));
+                    foreach (var e in new[] { k.A, k.B })
+                        if (e.Card.IsTestimony && !e.Card.IsFalse) r.Traps.Add(e.Card.Id);
+                }
 
                 foreach (var kv in b.Confirmed)
                 {
@@ -295,6 +302,8 @@ namespace AlibiCo.Logic
             }
 
             r.Info.Add($"{seen.Count} reachable states, {terminals.Count} terminal, {solvedStates} accusable, {readyEmpty} clean-but-everyone-covered");
+            r.Info.Add(r.Traps.Count == 0 ? "traps: none (every statement that turns red is false)"
+                                          : "traps (true statements that can turn red): " + string.Join(", ", r.Traps));
 
             foreach (var t in terminals)
             {

@@ -272,6 +272,16 @@ namespace AlibiCo
                 chipLine = Txt(chip, "place", $"{Case.Incident.Duration} min at {Locations.Short(Case.Incident.Location)}", AlibiCo.Art.SansBold, 0.12f, Pal.Ink,
                     new Vector2(size.x - 0.12f, 0.2f), TextAlignmentOptions.Center, new Vector3(0, -size.y / 2 + 0.14f, z), false);
                 chipLine.Fit(0.08f);
+                if (!Case.ClockById[Def.Clock].Reference)
+                {
+                    // The crime itself was timed by a clock nobody has checked: mark it like any other card.
+                    chipTime.rectTransform.sizeDelta = new Vector2(size.x - 0.42f, 0.24f);
+                    chipTime.transform.localPosition += new Vector3(-0.13f, 0, 0);
+                    chipClockIcon = Shapes.Icon(chip, "clock", 0.15f, Pal.Red, new Vector3(size.x / 2 - 0.17f, 0.02f, z));
+                    chipStampMark = Txt(chip, "clockMark", "?", AlibiCo.Art.SansBold, 0.13f, Pal.Red, new Vector2(0.3f, 0.2f), TextAlignmentOptions.Right,
+                        new Vector3(size.x / 2 - 0.36f, 0.02f, z), false);
+                    chipStampMark.gameObject.SetActive(false);
+                }
                 return;
             }
             var loc = Locations.Get(Def.Location);

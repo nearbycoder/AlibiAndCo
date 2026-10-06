@@ -370,6 +370,8 @@ namespace AlibiCo
         public void Relayout(bool animate, float dur = 0.38f, string slowClock = null)
         {
             Board.Refresh();
+            View.RefreshIncident(Board, animate);
+            if (incident) incident.SetTimes(Board.IncidentFrom, Board.IncidentTo, Board);
             chips = View.LayoutChips(Board, PlacedChips());
             foreach (var v in views.Values)
             {

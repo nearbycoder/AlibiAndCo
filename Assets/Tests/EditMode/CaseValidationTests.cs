@@ -21,7 +21,18 @@ namespace AlibiCo.Tests
             Directory.GetFiles(Path.Combine(UnityEngine.Application.dataPath, "Resources", "Data"), "case*.json").OrderBy(f => f);
 
         [Test]
-        public void ThereAreThreeCases() => Assert.AreEqual(3, CaseFiles().Count());
+        public void ThereAreFourCases() => Assert.AreEqual(4, CaseFiles().Count());
+
+        /// <summary>The finale must punish reflex-confronting: a true statement turns red before its clock is fixed.</summary>
+        [Test]
+        public void FinaleHasATrueStatementInTheRed()
+        {
+            var c = CaseDef.FromJson(File.ReadAllText(CaseFiles().Last()));
+            var r = CaseValidator.Validate(c, Map());
+            Assert.IsTrue(r.Ok, string.Join("\n", r.Errors));
+            Assert.IsNotEmpty(r.Traps, "no true statement is ever in an established contradiction");
+            Assert.IsTrue(c.Clocks.Any(k => k.Id == c.Incident.Clock && !k.Reference), "the finale's incident should be timed by an untrusted clock");
+        }
 
         [TestCaseSource(nameof(CaseFiles))]
         public void CaseIsAirtight(string file)
@@ -52,6 +63,24 @@ namespace AlibiCo.Tests
                 var chk = b.CheckAccusation(p.Id);
                 Assert.AreEqual(p.Id == c.Incident.Culprit, chk.Ok, $"{p.Id}: {chk.Message}");
             }
+        }
+
+        /// <summary>Case 4: Maud is right and her clock is wrong. Confronting her costs a badge; linking the Town Hall clock clears her.</summary>
+        [Test]
+        public void FinaleTrapIsClearedByTheClockNotAConfrontation()
+        {
+            var c = CaseDef.FromJson(File.ReadAllText(Path.Combine(DataDir, "case4.json")));
+            var b = new Board(c, Map(), autoPin: true);
+            Assert.IsTrue(b.Confront("a_claim").Accepted);
+            Assert.IsTrue(b.Unlocked.Contains("a_maud"));
+            Assert.IsTrue(b.EstablishedConflicts.Any(k => k.Involves("a_maud")), "Maud should be in the red before the clock is fixed");
+            var o = b.Confront("a_maud");
+            Assert.IsTrue(o.CostBadge);
+            Assert.IsFalse(b.Struck.Contains("a_maud"));
+            Assert.AreEqual(c.CardById["a_maud"].Firm, o.Reply);
+            Assert.IsNotNull(b.Link("t_coast", "t_hosking").CalibratedClock);
+            Assert.IsFalse(b.EstablishedConflicts.Any(k => k.Involves("a_maud")), "fixing the Town Hall clock should clear Maud");
+            Assert.AreEqual(b.Case.Incident.From - 10, b.IncidentFrom, "the incident window moves with its clock");
         }
 
         [TestCaseSource(nameof(CaseFiles))]

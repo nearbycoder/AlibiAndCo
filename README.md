@@ -10,7 +10,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 
 [![Unity 6000.6](https://img.shields.io/badge/Unity-6000.6.2f1%20·%20URP-222?logo=unity&logoColor=white)](https://unity.com/releases/editor/archive)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86__64-2f5d8a?logo=linux&logoColor=white)](https://github.com/nearbycoder/AlibiAndCo/releases)
-[![Cases: 3, proven airtight](https://img.shields.io/badge/cases-3%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
+[![Cases: 4, proven airtight](https://img.shields.io/badge/cases-4%2C%20proven%20airtight-8e2b2b)](#tech-highlights)
 [![Blender 4.5](https://img.shields.io/badge/art-Blender%204.5-e87d0d?logo=blender&logoColor=white)](#rebuilding-the-generated-assets)
 [![Audio: synthesized](https://img.shields.io/badge/audio-100%25%20synthesized-c9a24a)](#rebuilding-the-generated-assets)
 
@@ -31,7 +31,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 ## About
 
 Wrenhaven, a harbour town in autumn 1986. You're the "& Co." at retired Detective Inspector
-Connie Alibi's two-desk agency. Three small crimes, three nights, one cork board.
+Connie Alibi's two-desk agency. Four small crimes, four nights, one cork board.
 
 Every receipt, phone log, ticket stub, press photo and witness statement says that **someone was
 somewhere at a certain time**. Pin them onto each suspect's line and the board measures the walk
@@ -127,14 +127,16 @@ controls list is in the pause menu.
 
 ## Content
 
-Three handcrafted cases on one shared town map. Each introduces one idea and is proven airtight
-by the solver (exactly one consistent answer, and no way to accuse the wrong person).
+Four handcrafted cases on one shared town map. The first three each introduce one idea, and the
+fourth puts them together. Every case is proven airtight by the solver (exactly one consistent
+answer, and no way to accuse the wrong person).
 
 | Case | Night | Suspects | What it teaches |
 |---|---|---|---|
 | **1. Sugar and Spite** | Friday 10 October 1986 | 3 | Pinning, ribbons, contradictions, confronting, two-person statements, the incident pin. About 5 minutes. |
 | **2. The Regatta Cup** | Saturday 18 October 1986 | 3 + Town | Clocks and links: a calibration can clear one person and sink another. About 10 minutes. |
 | **3. The Last Light** | Saturday 1 November 1986 | 4 + Town | Unknown-person cards, camera date-back clocks and mistaken identity. About 15 minutes. |
+| **4. Remember, Remember** | Wednesday 5 November 1986 | 4 + Town | The finale, with returning faces. The crime itself was timed by a wrong clock, an honest witness turns red until it's fixed, and a nameless entry in a door book has to be traced. About 15–20 minutes. |
 
 Cases unlock in order, and the case files keep your best rating and time for each.
 
@@ -192,7 +194,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 |---|---|
 | `Tools/validate.sh [--verbose]` | Compiles the game's own `Assets/Scripts/Logic/` into a console app and proves every case airtight. It uses a system `dotnet` or the .NET 8 SDK inside the Unity Editor. `--verbose` walks through each solution. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
-| `Tools/autoplay.sh [outdir]` | Launches the built game, plays all three cases through the real session code with the solver's moves, saves a screenshot per step and prints PASS/FAIL. |
+| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case through the real session code with the solver's moves (and, in the finale, confronts the honest witness on purpose to check she stands firm), saves a screenshot per step and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
@@ -232,7 +234,7 @@ Tools/capture_trailer.sh                       # the game plays itself in traile
 .venv/bin/python Tools/make_trailer.py         # -> docs/media/alibi-and-co-trailer.mp4, trailer-poster.jpg, teaser.webp
 ```
 
-The capture plays all three cases with scripted mouse and keyboard input, stages the beats the
+The capture plays the first three cases (the trailer's cut) with scripted mouse and keyboard input, stages the beats the
 solver never plays (a witness standing firm, a wrong link, a hint, the notebook, the settings),
 logs a frame-numbered marker per beat and saves cursor-free stills. `make_trailer.py` cuts the
 trailer from those markers, so every shot is a named beat rather than a timestamp.
@@ -263,7 +265,8 @@ docs/media/             README and trailer media
   unlocked, clocks corrected, statements struck) using only legal moves. It checks that each
   case has exactly one consistent solution, that the solved state is reachable from every state,
   that every designed contradiction can be discovered, that unknown cards only ever resolve to the
-  right person, and that no state allows a wrong accusation.
+  right person, and that no state allows a wrong accusation. It also lists the case's traps: true
+  statements that can turn red, where confronting costs a badge and the real fix is elsewhere.
 - **Clocks as data.** Every card names the clock that timed it, and each clock has a hidden
   offset. A link between two cards that share an event calibrates the untrusted clock, and the
   board recomputes every card's true time and walking feasibility (all-pairs shortest paths
@@ -293,7 +296,8 @@ There are no stock assets, samples or third-party models in the project.
 
 ## Status and known issues
 
-*Alibi & Co.* is a complete, small game: three cases, start to finish, at version **0.1.0**.
+*Alibi & Co.* is a complete, small game: four cases, start to finish. The released version is
+**0.1.0** (three cases). The fourth case and the other changes on this branch aren't released yet.
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet.
@@ -311,6 +315,8 @@ There are no stock assets, samples or third-party models in the project.
   Large panels shrink back to fit the screen at the larger sizes.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
   startup. Use `-force-wayland` (as `Tools/play.sh` and the packaged `AlibiAndCo.sh` do; set
-  `ALIBI_X11=1` to make the launcher skip it).
+  `ALIBI_X11=1` to make the launcher skip it). The native Wayland backend isn't perfect either:
+  in about a dozen automated runs on the development machine it crashed once (a segfault inside
+  Unity's Wayland event dispatch, between cases). Progress is saved after every action.
 - The build scripts assume Unity Hub's default install path and are tested on Linux only.
 - **No licence has been chosen yet.** Until one is added, all rights are reserved by the author.

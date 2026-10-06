@@ -33,7 +33,7 @@ namespace AlibiCo
         public static string Short(string id) => Get(id)?.Short ?? id;
     }
 
-    /// <summary>All three cases, in order.</summary>
+    /// <summary>Every case file (Data/case1.json, case2.json, …), in order.</summary>
     public static class Cases
     {
         static List<CaseDef> all;
