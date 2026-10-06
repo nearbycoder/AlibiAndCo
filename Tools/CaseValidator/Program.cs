@@ -4,6 +4,8 @@ using System.Linq;
 using AlibiCo.Logic;
 
 // Usage: dotnet run --project Tools/CaseValidator [-- [--verbose] [caseId...]]
+//        ... -- --docket N [yyyy-MM-dd]     generate and prove N consecutive Daily Dockets
+//        ... -- --docket-show yyyy-MM-dd    print one docket's text and walk through its solution
 // Exit code 0 when every case is airtight.
 static class Program
 {
@@ -14,6 +16,11 @@ static class Program
         var town = TownData.FromJson(File.ReadAllText(Path.Combine(data, "town.json")));
         var map = new TownMap(town);
         bool verbose = args.Contains("--verbose");
+        int di = Array.IndexOf(args, "--docket");
+        if (di >= 0) return DocketSweep(map, di + 1 < args.Length ? int.Parse(args[di + 1]) : 365,
+                                        di + 2 < args.Length && !args[di + 2].StartsWith("--") ? DateTime.Parse(args[di + 2]) : DateTime.Today);
+        int ds = Array.IndexOf(args, "--docket-show");
+        if (ds >= 0) return DocketShow(map, ds + 1 < args.Length ? DateTime.Parse(args[ds + 1]) : DateTime.Today);
         var only = args.Where(a => !a.StartsWith("--")).ToList();
 
         int failed = 0;
@@ -31,6 +38,65 @@ static class Program
         }
         Console.WriteLine(failed == 0 ? "All cases airtight." : $"{failed} case(s) failed.");
         return failed == 0 ? 0 : 1;
+    }
+
+    static int DocketSweep(TownMap map, int days, DateTime from)
+    {
+        int failed = 0, clockDays = 0, maxAttempt = 0;
+        var attempts = new int[Docket.MaxAttempts];
+        var states = new System.Collections.Generic.List<int>();
+        var moves = new System.Collections.Generic.Dictionary<int, int>();
+        var titles = new System.Collections.Generic.Dictionary<string, int>();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        double slowest = 0;
+        for (int i = 0; i < days; i++)
+        {
+            var date = from.AddDays(i);
+            var t0 = sw.Elapsed.TotalMilliseconds;
+            var d = Docket.Generate(date, map);
+            slowest = Math.Max(slowest, sw.Elapsed.TotalMilliseconds - t0);
+            if (d == null) { failed++; Console.WriteLine($"  FAILED {Docket.IdFor(date)}: no airtight variation in {Docket.MaxAttempts} tries"); continue; }
+            attempts[d.Attempt]++;
+            maxAttempt = Math.Max(maxAttempt, d.Attempt);
+            if (d.ClockDay) clockDays++;
+            states.Add(int.Parse(d.Report.Info[0].Split(' ')[0]));
+            moves.TryGetValue(d.Report.Solution.Count, out int n);
+            moves[d.Report.Solution.Count] = n + 1;
+            titles.TryGetValue(d.Case.Title, out int k);
+            titles[d.Case.Title] = k + 1;
+        }
+        Console.WriteLine($"== Daily Docket: {days} days from {from:yyyy-MM-dd}: {days - failed} airtight, {failed} failed");
+        Console.WriteLine($"  clock days: {clockDays}; worst day needed {maxAttempt + 1} variation(s); first-try airtight: {attempts[0]}");
+        Console.WriteLine($"  reachable states {states.DefaultIfEmpty(0).Min()}–{states.DefaultIfEmpty(0).Max()}; solution lengths: {string.Join(", ", moves.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} moves ×{kv.Value}"))}");
+        Console.WriteLine($"  crimes: {string.Join(", ", titles.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} ×{kv.Value}"))}");
+        Console.WriteLine($"  {sw.Elapsed.TotalSeconds:0.0}s in all, slowest day {slowest:0} ms");
+        return failed == 0 ? 0 : 1;
+    }
+
+    static int DocketShow(TownMap map, DateTime date)
+    {
+        var d = Docket.Generate(date, map);
+        if (d == null) { Console.WriteLine("no airtight docket for " + date.ToString("yyyy-MM-dd")); return 1; }
+        var c = d.Case;
+        Console.WriteLine($"== {c.Id} \"{c.Title}\" ({(d.ClockDay ? "clock day" : "plain")}, variation {d.Attempt + 1}) {c.Date} · {c.Weather}");
+        Console.WriteLine("  " + c.Tagline);
+        foreach (var p in c.Intro) Console.WriteLine("  | " + p);
+        Console.WriteLine($"  incident: {c.Incident.Text} [{c.Incident.Location} {TimeFmt.Format(c.Incident.From)}-{TimeFmt.Format(c.Incident.To)}, {c.Incident.Duration} min, culprit {c.Incident.Culprit}]");
+        foreach (var x in c.Cards)
+        {
+            string when = x.IsInstant ? TimeFmt.Format(x.From) : TimeFmt.Format(x.From) + "-" + TimeFmt.Format(x.To);
+            Console.WriteLine($"  [{x.Id}] {x.Kind} \"{x.Title}\" ({x.SourceName}) {x.Location} {when}{(x.Clock != "ref" ? " on " + x.Clock : "")}{(x.IsFalse ? " LIE" : "")}");
+            Console.WriteLine("      " + x.Text.Replace("\n", " / "));
+            if (!string.IsNullOrEmpty(x.Reply)) Console.WriteLine("      reply: " + x.Reply);
+            if (!string.IsNullOrEmpty(x.Firm)) Console.WriteLine("      firm:  " + x.Firm);
+        }
+        foreach (var t in c.Triggers) Console.WriteLine($"  trigger {t.Key}: {t.Question}{t.Memo}");
+        foreach (var m in c.Memos) Console.WriteLine($"  memo {m.When}: {m.Text}");
+        foreach (var l in c.ReconstructionLines) Console.WriteLine("  > " + l);
+        foreach (var e in c.Epilogue) Console.WriteLine("  ~ " + e);
+        foreach (var i in d.Report.Info) Console.WriteLine("  " + i);
+        Walkthrough(c, map, d.Report);
+        return 0;
     }
 
     static void Walkthrough(CaseDef c, TownMap map, ValidationReport r)

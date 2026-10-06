@@ -55,7 +55,9 @@ namespace AlibiCo
             for (int i = 0; i < 900; i++)
             {
                 var d = target - PadCursor.I.Position;
-                if (d.magnitude < 3f) break;
+                // Close enough: 3 px, or one frame of the cursor's slowest speed when the frame rate is
+                // low (at ~11 fps a single frame moves it ~20 px, and a 3 px target is never hit).
+                if (d.magnitude < Mathf.Max(3f, UnityEngine.Screen.height * 0.25f * Clock.Dt)) break;
                 var stick = Vector2.ClampMagnitude(d / (UnityEngine.Screen.height * 0.12f), 1f);
                 if (stick.magnitude < 0.3f) stick = stick.normalized * 0.3f;
                 PadState(stick, held);
@@ -383,7 +385,8 @@ namespace AlibiCo
             yield return new WaitForEndOfFrame();
             var path = Path.Combine(dir, $"{++shot:00}_{name}.png");
             ScreenCapture.CaptureScreenshot(path);
-            Debug.Log("[AutoPilot] shot " + path);
+            // Frame count and real time, so a run that crawls (a throttled window, a busy machine) shows it.
+            Debug.Log($"[AutoPilot] shot {path} (frame {Time.frameCount}, {Time.realtimeSinceStartup:0}s)");
             yield return Wait(0.2f);
         }
 
@@ -413,7 +416,16 @@ namespace AlibiCo
                 yield return Shot("case_files");
             }
             int passed = 0;
-            foreach (var c in Cases.All)
+            // The five cases, then today's Daily Docket and three fixed days (two with a wrong clock).
+            var toPlay = new System.Collections.Generic.List<CaseDef>(Cases.All);
+            var trapDocket = Docket.IdFor(new System.DateTime(2026, 10, 7));
+            foreach (var day in new[] { Cases.Today, new System.DateTime(2026, 10, 7), new System.DateTime(2026, 10, 13), new System.DateTime(2026, 12, 25) })
+            {
+                var dk = Cases.DocketFor(day);
+                if (dk == null) { Debug.LogError($"[AutoPilot] FAIL no docket for {day:yyyy-MM-dd}"); continue; }
+                if (!toPlay.Contains(dk)) toPlay.Add(dk);
+            }
+            foreach (var c in toPlay)
             {
                 int errorsBefore = errors;
                 if (capture)
@@ -457,6 +469,21 @@ namespace AlibiCo
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("a_maud")
                                 && s.Memos.History.Any(m => m.Kind == MemoKind.Firm);
                     Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting Maud {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
+                    if (!firm) ok = false;
+                    trapBadges = 1;
+                }
+                else if (c.Id == trapDocket)
+                {
+                    // A clock day's trap: the honest story is red only because of the wrong clock.
+                    // Confronting it must cost a badge and leave the card standing.
+                    int before = s.Board.Mistakes;
+                    bool canConfront = s.Board.CanConfront("h_claim", out var why);
+                    s.Confront(s.ViewOf("h_claim"));
+                    yield return Wait(2.5f);
+                    yield return Shot(c.Id + "_trap_stands_firm");
+                    CheckConflictMarks(s, c.Id + " trap");
+                    bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("h_claim");
+                    Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting the honest story {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
                     if (!firm) ok = false;
                     trapBadges = 1;
                 }
@@ -540,9 +567,9 @@ namespace AlibiCo
                 yield return Wait(1.5f);
                 yield return Shot("case_files_sealed");
             }
-            Debug.Log($"[AutoPilot] done: {passed}/{Cases.All.Count} cases passed, {errors} errors");
+            Debug.Log($"[AutoPilot] done: {passed}/{toPlay.Count} cases passed ({Cases.All.Count} cases, {toPlay.Count - Cases.All.Count} dockets), {errors} errors");
             yield return Wait(0.5f);
-            Application.Quit(passed == Cases.All.Count && errors == 0 ? 0 : 1);
+            Application.Quit(passed == toPlay.Count && errors == 0 ? 0 : 1);
         }
     }
 }

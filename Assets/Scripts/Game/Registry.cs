@@ -54,8 +54,46 @@ namespace AlibiCo
             }
         }
 
-        public static CaseDef Get(string id) => All.Find(c => c.Id == id);
+        /// <summary>A handwritten case, or a Daily Docket by its id ("docket-2026-10-06").</summary>
+        public static CaseDef Get(string id)
+        {
+            if (Docket.TryParseId(id, out var date)) return DocketFor(date);
+            return All.Find(c => c.Id == id);
+        }
+
         public static int IndexOf(string id) => All.FindIndex(c => c.Id == id);
+
+        // ------------------------------------------------------------------ the Daily Docket
+
+        static readonly Dictionary<string, CaseDef> dockets = new Dictionary<string, CaseDef>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { all = null; dockets.Clear(); Today = System.DateTime.Now.Date; }   // see Art.ResetStatics
+
+        public static bool IsDocket(CaseDef c) => c != null && Docket.IsDocket(c.Id);
+
+        /// <summary>The docket for a day, generated and proven airtight on first use (null if none could be).</summary>
+        public static CaseDef DocketFor(System.DateTime date)
+        {
+            var id = Docket.IdFor(date);
+            if (dockets.TryGetValue(id, out var c)) return c;
+            var t0 = Time.realtimeSinceStartup;
+            var r = Docket.Generate(date, Locations.Map);
+            c = r?.Case;
+            dockets[id] = c;
+            Debug.Log(r == null ? $"[Docket] {id}: no airtight variation" :
+                $"[Docket] {id} \"{c.Title}\": variation {r.Attempt + 1}, {(r.ClockDay ? "clock day" : "plain")}, proven airtight in {(Time.realtimeSinceStartup - t0) * 1000:0} ms");
+            return c;
+        }
+
+        /// <summary>The local date decides the day's docket (-alibiDocketDate yyyy-MM-dd overrides it for tests).</summary>
+        public static System.DateTime Today = System.DateTime.Now.Date;
+        public static CaseDef TodaysDocket => DocketFor(Today);
+
+        /// <summary>The docket opens once case 2 has taught clocks.</summary>
+        public static bool DocketUnlocked => SaveData.UnlockAll || (All.Count > 1 && SaveData.Current.Record(All[1].Id).solved);
+
+        public static int DocketsClosed => SaveData.Current.cases.FindAll(r => r.solved && Docket.IsDocket(r.id)).Count;
     }
 
     /// <summary>Polaroid portraits (rendered in Blender), with a typographic fallback.</summary>

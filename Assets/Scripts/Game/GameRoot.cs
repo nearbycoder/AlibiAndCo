@@ -53,6 +53,10 @@ namespace AlibiCo
 
             var args = Environment.GetCommandLineArgs();
             SaveData.UnlockAll = args.Contains("-alibiUnlockAll");
+            int dateArg = Array.IndexOf(args, "-alibiDocketDate");
+            if (dateArg >= 0 && dateArg + 1 < args.Length && DateTime.TryParseExact(args[dateArg + 1], "yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var docketDate))
+                Cases.Today = docketDate;
 
             AudioDirector.Build();
             UiKit.Init();

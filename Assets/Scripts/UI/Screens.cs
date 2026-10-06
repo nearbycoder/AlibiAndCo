@@ -168,7 +168,37 @@ namespace AlibiCo
             for (int i = 0; i < Cases.All.Count; i++) Folder(row, i);
 
             var back = UiKit.Button(select.transform, "Back", () => root.ShowTitle(false), Pal.Hex("232A31"), CreamDim, 26);
-            ((RectTransform)back.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 50), new Vector2(240, 60));
+            ((RectTransform)back.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-330, 44), new Vector2(240, 60));
+            DocketButton(select.transform);
+        }
+
+        /// <summary>
+        /// Today's Daily Docket, next to Back: a short generated case, proven airtight before it's
+        /// offered (Logic/Docket). It opens once case 2 has taught clocks.
+        /// </summary>
+        void DocketButton(Transform parent)
+        {
+            string label;
+            CaseDef c = null;
+            bool open = Cases.DocketUnlocked;
+            if (open) c = Cases.TodaysDocket;
+            string head = "DAILY DOCKET  ·  " + Cases.Today.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture).ToUpperInvariant();
+            if (!open) label = $"<size=60%>{head}</size>\n<size=80%>Opens when Case No. 2 is closed</size>";
+            else if (c == null) label = $"<size=60%>{head}</size>\nNo docket today";
+            else
+            {
+                var rec = SaveData.Current.cases.Find(r => r.id == c.Id);
+                bool going = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
+                string state = rec != null && rec.solved ? $"   {Stars(rec.bestBadges)} <size=80%>{Clock(rec.bestTime)}</size>" : going ? "   <size=70%>IN PROGRESS</size>" : "";
+                int closed = Cases.DocketsClosed;
+                label = $"<size=60%>{head}{(closed > 0 ? $"  ·  {closed} CLOSED" : "")}</size>\n{c.Title}{state}";
+            }
+            var b = UiKit.Button(parent, label, () => { if (c != null) { Sfx.Play("folder", 0.8f); root.ShowIntro(c); } },
+                c != null ? Pal.Hex("8E2B2B") : Pal.Hex("3A3530"), c != null ? Cream : CreamDim, 26, null, "btn_docket");
+            ((RectTransform)b.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(150, 36), new Vector2(620, 78));
+            var t = b.GetComponentInChildren<TextMeshProUGUI>();
+            t.lineSpacing = -12;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
         }
 
         void Folder(RectTransform parent, int index)
@@ -296,7 +326,7 @@ namespace AlibiCo
             paper.transform.localRotation = Quaternion.Euler(0, 0, -0.6f);
             var p = paper.rectTransform;
             int idx = Cases.IndexOf(c.Id) + 1;
-            var head = UiKit.Text(p, $"ALIBI & CO.  ·  CASE FILE No. {idx}", Art.SansBold, 22, Pal.Oxblood, TextAlignmentOptions.TopLeft);
+            var head = UiKit.Text(p, Cases.IsDocket(c) ? "ALIBI & CO.  ·  THE DAILY DOCKET" : $"ALIBI & CO.  ·  CASE FILE No. {idx}", Art.SansBold, 22, Pal.Oxblood, TextAlignmentOptions.TopLeft);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -48), new Vector2(-120, 30));
             head.characterSpacing = 5;
             var t = UiKit.Text(p, c.Title, Art.Display, 76, Pal.Ink, TextAlignmentOptions.TopLeft);
@@ -866,7 +896,8 @@ namespace AlibiCo
             var hl = btns.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 18; hl.childControlWidth = false; hl.childForceExpandWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
             int idx = Cases.IndexOf(c.Id);
-            bool last = idx + 1 >= Cases.All.Count;
+            bool docket = Cases.IsDocket(c);
+            bool last = docket || idx + 1 >= Cases.All.Count;
             var next = UiKit.Button(btns, last ? "Back to the case files" : "Next case: " + Cases.All[idx + 1].Title,
                 () => { Hide(closed); if (last) root.ShowSelect(); else root.NextCase(c); }, Pal.Hex("8E2B2B"), Cream, 28);
             ((RectTransform)next.transform).sizeDelta = new Vector2(last ? 380 : 470, 70);
@@ -877,7 +908,12 @@ namespace AlibiCo
                 var files = UiKit.Button(btns, "Case files", () => { Hide(closed); root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 24);
                 ((RectTransform)files.transform).sizeDelta = new Vector2(200, 70);
             }
-            if (last)
+            if (docket)
+            {
+                var fin = UiKit.Text(p, "A new docket comes in tomorrow.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
+            }
+            else if (last)
             {
                 string[] words = { "None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" };
                 string n = Cases.All.Count < words.Length ? words[Cases.All.Count] : Cases.All.Count.ToString();
