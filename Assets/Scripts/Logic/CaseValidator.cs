@@ -353,7 +353,47 @@ namespace AlibiCo.Logic
 
             r.Solution = Solver.ShortestSolution(start);
             if (r.Solution == null) r.Errors.Add("no solution path found");
-            else r.Info.Add("shortest solution: " + string.Join(" → ", r.Solution));
+            else
+            {
+                r.Info.Add("shortest solution: " + string.Join(" → ", r.Solution));
+                CheckPinOrders(c, map, r);
+            }
+        }
+
+        /// <summary>
+        /// The search above pins every unlocked card at once; a player pins them one at a time. An
+        /// identity, once confirmed, is permanent, so replay the solution with the tray pinned in many
+        /// random orders and check that no unknown card is ever confirmed to the wrong person and the
+        /// case still closes. (Seeded, so a failure reproduces.)
+        /// </summary>
+        static void CheckPinOrders(CaseDef c, TownMap map, ValidationReport r, int runs = 60)
+        {
+            var rng = new Random(1986);
+            for (int run = 0; run < runs; run++)
+            {
+                var b = new Board(c, map);
+                string bad = null;
+                void PinAll()
+                {
+                    foreach (var id in b.TrayCards.Select(x => x.Id).OrderBy(_ => rng.Next()).ToList())
+                    {
+                        b.PinAndSettle(id);
+                        foreach (var kv in b.Confirmed)
+                            if (bad == null && kv.Value != c.CardById[kv.Key].TrueSubject)
+                                bad = $"'{kv.Key}' confirmed as {kv.Value} after pinning {id}";
+                    }
+                }
+                PinAll();
+                foreach (var m in r.Solution)
+                {
+                    var o = m.Kind == "link" ? b.Link(m.A, m.B) : b.Confront(m.A);
+                    if (!o.Accepted && bad == null) bad = $"{m} rejected ({o.Message})";
+                    PinAll();
+                }
+                if (bad == null && !b.CheckAccusation(c.Incident.Culprit).Ok) bad = "can't accuse the culprit at the end";
+                if (bad != null) { r.Errors.Add($"PIN ORDER: {bad} (random order #{run})"); return; }
+            }
+            r.Info.Add($"pin order: {runs} random pinning orders, no wrong identity, always solvable");
         }
 
         static string Pair(string a, string b) => string.CompareOrdinal(a, b) < 0 ? a + "|" + b : b + "|" + a;

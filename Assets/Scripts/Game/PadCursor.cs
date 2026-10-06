@@ -19,6 +19,8 @@ namespace AlibiCo
         public static PadCursor I { get; private set; }
         /// <summary>The pad is the active pointer (prompts show pad buttons, the cursor is drawn).</summary>
         public static bool Active => I != null && I.active;
+        /// <summary>Automation only: the shared desktop's real pointer mustn't take over mid-test.</summary>
+        public static bool IgnoreRealMouse;
 
         Mouse virtualMouse, realMouse;
         Vector2 pos;
@@ -28,7 +30,7 @@ namespace AlibiCo
         float hideTimer;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => I = null;   // see Art.ResetStatics
+        static void ResetStatics() { I = null; IgnoreRealMouse = false; }   // see Art.ResetStatics
 
         public static void Create(GameObject host)
         {
@@ -47,13 +49,17 @@ namespace AlibiCo
 
         void Update()
         {
-            var pad = Gamepad.current;
             if (realMouse == null || !realMouse.added) realMouse = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m != virtualMouse);
 
             // The real mouse moved or clicked: it's in charge again.
-            if (active && realMouse != null && (realMouse.delta.ReadValue().sqrMagnitude > 4f || realMouse.leftButton.wasPressedThisFrame || realMouse.rightButton.wasPressedThisFrame))
+            if (active && !IgnoreRealMouse && realMouse != null && (realMouse.delta.ReadValue().sqrMagnitude > 4f || realMouse.leftButton.wasPressedThisFrame || realMouse.rightButton.wasPressedThisFrame))
                 SetActive(false);
 
+            // Any connected pad will do: the one being used this frame, else the current one.
+            Gamepad pad = null;
+            foreach (var g in Gamepad.all)
+                if (g.leftStick.ReadValue().sqrMagnitude > 0.04f || g.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.isPressed || b.wasReleasedThisFrame)) { pad = g; break; }
+            if (pad == null) pad = Gamepad.current;
             if (pad == null) { UpdateCursor(); return; }
             var stick = pad.leftStick.ReadValue();
             bool touched = stick.sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame);

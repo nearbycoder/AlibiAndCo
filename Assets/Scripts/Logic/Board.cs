@@ -281,7 +281,10 @@ namespace AlibiCo.Logic
 
         /// <summary>
         /// Who could an unknown card belong to? Paper beats people: only records and confirmed
-        /// identity cards can rule a candidate out, never somebody's word.
+        /// identity cards can rule a candidate out, never somebody's word. Every unlocked record
+        /// counts, pinned or still in the tray: the paper is on the desk either way, and an identity
+        /// is confirmed for good, so it mustn't depend on the order the player happens to pin
+        /// things in. (The validator searches with everything pinned; this keeps the game equal to it.)
         /// </summary>
         List<string> ComputeCandidates(CardDef c)
         {
@@ -289,12 +292,14 @@ namespace AlibiCo.Logic
             int from = BoardFrom(c), to = BoardTo(c);
             foreach (var who in c.Candidates)
             {
-                if (!Lanes.TryGetValue(who, out var evs)) continue;
+                if (!Lanes.ContainsKey(who)) continue;
                 bool ok = true;
-                foreach (var e in evs)
+                foreach (var r in Case.Cards)
                 {
-                    if (e.Hypothesis || e.Card == c) continue;
-                    if (!e.Card.IsRecord) continue;
+                    if (r == c || !r.IsRecord || r.Town || !Unlocked.Contains(r.Id) || Struck.Contains(r.Id)) continue;
+                    if (r.IsUnknown && !(Confirmed.TryGetValue(r.Id, out var owner) && owner == who)) continue;
+                    if (!r.IsUnknown && !r.Subjects.Contains(who)) continue;
+                    var e = new LaneEvent { Card = r, Lane = who, Location = r.Location, From = BoardFrom(r), To = BoardTo(r) };
                     if (!Compatible(e, c.Location, from, to)) { ok = false; break; }
                 }
                 if (ok) left.Add(who);

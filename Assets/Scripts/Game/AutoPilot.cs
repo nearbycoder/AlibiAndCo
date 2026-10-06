@@ -90,6 +90,7 @@ namespace AlibiCo
             void Fail(string why) { Debug.LogError("[AutoPilot] FAIL pad: " + why); ok = false; }
             pad = InputSystem.AddDevice<Gamepad>("TestPad");
             pad.MakeCurrent();
+            PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only step 8 hands over on purpose
             SaveData.UnlockAll = true;
             SaveData.Current.inProgress = null;
             var c = Cases.All[0];
@@ -191,6 +192,7 @@ namespace AlibiCo
             if (root.Flow != Flow.Closed) Fail("the incident drag didn't close the case");
 
             // 8. Moving the real mouse hands control back.
+            PadCursor.IgnoreRealMouse = false;
             if (Mouse.current != null && PadCursor.Active)
             {
                 var real = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m.name != "PadCursor");
