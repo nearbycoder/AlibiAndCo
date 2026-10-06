@@ -196,7 +196,7 @@ Nobody died, but the boat was lost. Someone spent at least 6 minutes jamming the
   his "never left the ballroom" (and his wife's echo of it) collapse. **Culprit: the man who
   reported his own boat lost.**
 
-### Case 4 — "Remember, Remember" (the finale, about 15–20 min; added in round 2)
+### Case 4 — "Remember, Remember" (about 15–20 min; added in improvement round 1)
 *Wednesday 5 November, Bonfire Night.* The Lifeboat Appeal box was taken from the Mayor's
 parlour at the Town Hall, locked away at 20:50 and found gone at 21:40, both **by the Town Hall
 clock**. Forcing the door and the bureau took 5 minutes.

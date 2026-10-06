@@ -1,4 +1,4 @@
-# Alibi & Co. — Improvement plan (round 2)
+# Alibi & Co. — Improvement plan
 
 Written 6 October 2026 on the `improvements` branch, after a baseline run of every automated check
 and a look at captures at 1920×1080 and 1280×720. Spoilers for the cases are kept to what the
@@ -64,7 +64,7 @@ Risk covers regressions, unverifiable results or design uncertainty.
 | 9 | **Audio checked by ear** (mix, rain against music, the lock-break peak) | Medium | S | Needs a human listener. Owner task |
 | 10 | **Small polish**: the last "NEW EVIDENCE" memo stays on the desk behind the case-closed panel, and the case-files row is a fixed 1560 px with each folder stretched to fit, so a fourth folder would lose about a quarter of its width | Low | S | Low |
 
-## Proposed scope for this round
+## Round 1 scope
 
 I'd implement items 1–4 in that order. Item 4 is a go/no-go spike: if the browser build doesn't
 hold up, it's dropped with a written reason, not forced. Items 5–10 wait for this round to land or
@@ -143,7 +143,7 @@ document why in this file and leave the code paths out.
 **Verify:** serve the build locally and drive it in a browser preview, taking screenshots of the
 title, a pinned board and the case-closed panel.
 
-## Round 2 results (6 Oct 2026)
+## Round 1 results (6 Oct 2026)
 
 All four items landed on `improvements`. Screenshots are in `docs/media/improvements/`
 (`r1-*` readability, `r2-*` case 4, `r4-*` web).
@@ -194,3 +194,67 @@ Honest gaps:
 - **Licence:** the README says none has been chosen. That's fine for "all rights reserved", but
   worth deciding before shipping more platforms.
 - **Audio by ear:** the mix still needs one listen on headphones and on speakers.
+
+## Round 2 scope (6 Oct 2026, branch `improvements-2`)
+
+Picked from the ranked list and the gaps round 1 left, in the order I'll build them. The riskiest
+item (a fifth case) goes last so the others land regardless. Screenshots go to
+`docs/media/improvements/round2/`.
+
+### R2-1. Chip legibility on small screens (round 1's open gap)
+
+Case 3's chips at 1280×720 have about 10 px times but 6–7 px place and source lines. The fix:
+first add a measurement, then make the second and third lines larger and darker inside the
+chip, and give person lanes more of the board's height (the TOWN lane is taller than its one
+row of chips needs).
+
+**Acceptance:** autoplay logs the smallest on-screen em height of any chip's place and source
+line per case (a new `[Legibility]` line). At 1280×720 and Large (the default at that height),
+case 3's smallest line is at least 25% larger than the baseline measured with the same code
+before the change. No chips overlap and nothing else regresses in the 1080p and 720p captures.
+**Verify:** autoplay at 1280×720 with `-alibiTextSize 1`, before and after; side-by-side crops.
+
+### R2-2. Case seals: something to replay for (ranked #6), plus the stray memo (#10)
+
+Each case awards three seals: **Clean** (no badge lost), **Unaided** (no hint), and **Swift**
+(under the case's par time, a new optional `par` field in the case JSON). The case-closed
+panel shows which seals this run earned, and the case files show the best ever. The last
+"NEW EVIDENCE" memo no longer lingers behind the case-closed panel.
+
+**Acceptance:** a clean autoplay earns all three seals. A run that asks for a hint doesn't earn
+Unaided. Seals persist in the save, and old saves without seals load fine. The validator still
+passes (the logic change is only parsing `par`).
+**Verify:** autoplay (seals logged per case), a hint-using step in the input test, EditMode tests,
+and screenshots of the closed panel and the case files.
+
+### R2-3. Gamepad and Steam Deck controls (ranked #7)
+
+A virtual cursor on the left stick (with acceleration) drives the existing mouse code through a
+virtual mouse device, drawn as a software cursor while the pad is in use. A is click and hold
+to drag. B sends a card back (on the board) or acts as back/close (in menus). X is a hint, Y the
+notebook, Start pauses, and LB/RB jump the cursor to the previous or next card. When the pad is
+in use, the controls strip and the pause-menu card show pad buttons. Touching the mouse hands
+control back.
+
+**Acceptance:** a new `-alibiPadTest` run drives case 1 from start to CASE CLOSED using only a
+simulated gamepad: pins by A-drag, jumps with RB, sends a card back with B, confronts through
+the actions panel, uses Start, Y and X, and drags the incident. It reports PASS with 0 errors.
+The mouse input test and autoplay still pass. Screenshots show the software cursor and the pad
+prompts.
+**Verify:** `-alibiPadTest` from the built player, plus the existing suites. **Not verifiable
+here:** a physical controller and a real Steam Deck.
+
+### R2-4. Case 5, if the validator can prove it
+
+A new case built on an idea the first four don't use: a **chain of clocks**, where a corrected
+clock becomes trusted and can correct another one. It uses existing portraits and generated
+assets only.
+
+**Acceptance:** the validator says AIRTIGHT, and the case needs a two-step clock chain (no
+solution corrects the second clock directly from a reference). Autoplay 5/5, EditMode tests
+updated, case files fit five folders, and the README and PLAN are updated. **If it isn't airtight
+by the end of the round, it doesn't ship.**
+**Verify:** `Tools/validate.sh --verbose`, EditMode tests, autoplay at 1080p and 720p, and screenshots.
+
+Deferred again: Windows builds (owner installs the module), audio by ear (needs a person),
+Daily Docket (too risky for one round), hosting, signing and licences (owner decisions).
