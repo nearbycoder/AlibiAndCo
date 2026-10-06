@@ -1,0 +1,7 @@
+<!-- Keep classes that Unity creates by name at runtime, which the WebGL code stripper can't see.
+     GameObject.CreatePrimitive(Quad) adds a MeshCollider (Stage.cs builds the cork board that way). -->
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+  </assembly>
+</linker>

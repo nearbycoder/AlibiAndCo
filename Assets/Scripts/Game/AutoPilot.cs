@@ -23,7 +23,8 @@ namespace AlibiCo
         public void Run(string outDir, bool withCapture, bool inputTest = false, bool padTest = false)
         {
             dir = outDir;
-            capture = withCapture;
+            // In a browser there's no disk to write screenshots to; Tools/webtest.mjs takes them instead.
+            capture = withCapture && Application.platform != RuntimePlatform.WebGLPlayer;
             Directory.CreateDirectory(dir);
             Application.logMessageReceived += OnLog;
             StartCoroutine(padTest ? PadTest() : inputTest ? InputTest() : Go());

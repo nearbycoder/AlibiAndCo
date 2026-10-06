@@ -20,8 +20,12 @@
     <script src="Build/{{{ LOADER_FILENAME }}}"></script>
     <script>
       const canvas = document.querySelector("#unity-canvas");
+      // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest or ?savecheck become the player's
+      // command-line flags. Nothing else in the address is passed on.
+      const query = new URLSearchParams(location.search);
+      const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", savecheck: "-alibiSaveCheck" };
       createUnityInstance(canvas, {
-        arguments: [],
+        arguments: Object.keys(flags).filter((k) => query.has(k)).map((k) => flags[k]),
         dataUrl: "Build/{{{ DATA_FILENAME }}}",
         frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
 #if USE_WASM

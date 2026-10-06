@@ -130,9 +130,12 @@ namespace AlibiCo
         /// </summary>
         IEnumerator SaveCheck(string dir)
         {
+            // In a browser the save belongs to the page's origin (a test server's origin in
+            // Tools/webtest.mjs), so there's nothing to redirect.
+            bool web = Application.platform == RuntimePlatform.WebGLPlayer;
             var home = Environment.GetEnvironmentVariable("HOME") ?? "~";
             var real = System.IO.Path.Combine(home, ".config", "unity3d");
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")) || SaveData.Folder.StartsWith(real))
+            if (!web && (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")) || SaveData.Folder.StartsWith(real)))
             {
                 Debug.LogError("[SaveCheck] FAIL: refusing to run against the real save folder " + SaveData.Folder + " (set XDG_CONFIG_HOME)");
                 Quit();
@@ -143,10 +146,10 @@ namespace AlibiCo
             Debug.Log($"[SaveCheck] folder={SaveData.Folder} loadedFrom={SaveData.LoadedFrom} solved=[{solved}] inProgress={save.inProgress?.caseId ?? "none"}");
             ShowTitle(true);
             yield return new WaitForSecondsRealtime(3f);
-            Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "title.png"), Screen.width, Screen.height));
+            if (!web) Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "title.png"), Screen.width, Screen.height));
             ShowSelect();
             yield return new WaitForSecondsRealtime(2f);
-            Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "case_files.png"), Screen.width, Screen.height));
+            if (!web) Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "case_files.png"), Screen.width, Screen.height));
             SaveData.Write();
             var files = System.IO.Directory.GetFiles(SaveData.Folder).Select(System.IO.Path.GetFileName).OrderBy(f => f);
             Debug.Log("[SaveCheck] files after one save: " + string.Join(", ", files));
