@@ -140,7 +140,8 @@ namespace AlibiCo
             if (snap == null || snap.caseId != c.Id)
             {
                 Deal();
-                Tween.Delay(1.1f, () => PostCaseMemo("start", null));
+                // Guarded: a window resized in the first second rebuilds the board and ends this session.
+                Tween.Delay(1.1f, () => { if (this) PostCaseMemo("start", null); });
             }
             else if (!quiet) Memos.Post(MemoKind.Notice, "CASE REOPENED", "Right where you left it. Every pin is still in place.");
             else if (Memos.History.Count > 0) Memos.Reshow(Memos.History[Memos.History.Count - 1]);
@@ -1036,6 +1037,7 @@ namespace AlibiCo
             View.PreviewIncident(Board, lane);
             Tween.Delay(0.35f, () =>
             {
+                if (!this) return;
                 Sfx.Play("pin", 1f, 0.8f);
                 Sfx.Play("lock_break", 0.8f);
                 stage.Shake(0.14f, 0.3f);
@@ -1060,6 +1062,7 @@ namespace AlibiCo
             {
                 Tween.Delay(0.35f, () =>
                 {
+                    if (!this) return;
                     Sfx.Play("conflict", 0.75f);
                     stage.Shake(0.07f, 0.25f);
                 });
