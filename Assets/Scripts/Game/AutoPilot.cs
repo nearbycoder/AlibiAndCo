@@ -138,18 +138,32 @@ namespace AlibiCo
             while (root.Flow != Flow.Closed && t < 90) { t += Clock.Dt; yield return null; }
             yield return Wait(3f);
             var btn = root.Screens.ButtonScreen("btn_copy_result");
+            bool web = Application.platform == RuntimePlatform.WebGLPlayer;
             if (btn == null) { Debug.LogError("[AutoPilot] FAIL share: no Copy result button"); ok = false; }
+            else if (web)
+            {
+                // In a browser the page's clipboard wants a real click: Tools/webtest.mjs clicks here.
+                Debug.Log($"[Share] waiting for a click at {btn.Value.x:0},{btn.Value.y:0} of {UnityEngine.Screen.width}x{UnityEngine.Screen.height}");
+                for (float w = 0; w < 60f && Clipboard.Last == null; w += Time.unscaledDeltaTime) yield return null;
+            }
             else yield return Click(btn.Value);
             yield return Wait(0.6f);
             yield return Shot("share_copied");
             Docket.TryParseId(c.Id, out var day);
             var want = Docket.ShareLine(day, s.Badges, s.Elapsed, s.SealClean, s.SealUnaided, s.SealSwift);
-            var sys = GUIUtility.systemCopyBuffer;
             Debug.Log($"[Share] expected: {want}");
-            Debug.Log($"[Share] Unity's clipboard reads back: {sys}");
-            if (sys != want) { Debug.LogError("[AutoPilot] FAIL share: the clipboard doesn't hold the line"); ok = false; }
-            Debug.Log("[Share] holding the clipboard for 8 s");
-            yield return new WaitForSecondsRealtime(8f);
+            if (web)
+            {
+                if (Clipboard.Last != want) { Debug.LogError("[AutoPilot] FAIL share: the click didn't copy the line"); ok = false; }
+            }
+            else
+            {
+                var sys = GUIUtility.systemCopyBuffer;
+                Debug.Log($"[Share] Unity's clipboard reads back: {sys}");
+                if (sys != want) { Debug.LogError("[AutoPilot] FAIL share: the clipboard doesn't hold the line"); ok = false; }
+                Debug.Log("[Share] holding the clipboard for 8 s");
+                yield return new WaitForSecondsRealtime(8f);
+            }
             if (errors > 0) ok = false;
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} share check");
             Debug.Log($"[AutoPilot] done: share check, {errors} errors");

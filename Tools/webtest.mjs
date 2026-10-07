@@ -3,9 +3,14 @@
 //
 // Serves Builds/WebGL on 127.0.0.1, then in each engine:
 //   autoplay  ?autoplay: every case played to CASE CLOSED through the real session code
-//   pad       ?padtest: case 1 with a simulated gamepad only
+//   pad       ?padtest: case 1 with a simulated gamepad only, then the docket drawer
+//   keys      ?keystest: the same with simulated key presses only
+//   share     ?sharecheck: today's docket solved, then a real (trusted) mouse click on Copy result,
+//             and the page's clipboard read back
 //   reload    ?savecheck twice: the save written on the first load must come back after a reload
-// and records the load time, frame rate, WebGL renderer, console errors and periodic screenshots.
+// After autoplay it also checks the last docket result handed to the page's clipboard (pressed in
+// code, so without a user gesture: Firefox refuses it, which only the share run can show).
+// It records the load time, frame rate, WebGL renderer, console errors and periodic screenshots.
 //
 //   node Tools/webtest.mjs [--engine chromium,firefox,webkit|all] [--only autoplay,pad,reload]
 //                          [--size 1920x1080] [--out Captures/webtest]
@@ -27,7 +32,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf("--" + name); return i >= 0 && i + 1 < args.length ? args[i + 1] : def; };
 const engines = opt("engine", "all") === "all" ? ["chromium", "firefox", "webkit"] : opt("engine").split(",");
-const only = opt("only", "autoplay,pad,reload").split(",");
+const only = opt("only", "autoplay,pad,keys,share,reload").split(",");
 const [W, H] = opt("size", "1920x1080").split("x").map(Number);
 const OUT = path.resolve(ROOT, opt("out", "Captures/webtest"));
 const WEB = path.join(ROOT, "Builds/WebGL");
@@ -94,8 +99,12 @@ async function launch(engine) {
 
 // Playwright and puppeteer differ in a few calls; these keep run() engine-agnostic.
 const puppet = (engine) => engine === "firefox";
+let base;
 async function newContext(browser, engine) {
-  return puppet(engine) ? browser.createBrowserContext() : browser.newContext({ viewport: { width: W, height: H } });
+  if (puppet(engine)) return browser.createBrowserContext();
+  const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+  if (engine === "chromium") await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
+  return ctx;
 }
 
 async function run(browser, engine, mode, base, context) {
@@ -113,12 +122,12 @@ async function run(browser, engine, mode, base, context) {
   page.on("console", (m) => {
     const t = m.text();
     append(`[${m.type()}] ${t}`);
-    if (/\[(AutoPilot|SaveCheck|Save|Seals|Conflicts)\]/.test(t)) lines.push(t);
+    if (/\[(AutoPilot|SaveCheck|Save|Seals|Conflicts|Share)\]/.test(t)) lines.push(t);
     if (m.type() === "error") errors.push(t);
   });
   page.on("pageerror", (e) => { append("[pageerror] " + e.message); errors.push("pageerror: " + e.message); });
 
-  const query = mode === "autoplay" ? "?autoplay" : mode === "pad" ? "?padtest" : "?savecheck";
+  const query = mode === "autoplay" ? "?autoplay" : mode === "pad" ? "?padtest" : mode === "keys" ? "?keystest" : mode === "share" ? "?sharecheck" : "?savecheck";
   const t0 = Date.now();
   await page.goto(base + "/" + query, { waitUntil: "load" });
   if (puppet(engine)) await page.waitForFunction(() => !document.querySelector("#loader"), { timeout: 180000 });
@@ -131,12 +140,27 @@ async function run(browser, engine, mode, base, context) {
     return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
   });
 
-  const doneRe = mode === "autoplay" ? /\[AutoPilot\] done/ : mode === "pad" ? /\[AutoPilot\] (PASS|FAIL) pad test/ : /\[SaveCheck\] (done|FAIL)/;
+  const doneRe = mode === "autoplay" ? /\[AutoPilot\] done/ : mode === "pad" ? /\[AutoPilot\] (PASS|FAIL) pad test/
+    : mode === "keys" ? /\[AutoPilot\] (PASS|FAIL) keys test/ : mode === "share" ? /\[AutoPilot\] (PASS|FAIL) share check/
+    : /\[SaveCheck\] (done|FAIL)/;
   const limit = (mode === "autoplay" ? 40 : 15) * 60000 * (engine === "webkit" ? 2 : 1);
   let shot = 0, fps = [];
   const start = Date.now();
+  let clicked = false;
   while (!lines.some((l) => doneRe.test(l)) && Date.now() - start < limit) {
-    await sleep(mode === "reload" ? 1000 : 15000);
+    const wait = mode === "share" && !clicked ? lines.map((l) => /waiting for a click at (\d+),(\d+) of (\d+)x(\d+)/.exec(l)).find(Boolean) : null;
+    if (wait) {
+      // Unity's screen point (origin bottom left, in canvas pixels) to the page's CSS pixels.
+      const [, x, y, sw, sh] = wait.map(Number);
+      const r = await page.evaluate(() => { const b = document.querySelector("canvas").getBoundingClientRect(); return { left: b.left, top: b.top, width: b.width, height: b.height }; });
+      await page.mouse.move(r.left + x * r.width / sw, r.top + (sh - y) * r.height / sh);
+      await sleep(300);
+      await page.mouse.down();
+      await sleep(120);   // a few frames, so the game sees the press and the release separately
+      await page.mouse.up();
+      clicked = true;
+    }
+    await sleep(mode === "reload" || mode === "share" ? 1000 : 15000);
     if (mode !== "reload" && shot < 80) await page.screenshot({ path: path.join(dir, `${String(++shot).padStart(2, "0")}.jpg`), type: "jpeg", quality: 70 });
     if (mode === "autoplay" && fps.length < 6) {
       fps.push(await page.evaluate(() => new Promise((ok) => {
@@ -148,18 +172,32 @@ async function run(browser, engine, mode, base, context) {
   }
   const finished = lines.some((l) => doneRe.test(l));
   if (mode === "reload") await sleep(3000);   // let the IndexedDB sync land before the page goes
+  let clipboard;
+  if (mode === "autoplay" || mode === "share") {
+    await sleep(1000);   // the clipboard write settles asynchronously
+    clipboard = await page.evaluate(async () => {
+      const r = { handed: window.alibiCopied || null, status: window.alibiCopyStatus || null };
+      try { r.read = await navigator.clipboard.readText(); } catch (e) { r.read = "unreadable: " + e.name; }
+      return r;
+    });
+    const shared = lines.filter((l) => /share line|\[Share\] expected/.test(l)).pop() || "";
+    // A real click must reach the clipboard; a press in code only has to hand the line over.
+    clipboard.ok = !!clipboard.handed && shared.includes(clipboard.handed)
+      && (mode === "autoplay" || /^copied/.test(clipboard.status || ""))
+      && (engine !== "chromium" || clipboard.read === clipboard.handed);
+  }
   await page.screenshot({ path: path.join(dir, "final.jpg"), type: "jpeg", quality: 80 });
   await page.close();
   if (own) await context.close();
   return { engine, mode, loadMs, renderer, finished, minutes: +((Date.now() - start) / 60000).toFixed(1),
-    fps: fps.map((f) => Math.round(f)), errors: errors.slice(0, 20), errorCount: errors.length,
+    fps: fps.map((f) => Math.round(f)), clipboard, errors: errors.slice(0, 20), errorCount: errors.length,
     results: lines.filter((l) => /PASS|FAIL|done|loadedFrom|files after/.test(l)) };
 }
 
 // ---------------------------------------------------------------- main
 fs.mkdirSync(OUT, { recursive: true });
 const server = await serve();
-const base = `http://127.0.0.1:${server.address().port}`;
+base = `http://127.0.0.1:${server.address().port}`;
 const summary = { build: `${(buildSize() / 1048576).toFixed(1)} MB in Builds/WebGL/Build`, viewport: `${W}x${H}`, runs: [] };
 console.log(summary.build);
 try {
@@ -190,6 +228,6 @@ try {
   fs.writeFileSync(path.join(OUT, `summary-${engines.join("+")}-${only.join("+")}.json`), JSON.stringify(summary, null, 2));
 }
 const bad = summary.runs.filter((r) => r.error || !r.finished || r.errorCount > 0
-  || (r.mode === "reload" && !r.persisted) || r.results?.some((l) => /FAIL/.test(l)));
+  || (r.mode === "reload" && !r.persisted) || ((r.mode === "autoplay" || r.mode === "share") && !r.clipboard?.ok) || r.results?.some((l) => /FAIL/.test(l)));
 console.log(bad.length ? `webtest: ${bad.length} run(s) failed` : "webtest: all runs passed");
 process.exit(bad.length ? 1 : 0);
