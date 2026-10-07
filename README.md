@@ -63,7 +63,7 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Esc** | Pause: resume, restart, case files, settings, quit |
 | **F11** / **F12** | Toggle fullscreen / save a screenshot |
 
-It's played with a mouse and keyboard, or a gamepad:
+It's played with a mouse and keyboard, a gamepad, or the keyboard alone:
 
 | Gamepad | Action |
 |---|---|
@@ -73,6 +73,16 @@ It's played with a mouse and keyboard, or a gamepad:
 | **B** | Send a pinned card back to the tray; back or close in menus |
 | **X** / **Y** | Ask Connie for a hint / the notebook |
 | **Start** | Pause and resume |
+
+Or with the keyboard alone:
+
+| Keyboard | Action |
+|---|---|
+| **Arrow keys** | Move the cursor (slow at first, faster the longer they're held) |
+| **Q / E** | Jump to the previous / next card (or button, in menus) |
+| **Enter** | Click: pin a card, open a statement, press a button. **Hold Enter and steer** with the arrows to drag |
+| **Backspace** | Send a pinned card back to the tray; back or close in menus |
+| **Tab**, **H**, **Space**, **Esc** | The notebook, a hint, skip a memo, pause (as above) |
 
 Touching the mouse hands control straight back. There's no touch support.
 

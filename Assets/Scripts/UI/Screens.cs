@@ -690,11 +690,15 @@ namespace AlibiCo
 
         const string MouseKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>right-click</b> sends a card back   ·   <b>Esc</b> menu and controls";
         const string PadKeys = "<b>[Y]</b> notebook   ·   <b>[X]</b> hint   ·   <b>[B]</b> sends a card back   ·   <b>[Start]</b> menu and controls";
+        const string KeyKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Backspace</b> sends a card back   ·   <b>Esc</b> menu and controls";
 
         void TickHelp()
         {
             string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
-            string keys = PadCursor.Active ? PadKeys : MouseKeys;
+            var using_ = PadCursor.Using;
+            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadKeys : MouseKeys;
+            // The pause menu's controls list follows whatever the player picks up while it's open.
+            if (controlsBody != null && pause != null && pause.gameObject.activeSelf && using_ != controlsShown) { controlsShown = using_; controlsBody.text = ControlsText(using_); }
             if (helpKeys.text != keys) helpKeys.text = keys;
             if (tip != null && tip != helpShown && helpGroup.alpha < 0.05f) { helpShown = tip; helpText.text = tip; }
             bool show = tip != null && tip == helpShown;
@@ -817,7 +821,8 @@ namespace AlibiCo
         public void ShowPause()
         {
             if (pause == null) BuildPause();
-            if (controlsBody != null) controlsBody.text = ControlsText(PadCursor.Active);
+            controlsShown = PadCursor.Using;
+            if (controlsBody != null) controlsBody.text = ControlsText(controlsShown);
             notebook?.Hide();
             Show(pause);
             HideActions();
@@ -851,10 +856,22 @@ namespace AlibiCo
 
         /// <summary>The full controls list, next to the pause menu (the board itself only shows one tip at a time).</summary>
         TextMeshProUGUI controlsBody;
+        PadCursor.Pointer controlsShown;
 
-        static string ControlsText(bool pad)
+        static string ControlsText(PadCursor.Pointer pointer)
         {
-            var rows = pad ? new[]
+            var rows = pointer == PadCursor.Pointer.Keys ? new[]
+            {
+                ("Arrow keys", "move the cursor (hold to speed up)"),
+                ("Q  ·  E", "jump to the previous / next card"),
+                ("Enter on a card", "pin it; on a pinned statement, Confront"),
+                ("Hold Enter and steer", "drag: onto a line, onto a card to link"),
+                ("Backspace", "send a pinned card back; back in menus"),
+                ("Hold Enter on the incident", "accuse: steer it to the one line it fits"),
+                ("Tab  ·  H", "notebook  ·  Connie's hint"),
+                ("Space  ·  Esc", "skip a memo  ·  pause, resume"),
+                ("Move the mouse", "hands control back to the mouse"),
+            } : pointer == PadCursor.Pointer.Pad ? new[]
             {
                 ("Left stick  ·  D-pad", "move the cursor (D-pad for fine steps)"),
                 ("[LB]  [RB]", "jump to the previous / next card"),
@@ -877,6 +894,7 @@ namespace AlibiCo
                 ("Tab  ·  H or F1", "notebook  ·  Connie's hint"),
                 ("Space or click", "skip a memo"),
                 ("F11  ·  F12", "fullscreen  ·  screenshot"),
+                ("Arrows, Q / E, Enter", "play with the keyboard alone"),
             };
             var sb = new System.Text.StringBuilder();
             foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b>\n<color=#B9AE98>").Append(v).Append("</color>\n");
@@ -890,7 +908,7 @@ namespace AlibiCo
             card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 0), new Vector2(500, 620));
             var head = UiKit.Text(card.transform, "Controls", Art.Display, 44, Cream, TextAlignmentOptions.Center);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(0, 64));
-            var body = UiKit.Text(card.transform, ControlsText(false), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
+            var body = UiKit.Text(card.transform, ControlsText(PadCursor.Pointer.Mouse), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
             controlsBody = body;
             body.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -36), new Vector2(-70, -140));
             body.lineSpacing = 2;

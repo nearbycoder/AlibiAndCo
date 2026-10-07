@@ -8,24 +8,32 @@ using UnityEngine.UI;
 namespace AlibiCo
 {
     /// <summary>
-    /// Gamepad play. The game is built around a mouse, so a pad drives a virtual mouse device:
-    /// everything that reads Mouse.current (dragging, hovering, the UI) just works. The left stick
-    /// moves a software cursor, A is the left button, LB/RB jump to the previous/next card (or
-    /// button, in menus), B sends a card back on the board and means "back" elsewhere, X asks for a
-    /// hint, Y opens the notebook and Start pauses. Touching the real mouse hands control back.
+    /// Gamepad and keyboard play. The game is built around a mouse, so a pad (or the keyboard)
+    /// drives a virtual mouse device: everything that reads Mouse.current (dragging, hovering, the
+    /// UI) just works. The left stick or the arrow keys move a software cursor, A or Enter is the
+    /// left button, LB/RB or Q/E jump to the previous/next card (or button, in menus), B or
+    /// Backspace sends a card back on the board and means "back" elsewhere, X asks for a hint, Y
+    /// opens the notebook and Start pauses (the keyboard keeps H, Tab and Esc for those). Touching
+    /// the real mouse hands control back.
     /// </summary>
     public sealed class PadCursor : MonoBehaviour
     {
+        public enum Pointer { Mouse, Pad, Keys }
+
         public static PadCursor I { get; private set; }
-        /// <summary>The pad is the active pointer (prompts show pad buttons, the cursor is drawn).</summary>
+        /// <summary>The pad or the keyboard is the active pointer (the cursor is drawn).</summary>
         public static bool Active => I != null && I.active;
+        /// <summary>What's steering right now, for the prompts.</summary>
+        public static Pointer Using => !Active ? Pointer.Mouse : I.keys ? Pointer.Keys : Pointer.Pad;
         /// <summary>Automation only: the shared desktop's real pointer mustn't take over mid-test.</summary>
         public static bool IgnoreRealMouse;
 
         Mouse virtualMouse, realMouse;
         Vector2 pos;
-        bool active;
+        bool active, keys;
         bool rightPulse;
+        Vector2 arrowsHeld;
+        float arrowsTime;
         RectTransform cursor;
         float hideTimer;
 
@@ -60,37 +68,62 @@ namespace AlibiCo
             foreach (var g in Gamepad.all)
                 if (g.leftStick.ReadValue().sqrMagnitude > 0.04f || g.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.isPressed || b.wasReleasedThisFrame)) { pad = g; break; }
             if (pad == null) pad = Gamepad.current;
-            if (pad == null) { UpdateCursor(); return; }
-            var stick = pad.leftStick.ReadValue();
-            bool touched = stick.sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame);
-            if (touched && !active) SetActive(true);
+            var kb = Keyboard.current;
+            var arrows = Vector2.zero;
+            if (kb != null)
+                arrows = new Vector2((kb.rightArrowKey.isPressed ? 1 : 0) - (kb.leftArrowKey.isPressed ? 1 : 0), (kb.upArrowKey.isPressed ? 1 : 0) - (kb.downArrowKey.isPressed ? 1 : 0));
+            bool padTouched = pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame));
+            bool keysTouched = kb != null && (arrows != Vector2.zero || kb.qKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
+                                              kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame);
+            if (padTouched) { keys = false; SetActive(true); }
+            else if (keysTouched) { keys = true; SetActive(true); }
             if (!active) { UpdateCursor(); return; }
 
             float dt = Clock.Dt;
-            // Fine control near the centre, quick across the screen at full tilt.
-            float mag = Mathf.Clamp01((stick.magnitude - 0.12f) / 0.88f);
-            if (mag > 0)
+            var root = GameRoot.I;
+            bool left = false;
+            if (pad != null)
             {
-                float speed = Screen.height * Mathf.Lerp(0.18f, 1.25f, mag * mag);
-                pos += stick.normalized * speed * dt;
+                var stick = pad.leftStick.ReadValue();
+                // Fine control near the centre, quick across the screen at full tilt.
+                float mag = Mathf.Clamp01((stick.magnitude - 0.12f) / 0.88f);
+                if (mag > 0)
+                {
+                    float speed = Screen.height * Mathf.Lerp(0.18f, 1.25f, mag * mag);
+                    pos += stick.normalized * speed * dt;
+                }
+                var dpad = pad.dpad.ReadValue();
+                if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * dt;
+
+                if (pad.rightShoulder.wasPressedThisFrame) Jump(+1);
+                if (pad.leftShoulder.wasPressedThisFrame) Jump(-1);
+                if (root != null)
+                {
+                    if (pad.startButton.wasPressedThisFrame) root.BackOrPause(true);
+                    if (pad.buttonEast.wasPressedThisFrame && !root.PadBack()) rightPulse = true;
+                    if (pad.buttonNorth.wasPressedThisFrame || pad.selectButton.wasPressedThisFrame) root.PadNotebook();
+                    if (pad.buttonWest.wasPressedThisFrame) root.PadHint();
+                }
+                left |= pad.buttonSouth.isPressed;
             }
-            var dpad = pad.dpad.ReadValue();
-            if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * dt;
+            if (kb != null)
+            {
+                // The arrows start slow for fine steps and speed up the longer they're held; turning resets that.
+                if (arrows != arrowsHeld) { arrowsHeld = arrows; arrowsTime = 0; }
+                if (arrows != Vector2.zero)
+                {
+                    arrowsTime += dt;
+                    float speed = Screen.height * Mathf.Lerp(0.2f, 1.1f, Mathf.Clamp01((arrowsTime - 0.15f) / 0.9f));
+                    pos += arrows.normalized * speed * dt;
+                }
+                if (kb.eKey.wasPressedThisFrame) Jump(+1);
+                if (kb.qKey.wasPressedThisFrame) Jump(-1);
+                if ((kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame) && root != null && !root.PadBack()) rightPulse = true;
+                left |= kb.enterKey.isPressed || kb.numpadEnterKey.isPressed;
+            }
             pos = new Vector2(Mathf.Clamp(pos.x, 1, Screen.width - 2), Mathf.Clamp(pos.y, 1, Screen.height - 2));
 
-            if (pad.rightShoulder.wasPressedThisFrame) Jump(+1);
-            if (pad.leftShoulder.wasPressedThisFrame) Jump(-1);
-
-            var root = GameRoot.I;
-            if (root != null)
-            {
-                if (pad.startButton.wasPressedThisFrame) root.BackOrPause(true);
-                if (pad.buttonEast.wasPressedThisFrame && !root.PadBack()) rightPulse = true;
-                if (pad.buttonNorth.wasPressedThisFrame || pad.selectButton.wasPressedThisFrame) root.PadNotebook();
-                if (pad.buttonWest.wasPressedThisFrame) root.PadHint();
-            }
-
-            Send(pad.buttonSouth.isPressed, rightPulse);
+            Send(left, rightPulse);
             rightPulse = false;
             UpdateCursor();
         }
@@ -127,7 +160,7 @@ namespace AlibiCo
 
         // ------------------------------------------------------------------ jumping between targets
 
-        /// <summary>LB/RB: the previous/next card on the desk and board, or button in a menu.</summary>
+        /// <summary>LB/RB (Q/E): the previous/next card on the desk and board, or button in a menu.</summary>
         void Jump(int dir)
         {
             var targets = Targets();

@@ -1154,18 +1154,23 @@ namespace AlibiCo
         public string CoachTip()
         {
             if (Solved || Board == null) return null;
-            bool pad = PadCursor.Active;
+            var using_ = PadCursor.Using;
+            bool pad = using_ == PadCursor.Pointer.Pad, keys = using_ == PadCursor.Pointer.Keys;
             if (!SaveData.Learned("pin") && Board.TrayCards.Any())
                 return pad ? "<b>[A]</b> on a card pins it   ·   hold <b>[A]</b> and steer to drag   ·   <b>[LB] [RB]</b> jump between cards"
+                     : keys ? "<b>Enter</b> on a card pins it   ·   hold <b>Enter</b> and use the <b>arrows</b> to drag   ·   <b>Q</b> / <b>E</b> jump between cards"
                            : "<b>Drag</b> a card onto the board, or <b>click</b> it   ·   <b>hover</b> any card to read it in full";
             if (!SaveData.Learned("confront") && Board.EstablishedConflicts.Any(k => k.A.Card.IsTestimony || k.B.Card.IsTestimony))
                 return pad ? "Point at a statement in the red, <b>[A]</b>, then <b>Confront</b> the witness"
+                     : keys ? "Move onto a statement in the red, <b>Enter</b>, then <b>Confront</b> the witness"
                            : "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
             if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))
                 return pad ? "One moment on two clocks? Hold <b>[A]</b> on one card and drop it <b>onto the other</b>"
+                     : keys ? "One moment on two clocks? Hold <b>Enter</b> on one card and steer it <b>onto the other</b>"
                            : "One moment on two clocks? Drop one card <b>onto the other</b> to link them";
             if (!SaveData.Learned("accuse") && Board.CheckAccusation(Case.Incident.Culprit).Ok)
                 return pad ? "Hold <b>[A]</b> on the <b>incident card</b> (top left) and drop it on the one line it fits"
+                     : keys ? "Hold <b>Enter</b> on the <b>incident card</b> (top left) and steer it onto the one line it fits"
                            : "Drag the <b>incident card</b> (top left) onto the one line it fits";
             return null;
         }

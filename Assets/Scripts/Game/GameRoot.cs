@@ -86,8 +86,9 @@ namespace AlibiCo
             int inputArg = Array.IndexOf(args, "-alibiInputTest");
             int padArg = Array.IndexOf(args, "-alibiPadTest");
             int midnightArg = Array.IndexOf(args, "-alibiMidnightTest");
+            int keysArg = Array.IndexOf(args, "-alibiKeysTest");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            bool automated = inputArg >= 0 || padArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             if (automated) SaveData.UseVolatile();
@@ -116,6 +117,12 @@ namespace AlibiCo
             {
                 string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
+                yield break;
+            }
+            if (keysArg >= 0)
+            {
+                string dir = keysArg + 1 < args.Length && !args[keysArg + 1].StartsWith("-") ? args[keysArg + 1] : "Captures/keys-test";
+                gameObject.AddComponent<AutoPilot>().Run(dir, true, false, false, true);
                 yield break;
             }
             if (midnightArg >= 0)

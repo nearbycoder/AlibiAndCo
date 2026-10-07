@@ -20,14 +20,14 @@ namespace AlibiCo
         int errors;
         int shot;
 
-        public void Run(string outDir, bool withCapture, bool inputTest = false, bool padTest = false)
+        public void Run(string outDir, bool withCapture, bool inputTest = false, bool padTest = false, bool keysTest = false)
         {
             dir = outDir;
             // In a browser there's no disk to write screenshots to; Tools/webtest.mjs takes them instead.
             capture = withCapture && Application.platform != RuntimePlatform.WebGLPlayer;
             Directory.CreateDirectory(dir);
             Application.logMessageReceived += OnLog;
-            StartCoroutine(padTest ? PadTest() : inputTest ? InputTest() : Go());
+            StartCoroutine(keysTest ? KeysTest() : padTest ? PadTest() : inputTest ? InputTest() : Go());
         }
 
         /// <summary>Every card in an established contradiction carries the shape marker, and no other card does.</summary>
@@ -378,6 +378,190 @@ namespace AlibiCo
             if (errors > 0) ok = false;
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, the docket drawer, mouse takes over)");
             Debug.Log($"[AutoPilot] done: pad test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
+        // ------------------------------------------------------------------ keyboard test
+
+        Keyboard keyboard;
+
+        void Keys(params Key[] held) => InputSystem.QueueStateEvent(keyboard, new KeyboardState(held));
+
+        /// <summary>Steer the cursor onto a screen point with the arrow keys, letting go near the end so it slows down.</summary>
+        IEnumerator KeyMoveTo(Vector2 target, bool enter = false)
+        {
+            bool eased = false;
+            var held = new System.Collections.Generic.List<Key>();
+            for (int i = 0; i < 1500; i++)
+            {
+                var d = target - PadCursor.I.Position;
+                // One frame of the slowest speed, so a low frame rate can't make the target unreachable.
+                float tol = Mathf.Max(4f, UnityEngine.Screen.height * 0.2f * Clock.Dt * 1.2f);
+                if (d.magnitude < tol) break;
+                held.Clear();
+                if (enter) held.Add(Key.Enter);
+                if (!eased && d.magnitude < UnityEngine.Screen.height * 0.08f) { eased = true; Keys(held.ToArray()); yield return null; continue; }
+                if (d.x > tol * 0.5f) held.Add(Key.RightArrow); else if (d.x < -tol * 0.5f) held.Add(Key.LeftArrow);
+                if (d.y > tol * 0.5f) held.Add(Key.UpArrow); else if (d.y < -tol * 0.5f) held.Add(Key.DownArrow);
+                Keys(held.ToArray());
+                yield return null;
+            }
+            if (enter) Keys(Key.Enter); else Keys();
+            yield return null;
+            yield return null;
+        }
+
+        IEnumerator KeyTap(Key k)
+        {
+            Keys(k);
+            yield return null;
+            yield return null;
+            Keys();
+            yield return Wait(0.25f);
+        }
+
+        IEnumerator KeyClick(Vector2 at)
+        {
+            yield return KeyMoveTo(at);
+            yield return KeyTap(Key.Enter);
+        }
+
+        IEnumerator KeyDrag(Vector2 from, Vector2 to)
+        {
+            yield return KeyMoveTo(from);
+            Keys(Key.Enter);
+            yield return Wait(0.15f);
+            yield return KeyMoveTo(to, true);
+            yield return Wait(0.2f);
+            Keys();
+            yield return Wait(0.4f);
+        }
+
+        /// <summary>
+        /// -alibiKeysTest: case 1 from the dealt tray to CASE CLOSED with nothing but (simulated) key
+        /// presses: arrows, Q/E, Enter, Backspace, Tab, H and Esc. Then on to the docket drawer.
+        /// </summary>
+        IEnumerator KeysTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL keys: " + why); ok = false; }
+            keyboard = InputSystem.AddDevice<Keyboard>("TestKeys");
+            keyboard.MakeCurrent();
+            PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only the last step hands over on purpose
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            var c = Cases.All[0];
+            root.StartCase(c, false);
+            yield return Wait(3f);
+            var s = root.Session;
+
+            // 1. A key hands the keyboard the pointer; E jumps onto a card.
+            yield return KeyTap(Key.E);
+            if (PadCursor.Using != PadCursor.Pointer.Keys) Fail("pressing E didn't hand the keyboard the cursor");
+            if (!s.CursorTargets().Any(t => (t - PadCursor.I.Position).magnitude < 40f)) Fail("E didn't land on a card");
+            yield return KeyTap(Key.E);
+            var afterE = PadCursor.I.Position;
+            yield return KeyTap(Key.Q);
+            if ((PadCursor.I.Position - afterE).magnitude < 2f) Fail("Q didn't jump back");
+            yield return Wait(0.6f);
+            yield return Shot("keys_jump_prompt");
+
+            // 2. Hold Enter and steer with the arrows: drag the first tray card onto the board.
+            var firstId = s.Board.TrayCards.First().Id;
+            yield return KeyDrag(TrayPoint(s.ViewOf(firstId)), Screen(Stage.I.BoardToWorld(Vector2.zero)));
+            yield return Wait(0.6f);
+            if (!s.Board.Pinned.Contains(firstId)) Fail($"an Enter-held drag didn't pin {firstId}");
+
+            // 3. Enter on each remaining tray card pins it.
+            foreach (var id in s.Board.TrayCards.Select(x => x.Id).ToList())
+            {
+                yield return KeyClick(TrayPoint(s.ViewOf(id)));
+                yield return Wait(0.5f);
+                if (!s.Board.Pinned.Contains(id)) Fail($"Enter didn't pin {id}");
+            }
+            yield return Wait(1f);
+
+            // 4. Backspace on a pinned card sends it back; Enter in the tray pins it again.
+            var back = s.ViewOf("a_tab");
+            yield return KeyMoveTo(Screen(back.transform.position));
+            yield return Wait(0.3f);
+            yield return KeyTap(Key.Backspace);
+            yield return Wait(0.7f);
+            if (s.Board.Pinned.Contains("a_tab")) Fail("Backspace didn't send the card back");
+            yield return KeyClick(TrayPoint(back));
+            yield return Wait(0.7f);
+            if (!s.Board.Pinned.Contains("a_tab")) Fail("Enter didn't re-pin the card");
+
+            // 5. Tab opens the notebook, Backspace closes it; H asks for a hint; Esc pauses, E reaches a button, Esc resumes.
+            yield return KeyTap(Key.Tab);
+            yield return Wait(0.6f);
+            if (!root.Screens.NotebookOpen) Fail("Tab didn't open the notebook");
+            yield return KeyTap(Key.Backspace);
+            yield return Wait(0.4f);
+            if (root.Screens.NotebookOpen) Fail("Backspace didn't close the notebook");
+            int memos = s.Memos.History.Count;
+            yield return KeyTap(Key.H);
+            yield return Wait(0.4f);
+            if (s.Memos.History.Count <= memos) Fail("H didn't ask for a hint");
+            yield return KeyTap(Key.Escape);
+            yield return Wait(0.8f);
+            if (!GameRoot.Paused) Fail("Esc didn't pause");
+            yield return KeyTap(Key.E);
+            var menuTargets = PadCursor.Targets();
+            if (menuTargets.Count < 5 || !menuTargets.Any(t => (t - PadCursor.I.Position).magnitude < 2f)) Fail($"E in the pause menu didn't land on a button ({menuTargets.Count} targets)");
+            yield return Shot("keys_pause_controls");
+            yield return KeyTap(Key.Escape);
+            yield return Wait(0.5f);
+            if (GameRoot.Paused) Fail("Esc didn't resume");
+
+            // 6. Confront each liar: Enter on the chip, then Enter on Confront.
+            foreach (var id in new[] { "a_claim", "c_claim", "b_claim" })
+            {
+                yield return KeyClick(Screen(s.ViewOf(id).transform.position));
+                yield return Wait(0.5f);
+                var btn = root.Screens.ConfrontButtonScreen();
+                if (btn == null) { Fail($"no Confront button for {id}"); continue; }
+                if (id == "a_claim") yield return Shot("keys_actions");
+                yield return KeyClick(btn.Value);
+                yield return Wait(2.6f);
+                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it");
+                foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
+                {
+                    yield return KeyClick(TrayPoint(s.ViewOf(nid)));
+                    yield return Wait(0.5f);
+                }
+            }
+            yield return Wait(1f);
+
+            // 7. Hold Enter on the incident card and steer it into the culprit's line.
+            var lane = s.View.LaneById[c.Incident.Culprit];
+            var fit = s.Board.Fits[c.Incident.Culprit];
+            var slot = Screen(Stage.I.BoardToWorld(new Vector2(s.View.TimeToX(fit.EarliestStart), lane.Track + 0.5f)));
+            yield return KeyDrag(Screen(s.IncidentView.transform.position), slot);
+            float t = 0;
+            while (root.Flow != Flow.Closed && t < 60) { t += Clock.Dt; yield return null; }
+            yield return Wait(2f);
+            yield return Shot("keys_closed");
+            if (root.Flow != Flow.Closed) Fail("the Enter-held incident drag didn't close the case");
+
+            // 8. On to the docket drawer, with Enter and Backspace.
+            yield return DrawerByHand("keys", p => KeyClick(p), () => KeyTap(Key.Backspace), Fail);
+
+            // 9. Moving the real mouse hands control back.
+            PadCursor.IgnoreRealMouse = false;
+            var real = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m.name != "PadCursor");
+            if (real != null && PadCursor.Active)
+            {
+                InputSystem.QueueStateEvent(real, new MouseState { position = new Vector2(200, 200), delta = new Vector2(40, 0) });
+                yield return null;
+                yield return null;
+                if (PadCursor.Active) Fail("moving the mouse didn't hand control back");
+            }
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} keys test (arrows, Q/E jumps, Enter-held drag, Enter pin, Backspace send back, Tab notebook, Backspace close, H hint, Esc pause, Enter confront, incident drag, the docket drawer, mouse takes over)");
+            Debug.Log($"[AutoPilot] done: keys test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
         }
