@@ -58,7 +58,7 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Right-click** a pinned card | Send it back to the tray |
 | **Drag the incident card** | Preview where the crime fits; drop it on a line to accuse |
 | **Tab** (or *Notes*) | The notebook: where the case stands, what each clock does, every memo and reply (scroll for older notes) |
-| **H** or **F1** | Ask Connie for a hint (the case is marked "with Connie's help") |
+| **H** or **F1** | Ask Connie for a hint (the case is marked "with Connie's help"); the cards it names wear a **CONNIE** tag |
 | **Space** or click | Skip a memo or the reconstruction |
 | **Esc** | Pause: resume, restart, case files, settings, quit |
 | **F11** / **F12** | Toggle fullscreen / save a screenshot |
@@ -74,6 +74,10 @@ touchscreen:
 | **B** | Send a pinned card back to the tray; back or close in menus |
 | **X** / **Y** | Ask Connie for a hint / the notebook (the **right stick** or **D-pad** scrolls its notes) |
 | **Start** | Pause and resume |
+
+The prompts name the pad in your hands: Xbox letters by default, **✕ ○ □ △, L1 R1, Options** on a
+PlayStation pad, and on a Switch Pro controller the Nintendo letters for the same places (the
+bottom button, which pins, reads **B**).
 
 Or with the keyboard alone:
 
@@ -150,7 +154,8 @@ candidate faces live as the records rule people out.
 
 **Connie, the notebook and hints.** Short typed memos from your mentor teach each idea the first
 time it comes up. The notebook (Tab) keeps every question, witness reply, clock and alibi status.
-Hints point at the next step, never the answer. When an honest witness stands firm and costs you a
+Hints point at the next step, never the answer, and the cards a hint names wear a brass **CONNIE**
+tag until the board changes (with a pad or the keyboard, the next jump lands on them). When an honest witness stands firm and costs you a
 badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name).
 
 **The accusation and the reconstruction.** Drag the incident across the board: it refuses the
@@ -162,8 +167,8 @@ Gazette* prints the front page.
 typewriter keys for memos, a paper-and-pin foley set, and a glass-and-piano hit when a lock
 breaks. All of it is synthesized from code.
 
-**A new docket every day.** Once the second case is closed, the case files offer the *Daily
-Docket*: a short generated case for the day, with three of the town's regulars, a small crime and
+**A new docket every day.** Once the second case is closed (its closing panel says so), the case
+files offer the *Daily Docket*, and after the last case the panel has a *Today's docket* button: a short generated case for the day, with three of the town's regulars, a small crime and
 three stories. It's built from the town map and its people, and the same validator that checks the
 handwritten cases proves each one airtight before it's offered. On some days a wrong clock puts an
 honest story in the red. The last seven days stay in the docket drawer, so a missed day can still be
@@ -270,7 +275,8 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and five Daily Dockets (today's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame. It checks every contradiction carries its marker, saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
-| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
 | `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
 | `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag. |
 | `Tools/play.sh -alibiFocusTest [outdir] [-alibiFocusReal]` | Opens case 1 and checks the case timer stands still while the game is out of focus and runs again when it's back, and that the game drops to about 10 frames a second while away (it logs frames a second and the CPU time of the game's threads, attended and away, at the title and on a board): through Unity's focus handler, or with `-alibiFocusReal`, by waiting for a real focus change from outside. |
@@ -279,6 +285,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/play.sh -alibiClipboardCheck -alibiShareCheck [outdir]` | Solves today's docket, clicks Copy result and holds the line on the system clipboard for 8 seconds, so a script can read it from outside. Without `-alibiClipboardCheck`, automated runs never touch the system clipboard. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
 | `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`, then reads back the copied docket result), the pad and keyboard tests (`?padtest`, `?keystest`), Copy result with a real click (`?sharecheck`), a reload check that the save persists (`?savecheck`), the focus check with the page sent to the background (`?focustest`), and the touch tests: simulated inside the game (`?touchtest`) and with real touches sent through the browser (`?touchreal`). It logs load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
+| `Tools/nested.sh [--size WxH] [play.sh args]` | Runs the game, or any self-test above, inside a private nested KWin (`kwin_wayland --virtual`, with its own Wayland socket, D-Bus session and config folder, closed afterwards). The window is certainly on screen there, so it runs at its real frame rate: on the development machine the self-tests ran at 52–56 fps inside it against about 11 on the shared desktop, where the compositor throttles a covered window. It can't go fullscreen on the real desktop, the real pointer can't reach it, and the player's prefs land in a scratch folder. It needs KDE's KWin. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
 Automated runs use a blank in-memory save, so they never touch your progress.
@@ -426,7 +433,10 @@ changes since then aren't released yet.
   (`-alibiPadTest`, `-alibiKeysTest`) play case 1 to the end and open a docket from the drawer with
   nothing but stick and button events, or key presses, in the Linux build and in the browser. It
   hasn't been tried with a physical controller or on a Steam Deck. The layout was checked at the
-  Deck's 1280×800.
+  Deck's 1280×800. The PlayStation and Nintendo button names were checked with a simulated
+  PlayStation pad and a simulated pad that calls itself a Nintendo Pro Controller; which family a
+  real pad reads as depends on the name its driver or browser gives it (unrecognised pads get
+  Xbox letters).
 - **Touch was tested with simulated and browser-sent touches only.** `-alibiTouchTest` plays case 1
   to the end with a simulated touchscreen at 1920×1080 and 1280×800, and in headless Chromium and
   Firefox real touch events from the browser pin cards, drag, read a held card and press a HUD
@@ -457,16 +467,18 @@ changes since then aren't released yet.
 - **In the background the game draws at most 10 frames a second**, meant to spare a laptop's
   battery while the window is unfocused (or the browser page is in the background).
   `-alibiFocusTest` measures 10.0 fps while away and full speed again on return; in Chromium the page
-  went from 60 fps to 10 and back. The saving itself wasn't measured in the desktop build: on the
-  development machine, which about fifteen other games share, the game only reached about 11 fps even
-  with focus, so there was little left to save (on a board its own threads used 15–18% of a core
-  with focus and 11–14% away, in three runs). Someone watching the game on a second screen while typing
-  elsewhere will see it at 10 frames a second.
+  went from 60 fps to 10 and back. In a window that's actually on screen (a private nested KWin, see
+  `Tools/nested.sh`), the Linux build ran at 51–57 fps with focus, and on a case-1 board the game's own
+  threads went from 25% of a core with focus to 10% away at a load average of 3, and from 52–68% to
+  11–16% at loads of 10–30. That's CPU time, not a battery measurement. On the shared development
+  desktop the window only gets about 11 fps even with focus, at any load (the compositor throttles it).
+  Someone watching the game on a second screen while typing elsewhere will see it at 10 frames a second.
 - **Unity's input thread is busy on the development machine.** Every Unity 6.6 player on it, this
-  one included, spends about 58% of one core in the engine's `HIDInput` thread, attended or not, and
-  the game can't switch that thread off. The only input device the user account can read directly is
-  an 8BitDo Pro 3 receiver; whether that receiver is the cause hasn't been tested (it can't be
-  unplugged from here), and other machines may not show it.
+  one included, spends 29–59% of one core in the engine's `HIDInput` thread (more when the machine is
+  busier), attended or not. It isn't the 8BitDo receiver plugged into the machine: with the player
+  sandboxed so it couldn't open a single input device, the thread was just as busy, running or in
+  `epoll_wait`. The game already uses only the Input System, so it has no switch left for that thread;
+  whether other machines show it is untested.
 - **The link guard was checked by simulated input.** The mouse test drops cards onto other cards in
   one quick movement (a quarter of a second) and checks they pin or go back without linking, then
   holds one until the LINK tag shows and checks it links. The half-second hold was chosen by hand,

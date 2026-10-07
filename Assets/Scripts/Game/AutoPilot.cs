@@ -1322,7 +1322,7 @@ namespace AlibiCo
             yield return Wait(0.3f);
             yield return KeyTap(Key.Backspace);
             yield return Wait(0.7f);
-            if (s.Board.Pinned.Contains("a_tab")) Fail("Backspace didn't send the card back");
+            if (s.Board.Pinned.Contains("a_tab")) Fail($"Backspace didn't send the card back (cursor {PadCursor.I.Position}, a_tab at {Screen(back.transform.position)}, {s.DebugState}, panel {root.Screens.ActionButtonsScreen().Count > 0})");
             yield return KeyClick(TrayPoint(back));
             yield return Wait(0.7f);
             if (!s.Board.Pinned.Contains("a_tab")) Fail("Enter didn't re-pin the card");
