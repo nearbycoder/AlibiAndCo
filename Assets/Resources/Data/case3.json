@@ -22,7 +22,7 @@
   "clocks": [
     { "id": "ref",     "name": "Exchange, coastguard & church bells" },
     { "id": "lantern", "name": "The Lantern's bar clock", "offset": -10, "known": true, "note": "Ten minutes slow. We learned that at the Regatta." },
-    { "id": "camera",  "name": "Press camera date-back", "offset": 12, "note": "Wendell Fry never sets his camera's clock." }
+    { "id": "camera",  "name": "Press camera date-back", "phrase": "the press camera's date-back", "offset": 12, "note": "Wendell Fry never sets his camera's clock." }
   ],
   "incident": {
     "title": "The Last Light",

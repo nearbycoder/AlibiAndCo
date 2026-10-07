@@ -36,6 +36,8 @@ namespace AlibiCo
         float typeTimer, holdTimer;
         bool typing;
         public bool Busy => typing || queue.Count > 0;
+        /// <summary>The memo on the desk right now (the last one dealt from the queue).</summary>
+        public Memo Showing { get; private set; }
         /// <summary>Every memo posted this case, oldest first; the notebook reads it.</summary>
         public readonly List<Memo> History = new List<Memo>();
 
@@ -87,6 +89,7 @@ namespace AlibiCo
         {
             if (queue.Count == 0) return;
             var m = queue.Dequeue();
+            Showing = m;
             if (current != null)
             {
                 var old = current;

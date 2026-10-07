@@ -395,6 +395,31 @@ namespace AlibiCo
             while (s > 0) { s -= Clock.Dt; yield return null; }
         }
 
+        /// <summary>After a firm stand, Connie's next memo explains it and names the clock to blame.</summary>
+        static bool CheckWhyFirm(CaseSession s, string caseId, string cardId, string clock)
+        {
+            var h = s.Memos.History;
+            int firm = h.FindLastIndex(m => m.Kind == MemoKind.Firm);
+            var why = firm >= 0 && firm + 1 < h.Count ? h[firm + 1] : null;
+            bool ok = why != null && why.Kind == MemoKind.Connie && why.Text.Contains(clock);
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {caseId} why-firm for {cardId}: {(why != null ? why.Text : "no memo")}");
+            return ok;
+        }
+
+        /// <summary>Capture only: skip queued slips until Connie's explanation of a firm stand is on the desk.</summary>
+        IEnumerator ShotWhyFirm(CaseSession s, string name)
+        {
+            if (!capture) yield break;
+            for (int i = 0; i < 12 && !(s.Memos.Showing != null && s.Memos.Showing.Kind == MemoKind.Connie && s.Memos.Showing.Text.Contains("stood firm")); i++)
+            {
+                s.Memos.Skip();
+                s.Memos.Skip();
+                yield return Wait(0.3f);
+            }
+            yield return Wait(2.5f);
+            yield return Shot(name);
+        }
+
         IEnumerator Go()
         {
             var root = GameRoot.I;
@@ -468,6 +493,8 @@ namespace AlibiCo
                     CheckConflictMarks(s, c.Id + " trap");
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("a_maud")
                                 && s.Memos.History.Any(m => m.Kind == MemoKind.Firm);
+                    if (!CheckWhyFirm(s, c.Id, "a_maud", c.ClockById["hall"].InSentence)) ok = false;
+                    yield return ShotWhyFirm(s, c.Id + "_why_firm");
                     Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting Maud {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
                     if (!firm) ok = false;
                     trapBadges = 1;
@@ -483,6 +510,8 @@ namespace AlibiCo
                     yield return Shot(c.Id + "_trap_stands_firm");
                     CheckConflictMarks(s, c.Id + " trap");
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("h_claim");
+                    if (!CheckWhyFirm(s, c.Id, "h_claim", c.ClockById["k"].InSentence)) ok = false;
+                    yield return ShotWhyFirm(s, c.Id + "_why_firm");
                     Debug.Log($"[AutoPilot] {(firm ? "PASS" : "FAIL")} {c.Id} trap: confronting the honest story {(firm ? "stands firm and costs a badge" : "did not behave (" + why + ")")}");
                     if (!firm) ok = false;
                     trapBadges = 1;

@@ -1002,6 +1002,8 @@ namespace AlibiCo
                     Sfx.Play("firm", 0.85f);
                     v.Body.Shake(0.2f, 0.45f, 20f);
                     Memos.Post(MemoKind.Firm, who, o.Reply);
+                    // What made a true story red: the lesson the badge just paid for (not a hint).
+                    Memos.Post(MemoKind.Connie, null, Board.WhyFirm(v.Id));
                     BadgeLost?.Invoke();
                     Relayout(true);
                 }
@@ -1201,7 +1203,7 @@ namespace AlibiCo
                 var b = Case.CardById[m.B];
                 var untrusted = Board.IsTrusted(a.Clock) ? b : a;
                 if (hintLevel == 1)
-                    Memos.Post(MemoKind.Connie, null, $"Somebody's clock is wrong. Look at cards timed by the {Case.ClockById[untrusted.Clock].Name}. Is one of them the same moment as a card on a reliable clock?");
+                    Memos.Post(MemoKind.Connie, null, $"Somebody's clock is wrong. Look at cards timed by {Case.ClockById[untrusted.Clock].InSentence}. Is one of them the same moment as a card on a reliable clock?");
                 else
                     Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other.");
             }

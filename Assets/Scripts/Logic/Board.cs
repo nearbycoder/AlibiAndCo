@@ -411,6 +411,31 @@ namespace AlibiCo.Logic
             return o;
         }
 
+        /// <summary>
+        /// After a true statement stands firm: what made it red, in Connie's words. A clock nobody
+        /// has checked (its own or the other card's) comes first, then a guess about an unknown
+        /// person, then another story. It explains the badge just lost; it isn't a hint.
+        /// </summary>
+        public string WhyFirm(string cardId)
+        {
+            var c = Case.CardById[cardId];
+            var others = Conflicts.Where(k => k.Involves(cardId))
+                .Select(k => k.A.Card.Id == cardId ? k.B : k.A).ToList();
+            string who = c.Title;
+            if (!IsTrusted(c.Clock))
+                return $"{who} stood firm, and I believe them. Their times came off {Case.ClockById[c.Clock].InSentence}, which nobody's checked yet. Find the same moment on a clock you trust.";
+            var clocked = others.FirstOrDefault(e => !IsTrusted(e.Card.Clock));
+            if (clocked != null)
+                return $"{who} stood firm, and I believe them. The card against them was timed by {Case.ClockById[clocked.Card.Clock].InSentence}, which nobody's checked yet. Find the same moment on a clock you trust.";
+            var guess = others.FirstOrDefault(e => e.Hypothesis);
+            if (guess != null)
+                return $"{who} stood firm. The card against them, “{guess.Card.Title}”, is only pinned there on a hunch. Let the paper say whose it is.";
+            var story = others.FirstOrDefault(e => e.Card.IsTestimony && !Struck.Contains(e.Card.Id));
+            if (story != null)
+                return $"{who} stood firm. Two stories can't both be true, so look harder at {story.Card.Title}'s.";
+            return $"{who} stood firm. Red means something's wrong, not someone: a clock, a guess or another story. Look at what they're up against.";
+        }
+
         public Outcome Link(string a, string b)
         {
             var o = new Outcome();

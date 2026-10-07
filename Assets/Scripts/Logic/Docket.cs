@@ -393,7 +393,7 @@ namespace AlibiCo.Logic
                 }
                 int dip = S + 8 + rng.Next(25);
                 if (dip + offset < S + 2 || dip + offset > spanTo - 2) return null;
-                clocks.Add(new Dictionary<string, object> { ["id"] = "k", ["name"] = Cap(K.ClockName), ["offset"] = offset });
+                clocks.Add(new Dictionary<string, object> { ["id"] = "k", ["name"] = Cap(K.ClockName), ["phrase"] = "the " + K.ClockName, ["offset"] = offset });
                 var hRec = Record("h_rec", K, honest, trueAt + offset, rng);
                 hRec["clock"] = "k";
                 cards.Add(hRec);

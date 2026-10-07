@@ -294,7 +294,7 @@ namespace AlibiCo
             bool trusted = board != null && board.IsTrusted(inc.Clock);
             return trusted
                 ? when + " (CORRECTED)  ·  " + where
-                : when + " ON THE " + clock.Name.ToUpperInvariant() + " ?";
+                : when + " ON " + clock.InSentence.ToUpperInvariant() + " ?";
         }
 
         /// <summary>Slide the incident band to the board's current window (after its clock is corrected).</summary>

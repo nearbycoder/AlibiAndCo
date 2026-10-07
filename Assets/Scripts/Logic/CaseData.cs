@@ -78,11 +78,16 @@ namespace AlibiCo.Logic
     public sealed class ClockDef
     {
         public string Id, Name, Note;
+        /// <summary>How the clock reads mid-sentence ("the Town Hall clock"), if the name alone doesn't.</summary>
+        public string Phrase;
         public bool Reference;
         /// <summary>Shown time = true time + offset (a fast clock has a positive offset).</summary>
         public int TrueOffset;
         /// <summary>Offset already known when the case opens (learned in an earlier case).</summary>
         public bool KnownAtStart;
+
+        /// <summary>"the Lantern's bar clock", "the press camera's date-back": the clock inside a sentence.</summary>
+        public string InSentence => Phrase ?? (Name.StartsWith("The ", StringComparison.Ordinal) ? "the " + Name.Substring(4) : "the " + Name);
     }
 
     public enum Truth { True, Lie, Mistaken }
@@ -209,6 +214,7 @@ namespace AlibiCo.Logic
                     Id = J.Str(o, "id"),
                     Name = J.Str(o, "name"),
                     Note = J.Str(o, "note", ""),
+                    Phrase = J.Str(o, "phrase", null),
                     Reference = J.Bool(o, "reference"),
                     TrueOffset = J.Int(o, "offset"),
                     KnownAtStart = J.Bool(o, "known"),
