@@ -436,6 +436,27 @@ namespace AlibiCo.Logic
             return $"{who} stood firm. Red means something's wrong, not someone: a clock, a guess or another story. Look at what they're up against.";
         }
 
+        /// <summary>
+        /// After a wrong link (two cards that aren't one moment), what Connie says: why that link couldn't
+        /// have worked, by the clocks of the two cards the player chose. It never names another card.
+        /// </summary>
+        public string WhyNotLinked(string a, string b)
+        {
+            var ca = Case.CardById[a];
+            var cb = Case.CardById[b];
+            string Name(CardDef c) => c.IsTestimony ? c.Title + "'s statement" : $"“{c.Title}”";
+            string pair = $"{Name(ca)} and {Name(cb)}";
+            bool ta = IsTrusted(ca.Clock), tb = IsTrusted(cb.Clock);
+            if (ta && tb)
+                return $"{pair} were both timed by clocks we already trust, so there was nothing to put right. A link mends a wrong clock: one moment it saw, seen again on a clock you trust.";
+            if (ca.Clock == cb.Clock)
+                return $"{pair} both came off {Case.ClockById[ca.Clock].InSentence}. A clock can't be checked against itself: find the same moment on a clock you trust.";
+            if (!ta && !tb)
+                return $"Neither {Case.ClockById[ca.Clock].InSentence} nor {Case.ClockById[cb.Clock].InSentence} has been checked yet, so one moment on both couldn't say which is right. Start from a clock you trust.";
+            var wrong = Case.ClockById[ta ? cb.Clock : ca.Clock];
+            return $"{pair} aren't the same moment. To check {wrong.InSentence}, find something it timed that a clock you trust timed too: a bulletin, a bell, a power cut.";
+        }
+
         public Outcome Link(string a, string b)
         {
             var o = new Outcome();

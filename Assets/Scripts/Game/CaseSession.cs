@@ -978,7 +978,9 @@ namespace AlibiCo
                 Sfx.Play("wrong", 0.8f);
                 a.Body.Shake(0.15f, 0.4f);
                 b.Body.Shake(0.1f, 0.35f);
-                Memos.Post(MemoKind.Notice, "NOT THE SAME MOMENT", "Those two cards describe different things. Linking cards claims they're one moment seen on two clocks." + (Badges <= 1 ? "" : ""));
+                Memos.Post(MemoKind.Notice, "NOT THE SAME MOMENT", "Those two cards describe different things. Linking cards claims they're one moment seen on two clocks.");
+                // Why that link couldn't work, by the two clocks (the lesson the badge paid for, not a hint).
+                Memos.Post(MemoKind.Connie, null, Board.WhyNotLinked(a.Id, b.Id));
                 BadgeLost?.Invoke();
                 Relayout(true);
             }

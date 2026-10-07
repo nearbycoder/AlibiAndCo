@@ -1947,6 +1947,31 @@ namespace AlibiCo
                     if (!firm) ok = false;
                     trapBadges = 1;
                 }
+                else if (c.Id == "case3")
+                {
+                    // A wrong link on purpose: a card on the unchecked camera clock onto a trusted card that
+                    // saw something else. It costs a badge, and Connie says why, naming the camera's clock.
+                    var b = s.Board;
+                    var x = c.Cards.FirstOrDefault(k => b.Pinned.Contains(k.Id) && !b.IsTrusted(k.Clock));
+                    var y = x == null ? null : c.Cards.FirstOrDefault(k => b.Pinned.Contains(k.Id) && b.IsTrusted(k.Clock) && k.Event != x.Event && !k.IsTestimony);
+                    int before = b.Mistakes, memos = s.Memos.History.Count;
+                    if (x != null && y != null) s.AutoLink(x.Id, y.Id);
+                    yield return Wait(1.5f);
+                    var why = s.Memos.History.Skip(memos).FirstOrDefault(m => m.Kind == MemoKind.Connie);
+                    bool wrongOk = x != null && y != null && b.Mistakes == before + 1 && why != null
+                                   && why.Text.Contains(c.ClockById[x.Clock].InSentence) && why.Text.Contains("aren't the same moment");
+                    if (wrongOk)
+                        for (int i = 0; i < 12 && !(s.Memos.Showing != null && s.Memos.Showing.Kind == MemoKind.Connie && s.Memos.Showing.Text.Contains("aren't the same moment")); i++)
+                        {
+                            s.Memos.Skip();
+                            yield return Wait(0.3f);
+                        }
+                    yield return Wait(2.5f);
+                    yield return Shot(c.Id + "_wrong_link");
+                    Debug.Log($"[AutoPilot] {(wrongOk ? "PASS" : "FAIL")} {c.Id} wrong link {x?.Id} onto {y?.Id}: {(why != null ? why.Text : "no memo from Connie")}");
+                    if (!wrongOk) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: wrong link (mistakes {before}->{b.Mistakes})"); }
+                    trapBadges = 1;
+                }
                 else if (c.Id == trapDocket)
                 {
                     // A clock day's trap: the honest story is red only because of the wrong clock.
