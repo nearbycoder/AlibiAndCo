@@ -314,6 +314,7 @@ All synthesized with Python and numpy (no samples). It should be **restrained de
 | Right-click | return a card to the tray |
 | Drag the incident card | preview fit per lane; drop to accuse |
 | Esc | pause (resume, settings, case select, quit) |
+| Touch (browser, round 6) | tap = click, finger drag = drag, press and hold = read a card; the HUD's Hint / Notes / Menu buttons |
 | Tab | notebook (questions, objectives, the clocks you know) |
 | F1 / ? | Connie's hint for the next step (marks the case "with help", no badge loss) |
 

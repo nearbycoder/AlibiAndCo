@@ -785,3 +785,67 @@ Not in this round: the hardware and owner items listed under round 3 (Windows, s
 the licence, releases, WebKit, a real controller or Steam Deck, the sound by ear, colour-blind
 players), a real click on Copy result on the Linux desktop (it needs real input on the shared
 desktop), and phones.
+
+## Round 6 results (7 Oct 2026)
+
+All four items landed on `improvements-6`. Screenshots are in `docs/media/improvements/round6/`
+(`r6-1-*` the LINK tag, `r6-2-*` the timer after a real focus change, `r6-3-*` touch).
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R6-1 | No badge for a slip of the hand | 088388d | The mouse input test now goes on to case 2 (played in code to its first link), at 1920×1080 and 1280×800: a card dropped in one movement onto a chip of another moment pins to its own lane, a card tossed onto another tray card stays in the tray, neither costs a badge or posts "NOT THE SAME MOMENT", and a card held on its twin shows the LINK tag and corrects the Lantern's clock. Pad, keyboard and autoplay still pass | Met |
+| R6-2 | The clock stops when you look away | d6ae2da | `-alibiFocusTest` through Unity's focus handler (away 3.1–3.4 s, timer moved 0.00 s; back 2 s, it moved 2.0–2.1 s). A **real** focus change on Linux, inside a private nested KWin session (`kwin_wayland --virtual` under its own D-Bus and config folder, so the shared desktop wasn't touched): a second window took focus for 5.8 s and the timer moved 0.08 s. Firefox with another tab brought to the front: away 5.2 s, 0.04 s. Chromium with blur and focus events (its headless mode doesn't move focus between pages): 5.0 s, 0.02 s | Met. Not tried on macOS or Windows |
+| R6-3 | Touch in the browser | 5605ccb | New `-alibiTouchTest` (simulated touchscreen, case 1 to CASE CLOSED) at 1920×1080 and 1280×800 in the Linux build, and in headless Chromium and Firefox. New `touchreal` webtest run: **real** touch events from the browser (CDP in Chromium, puppeteer's touchscreen over WebDriver BiDi in Firefox) pin a card by tap, pin one by finger drag, read a held chip without opening it, and open the notebook with one tap on Notes. Mouse, pad and keyboard tests still pass | Met, and shipped. **Not tried on a real tablet or phone** |
+| R6-4 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs --engine chromium,firefox`, every run (autoplay, pad, keys, share, reload, focus, touch, touchreal) on the final build | Met. All runs PASS in both engines with 0 console errors; 26.5 MB. Chromium: 58–60 fps, loads 3.3–4.0 s. Firefox: 53–60 fps, loads 3.7–4.7 s, at a load average of about 8–12 during its autoplay (8–17 over the whole run). Earlier in the round, at a load that rose from 5 to 29, the previous build gave Firefox 60/60/58/53/60/38 fps and a 1.7 s load |
+
+EditMode tests: 43/43 (unchanged: this round's code is input handling in MonoBehaviours, which the
+player self-tests above cover rather than EditMode). The validator proves cases 1–5 airtight with
+60 pin orders each (case 2's opening memo changed wording only). Autoplay at 1080p: 9/9 (5 cases,
+4 dockets; today is also one of the fixed days), 0 errors. Load averages were noted with every
+timed or input-driven run; input runs waited for a load under 24. The real `alibi_save.json` and
+`prefs` were byte-identical before and after the round (Unity's test runner rewrote its own
+`TestResults.xml` next to them, as in earlier rounds).
+
+Found along the way:
+
+- **The first link check failed because of the test, not the game.** At about 10 fps (load 71 from
+  other sessions), the test's eased glide spent half a second over the target chip, which is a hold
+  by the game's real-time rule, and the link armed. The quick drop now moves in a quarter of a
+  second of real time and lets go on arrival, like a player dropping a card on its lane.
+- **Touch lost presses until the hover rule followed the virtual mouse.** "Nothing is hovered once
+  the finger lifts" switched off a frame before the board saw the press arrive, so some taps landed
+  on nothing. It now follows the virtual mouse's button.
+- **Touch timestamps weren't usable for "held still".** The device's last update time moves on after
+  the finger lifts, so quick taps read as half-second holds. The hold is now measured as observed,
+  and must also span at least four frames, so at a crawling frame rate a tap is still a tap.
+- **The UI would have pressed every button twice on a tap**: once from its own touch bindings and once
+  from the virtual mouse. The UI input module now only listens to mice and pens.
+- **A page error after quitting.** The page's new focus listeners called into the player after the
+  self-tests had quit it ("null function"). They now stop once a call fails.
+- **The nested KWin session left two helpers running.** Opening a dialog inside it activated a
+  desktop portal and `ksecretd` through systemd's user manager, and they outlived the session. I
+  stopped those two processes by PID (both carried the session's scratch config folder); nothing in
+  the real desktop's settings or wallet changed. The script for that check stayed in the gitignored
+  `Logs/`; a rerun should open a Wayland client that doesn't start portals.
+
+Not done, and why:
+
+- **A real tablet or phone, and touch on the desktop builds** (a Linux touchscreen, a Steam Deck's
+  screen): no hardware here. The hold time (0.5 s) and the drag threshold were chosen by hand.
+- **The link hold (0.45 s) with players**: chosen by hand, not tuned.
+- **Focus on macOS and Windows**: no machines here.
+- **A real click on Copy result on the Linux desktop**: unchanged from round 5 (it needs real input on
+  the shared desktop).
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  controller or Steam Deck, the sound by ear, colour-blind players): unchanged from round 3.
+
+Owner decisions this round adds:
+
+- **Touch is in, phones aren't.** It's built for a landscape tablet or larger. Whether to advertise
+  touch once the web build is hosted, and whether phones are worth a layout of their own, is your
+  call.
+- **The timer waits, the game doesn't.** Losing focus stops the case timer but doesn't open the pause
+  menu or mute the music. Some players would rather the game paused itself; that's a small change if
+  you prefer it.
+- **The link hold.** A link now needs the card held on the other one for about half a second. A
+  deliberate wrong link still costs a badge.
