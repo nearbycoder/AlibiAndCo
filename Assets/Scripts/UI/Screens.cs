@@ -301,6 +301,25 @@ namespace AlibiCo
             return row != null ? row.GetComponentInChildren<TextMeshProUGUI>().text : null;
         }
 
+        /// <summary>
+        /// The screen centre of a named menu button a click would reach right now (not faded out or
+        /// behind an overlay), or null. For the input tests, which then move a real cursor there.
+        /// </summary>
+        public Vector2? ButtonScreen(string name)
+        {
+            foreach (var b in UiKit.Root.GetComponentsInChildren<Button>())
+            {
+                if (b.name != name || !b.isActiveAndEnabled || !b.interactable) continue;
+                var cg = b.GetComponentInParent<CanvasGroup>();
+                if (cg != null && cg.alpha < 0.9f) continue;
+                var corners = new Vector3[4];
+                ((RectTransform)b.transform).GetWorldCorners(corners);
+                var c = (Vector2)((corners[0] + corners[2]) / 2);
+                if (UiKit.TopHitIs(c, b.gameObject)) return c;
+            }
+            return null;
+        }
+
         /// <summary>Press a named button on the case files, the drawer or the title, as a click would (for the autopilot).</summary>
         public bool Press(string name)
         {

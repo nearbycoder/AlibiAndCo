@@ -38,6 +38,64 @@ namespace AlibiCo
             else Debug.LogError($"[AutoPilot] FAIL conflict markers {when}: {report}");
         }
 
+        // ------------------------------------------------------------------ the docket drawer, by hand
+
+        /// <summary>
+        /// From case 1's closed panel to an earlier day's docket on the board, through the case files
+        /// and the docket drawer, with whatever pointer the test drives: <paramref name="click"/> moves
+        /// it onto a screen point and clicks, <paramref name="back"/> is that pointer's "close".
+        /// </summary>
+        IEnumerator DrawerByHand(string how, System.Func<Vector2, IEnumerator> click, System.Func<IEnumerator> back, System.Action<string> fail)
+        {
+            var root = GameRoot.I;
+            var day = Cases.Today.AddDays(-3);
+            string rowName = "docket_" + day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            var docket = Cases.DocketFor(day);
+            IEnumerator Press(string name, string what)
+            {
+                Vector2? at = null;
+                for (float t = 0; t < 3f && at == null; t += Clock.Dt) { at = root.Screens.ButtonScreen(name); if (at == null) yield return null; }
+                if (at == null) { fail($"{how}: {what} ({name}) isn't on screen"); yield break; }
+                yield return click(at.Value);
+                yield return Wait(0.8f);
+            }
+
+            yield return Press("btn_Case files", "the closed panel's Case files button");
+            if (root.Flow != Flow.Select) fail($"{how}: Case files didn't open the case files (flow {root.Flow})");
+            yield return Wait(0.6f);
+            yield return Press("btn_docket", "the Daily Docket button");
+            if (!root.Screens.DocketWeekOpen) fail($"{how}: the Daily Docket button didn't open the drawer");
+            int rows = Docket.Week(Cases.Today).Count(d => root.Screens.ButtonScreen("docket_" + d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)) != null);
+            if (rows != Docket.DaysOnFile) fail($"{how}: {rows} of the drawer's {Docket.DaysOnFile} rows can be reached");
+            if (how != "mouse")
+            {
+                // The jump buttons (RB / E) can land on every row and on Close.
+                var targets = PadCursor.Targets();
+                int jumpable = Docket.Week(Cases.Today).Count(d => root.Screens.ButtonScreen("docket_" + d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)) is Vector2 at && targets.Any(t => (t - at).magnitude < 2f));
+                var close = root.Screens.ButtonScreen("btn_Close");
+                if (jumpable != Docket.DaysOnFile || close == null || !targets.Any(t => (t - close.Value).magnitude < 2f))
+                    fail($"{how}: the jumps reach {jumpable} of {Docket.DaysOnFile} rows{(close == null ? " and no Close" : "")} ({targets.Count} targets)");
+            }
+            yield return Shot(how + "_drawer");
+            yield return back();
+            yield return Wait(0.6f);
+            if (root.Screens.DocketWeekOpen || root.Flow != Flow.Select) fail($"{how}: closing the drawer didn't leave the case files (flow {root.Flow})");
+            yield return Press("btn_docket", "the Daily Docket button");
+            yield return Press(rowName, "the row three days back");
+            if (root.Flow != Flow.Intro || root.IntroCase?.Id != docket.Id) fail($"{how}: the row didn't open {docket.Id}'s intro (flow {root.Flow})");
+            yield return Wait(1f);
+            yield return Press("btn_Back to the dockets", "the intro's Back to the dockets");
+            if (!root.Screens.DocketWeekOpen) fail($"{how}: Back to the dockets didn't reopen the drawer");
+            yield return Press(rowName, "the row three days back, again");
+            yield return Wait(1f);
+            yield return Shot(how + "_docket_intro");
+            yield return Press("btn_Open the board", "the intro's Open the board");
+            yield return Wait(2.5f);
+            if (root.Flow != Flow.Playing || root.Session?.Case.Id != docket.Id) fail($"{how}: Open the board didn't start {docket.Id} (flow {root.Flow})");
+            else Debug.Log($"[AutoPilot] {how}: opened {docket.Id} \"{docket.Title}\" from the drawer by hand");
+            yield return Shot(how + "_docket_board");
+        }
+
         // ------------------------------------------------------------------ midnight test
 
         public void RunMidnight(string outDir)
@@ -168,6 +226,12 @@ namespace AlibiCo
             yield return Wait(0.25f);
         }
 
+        IEnumerator PadClick(Vector2 at)
+        {
+            yield return PadMoveTo(at);
+            yield return PadTap(GamepadButton.South);
+        }
+
         IEnumerator PadDrag(Vector2 from, Vector2 to)
         {
             yield return PadMoveTo(from);
@@ -293,7 +357,12 @@ namespace AlibiCo
             yield return Shot("pad_closed");
             if (root.Flow != Flow.Closed) Fail("the incident drag didn't close the case");
 
-            // 8. Moving the real mouse hands control back.
+            // 8. RB/LB reach the closed panel's buttons; then on to the docket drawer, with A and B.
+            yield return PadTap(GamepadButton.RightShoulder);
+            if (!PadCursor.Targets().Any(p => (p - PadCursor.I.Position).magnitude < 2f)) Fail("RB on the closed panel didn't land on a button");
+            yield return DrawerByHand("pad", p => PadClick(p), () => PadTap(GamepadButton.East), Fail);
+
+            // 9. Moving the real mouse hands control back.
             PadCursor.IgnoreRealMouse = false;
             if (Mouse.current != null && PadCursor.Active)
             {
@@ -307,7 +376,7 @@ namespace AlibiCo
                 }
             }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, mouse takes over)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, the docket drawer, mouse takes over)");
             Debug.Log($"[AutoPilot] done: pad test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -458,8 +527,11 @@ namespace AlibiCo
             if (root.Flow != Flow.Closed) { Debug.LogError("[AutoPilot] FAIL input: accusation by drag didn't close the case"); ok = false; }
             var rec = SaveData.Current.Record(c.Id);
             if (rec.sealUnaided || !rec.sealClean) { Debug.LogError($"[AutoPilot] FAIL input: after a hint, seals were clean={rec.sealClean} unaided={rec.sealUnaided}"); ok = false; }
+            // 6. On to the docket drawer: click through the case files and the drawer to an earlier day's board.
+            yield return DrawerByHand("mouse", p => Click(p), () => Click(root.Screens.ButtonScreen("btn_Close") ?? Vector2.zero),
+                why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag, the docket drawer)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
