@@ -94,8 +94,35 @@ namespace AlibiCo
         public const string Sans = "IBMPlexSansCondensed-Medium SDF";
         public const string SansBold = "IBMPlexSansCondensed-SemiBold SDF";
 
+        /// <summary>The plain face Plain lettering sets reading text in (it's also every face's fallback).</summary>
+        public const string Plain = "DejaVuSans SDF";
+
+        /// <summary>The faces long text is read in: Plain lettering swaps these, and leaves titles, times and buttons alone.</summary>
+        public static bool IsReading(string face) => face == Typewriter || face == Hand || face == Mono || face == SerifItalic;
+
+        /// <summary>
+        /// The face a text asked for, as Plain lettering sets it: the typewriter, the handwriting and Courier
+        /// in DejaVu Sans (the typewriter's width, so layouts hold), the italic lines in the UI's upright sans
+        /// (the italic's width).
+        /// </summary>
+        public static string Lettered(string face) =>
+            !Settings.PlainText || !IsReading(face) ? face : face == SerifItalic ? Sans : Plain;
+
+        /// <summary>
+        /// Caveat's letters are small for its size: DejaVu Sans at three quarters of it runs about 12% wider, with
+        /// letters a little taller (statements and replies shrink to fit their boxes if they must).
+        /// </summary>
+        public static float LetterScale(string face) => Settings.PlainText && face == Hand ? 0.75f : 1f;
+
+        /// <summary>Re-set every reading text on screen after Plain lettering is switched (boards rebuild on their own).</summary>
+        public static void Reletter()
+        {
+            foreach (var l in Object.FindObjectsByType<Lettering>(FindObjectsInactive.Include)) l.Apply();
+        }
+
         public static TMP_FontAsset Font(string name)
         {
+            name = Lettered(name);
             if (fonts.TryGetValue(name, out var f) && f != null) return f;
             f = Resources.Load<TMP_FontAsset>("Fonts/" + name);
             if (f == null)
@@ -273,6 +300,42 @@ namespace AlibiCo
                 case "col":
                 default: return Lit(col, null, 0.3f);
             }
+        }
+    }
+
+    /// <summary>
+    /// Marks a text set in a reading face, so switching Plain lettering can re-set it in place: the face,
+    /// the size (Caveat's stand-in is smaller) and the line spacing (Caveat's tall loops need less).
+    /// </summary>
+    public sealed class Lettering : MonoBehaviour
+    {
+        public string Face;
+        float scale = 1f, periodSpacing = float.NaN;
+
+        public static void Mark(TMP_Text t, string face)
+        {
+            if (!Art.IsReading(face)) return;
+            var l = t.gameObject.AddComponent<Lettering>();
+            l.Face = face;
+            l.scale = Art.LetterScale(face);
+        }
+
+        /// <summary>The size a text of this face should be given for a size asked for in its own face.</summary>
+        public static float Scale(TMP_Text t) => t.TryGetComponent<Lettering>(out var l) ? l.scale : 1f;
+
+        public void Apply()
+        {
+            var t = GetComponent<TMP_Text>();
+            if (t == null) return;
+            float k = Art.LetterScale(Face) / scale;
+            scale = Art.LetterScale(Face);
+            t.font = Art.Font(Face);
+            t.fontSize *= k;
+            t.fontSizeMin *= k;
+            t.fontSizeMax *= k;
+            if (Face != Art.Hand) return;
+            if (Settings.PlainText) { if (float.IsNaN(periodSpacing)) periodSpacing = t.lineSpacing; t.lineSpacing = 0; }
+            else if (!float.IsNaN(periodSpacing)) t.lineSpacing = periodSpacing;
         }
     }
 }

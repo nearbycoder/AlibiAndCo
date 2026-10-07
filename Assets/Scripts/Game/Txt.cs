@@ -17,7 +17,8 @@ namespace AlibiCo
             go.transform.localPosition = pos ?? Vector3.zero;
             var t = go.AddComponent<TextMeshPro>();
             t.font = Art.Font(font);
-            t.fontSize = size * FontSizePerUnit;
+            t.fontSize = size * FontSizePerUnit * Art.LetterScale(font);
+            Lettering.Mark(t, font);
             t.color = color;
             t.alignment = align;
             t.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
@@ -36,11 +37,11 @@ namespace AlibiCo
         {
             t.enableAutoSizing = true;
             t.fontSizeMax = t.fontSize;
-            t.fontSizeMin = minSize * FontSizePerUnit;
+            t.fontSizeMin = minSize * FontSizePerUnit * Lettering.Scale(t);
             t.overflowMode = TextOverflowModes.Ellipsis;
             return t;
         }
 
-        public static void SetSize(this TextMeshPro t, float size) => t.fontSize = size * FontSizePerUnit;
+        public static void SetSize(this TextMeshPro t, float size) => t.fontSize = size * FontSizePerUnit * Lettering.Scale(t);
     }
 }

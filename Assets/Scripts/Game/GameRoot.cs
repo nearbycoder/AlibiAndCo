@@ -99,6 +99,7 @@ namespace AlibiCo
 
             var args = Environment.GetCommandLineArgs();
             SaveData.UnlockAll = args.Contains("-alibiUnlockAll");
+            Settings.PlainTextFlag = args.Contains("-alibiPlainText");
             int dateArg = Array.IndexOf(args, "-alibiDocketDate");
             if (dateArg >= 0 && dateArg + 1 < args.Length && DateTime.TryParseExact(args[dateArg + 1], "yyyy-MM-dd",
                     System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var docketDate))
@@ -146,7 +147,7 @@ namespace AlibiCo
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             // Automated runs don't overwrite the desktop's clipboard (a browser's belongs to the test).
             Clipboard.Private = automated && Application.platform != RuntimePlatform.WebGLPlayer && !args.Contains("-alibiClipboardCheck");
-            if (automated) SaveData.UseVolatile();
+            if (automated) { SaveData.UseVolatile(); Settings.PlainTextForRun(); }
             // A saved resolution choice; automated runs keep the size they were launched with.
             else if (PlayerPrefs.HasKey("resolution") && Application.platform != RuntimePlatform.WebGLPlayer) Settings.ApplyResolution();
             int resArg = Array.IndexOf(args, "-alibiResolution");

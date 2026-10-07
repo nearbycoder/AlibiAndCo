@@ -197,6 +197,33 @@ namespace AlibiCo
         }
         public static bool ShowTimer { get => PlayerPrefs.GetInt("show_timer", 1) == 1; set => PlayerPrefs.SetInt("show_timer", value ? 1 : 0); }
 
+        /// <summary>
+        /// Plain lettering: memos, statements, records, the notebook and the case files in a plain sans
+        /// instead of the typewriter, handwriting and Courier (see Art.Lettered). Automated runs keep their
+        /// choice in memory (-alibiPlainText, or a test's click), never in the prefs file.
+        /// </summary>
+        public static bool PlainText
+        {
+            get => SaveData.Volatile ? plainForRun : PlainTextFlag || PlayerPrefs.GetInt("plain_text", 0) == 1;
+            set
+            {
+                if (SaveData.Volatile) plainForRun = value; else PlayerPrefs.SetInt("plain_text", value ? 1 : 0);
+                Art.Reletter();
+                GameRoot.I?.TextSizeChanged();   // the open board is rebuilt in place once the menus close
+            }
+        }
+
+        /// <summary>-alibiPlainText on the command line.</summary>
+        public static bool PlainTextFlag;
+        static bool plainForRun;
+
+        /// <summary>An automated run starts on a blank save: its lettering is the flag's, whatever the prefs say.</summary>
+        public static void PlainTextForRun()
+        {
+            plainForRun = PlainTextFlag;
+            Art.Reletter();
+        }
+
         // ------------------------------------------------------------------ text size
 
         public static readonly string[] TextSizeNames = { "Normal", "Large", "Larger" };
@@ -216,7 +243,7 @@ namespace AlibiCo
         public static int TextSizeOverride = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => TextSizeOverride = -1;   // see Art.ResetStatics
+        static void ResetStatics() { TextSizeOverride = -1; PlainTextFlag = plainForRun = false; }   // see Art.ResetStatics
 
         /// <summary>Scales the screen-space UI and the hovered-card inspector.</summary>
         public static float TextScale => TextScales[TextSize];

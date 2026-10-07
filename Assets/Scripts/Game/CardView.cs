@@ -221,7 +221,7 @@ namespace AlibiCo
                 new Vector2(textWidth, bodyTop - bodyBottom), TextAlignmentOptions.TopLeft,
                 new Vector3(textLeft + textWidth / 2, (bodyTop + bodyBottom) / 2, z));
             body.Fit(hand ? 0.2f : 0.13f);
-            body.lineSpacing = hand ? -18 : 0;
+            body.lineSpacing = hand && !Settings.PlainText ? -18 : 0;   // Caveat's tall loops; plain lettering needs the room
 
             // Footer: time, place, clock.
             Shapes.Quad(full, "rule", new Vector2(size.x - 0.4f, 0.012f), Art.Unlit(new Color(0.12f, 0.16f, 0.22f, 0.35f), true), new Vector3(0, -size.y / 2 + 0.56f, z));

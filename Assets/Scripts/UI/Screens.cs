@@ -1053,12 +1053,12 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
             UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 850));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 920));
             UiKit.FitInCanvas(panel.rectTransform);
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
             var col = UiKit.Rect(panel.transform, "col");
-            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 640));
+            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 710));
             var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 16; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
             Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
@@ -1071,6 +1071,7 @@ namespace AlibiCo
                     resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
             }
             Row(UiKit.Stepper(col, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
+            Row(UiKit.Toggle(col, "Plain lettering", Settings.PlainText, v => Settings.PlainText = v));
             Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
             Row(UiKit.Toggle(col, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
             Row(UiKit.Toggle(col, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));

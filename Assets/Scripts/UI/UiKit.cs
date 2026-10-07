@@ -352,7 +352,8 @@ namespace AlibiCo
             var r = Rect(parent, name);
             var t = r.gameObject.AddComponent<TextMeshProUGUI>();
             t.font = Art.Font(font);
-            t.fontSize = size;
+            t.fontSize = size * Art.LetterScale(font);
+            Lettering.Mark(t, font);
             t.color = color;
             t.alignment = align;
             t.text = text;

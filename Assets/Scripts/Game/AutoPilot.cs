@@ -1631,7 +1631,46 @@ namespace AlibiCo
                 yield return Wait(1.5f);
                 s = root.Session;
             }
-            // 3c. Ask Connie once: the case can no longer earn the Unaided seal.
+            // 3c. Plain lettering, by a click on its box in Settings mid-case: the hidden full cards and the
+            // desk re-letter at once, the board is rebuilt in place once the menus close, and switching it
+            // back brings the typewriter back. (An automated run keeps the choice in memory, not in prefs.)
+            {
+                int pinned = s.Board.Pinned.Count;
+                int before = FancyTexts();
+                root.SetPaused(true);
+                root.Screens.ShowSettings();
+                yield return Wait(0.8f);
+                var box = UiKit.Root.GetComponentsInChildren<UnityEngine.UI.Toggle>().FirstOrDefault(x => x.name == "toggle_Plain lettering");
+                Vector2? at = null;
+                if (box != null)
+                {
+                    var corners = new Vector3[4];
+                    ((RectTransform)box.targetGraphic.transform).GetWorldCorners(corners);
+                    at = (Vector2)((corners[0] + corners[2]) / 2);
+                }
+                if (at == null) { Debug.LogError("[AutoPilot] FAIL input: no Plain lettering box in Settings"); ok = false; }
+                else yield return Click(at.Value);
+                yield return Wait(0.5f);
+                int during = FancyTexts();
+                yield return Shot("input_plain_settings");
+                root.Screens.CloseTopOverlay();
+                root.SetPaused(false);
+                yield return Wait(1.5f);
+                var s2 = root.Session;
+                int after = FancyTexts();
+                yield return Shot("input_plain_board");
+                if (!Settings.PlainText || before == 0 || during != 0 || after != 0 || s2 == s || s2 == null || s2.Board.Pinned.Count != pinned)
+                {
+                    Debug.LogError($"[AutoPilot] FAIL input: plain lettering (on {Settings.PlainText}, decorative texts {before} -> {during} in Settings -> {after} on the rebuilt board, pins {pinned}->{(s2 ? s2.Board.Pinned.Count : -1)})");
+                    ok = false;
+                }
+                else Debug.Log($"[AutoPilot] plain lettering by click: decorative texts {before} -> {during} -> {after}, board rebuilt with {pinned} pins");
+                s = root.Session;
+                MouseTo(Screen(s.ViewOf("a_claim").transform.position));
+                yield return Wait(0.8f);
+                yield return Shot("input_plain_hover");
+            }
+            // 3d. Ask Connie once: the case can no longer earn the Unaided seal.
             s.Hint();
             yield return Wait(0.5f);
             // 4. Confront each liar by clicking the chip and then the Confront button.
@@ -1644,6 +1683,7 @@ namespace AlibiCo
                 if (id == "a_claim") yield return Shot("input_actions");
                 yield return Click(btn.Value);
                 yield return Wait(2.6f);
+                if (id == "a_claim") yield return Shot("input_plain_reply");
                 if (!s.Board.Struck.Contains(id)) { Debug.LogError($"[AutoPilot] FAIL input: confronting {id} didn't strike it"); ok = false; }
                 foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
                 {
@@ -1653,6 +1693,11 @@ namespace AlibiCo
             }
             yield return Wait(1f);
             yield return Shot("input_ready");
+            // 4b. Plain lettering off again (the replies above came in plain): the typewriter is back.
+            Settings.PlainText = false;
+            yield return Wait(1.5f);
+            s = root.Session;
+            if (FancyTexts() == 0) { Debug.LogError("[AutoPilot] FAIL input: switching plain lettering off left no typewriter"); ok = false; }
             // 5. Drag the incident into the culprit's lane at its slot.
             var lane = s.View.LaneById[c.Incident.Culprit];
             var fit = s.Board.Fits[c.Incident.Culprit];
@@ -1671,7 +1716,7 @@ namespace AlibiCo
             // 7. Case 2: drops that land on another card don't link by accident; a held one does.
             yield return LinkByHand(why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag, the docket drawer, no accidental links)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, plain lettering, hint withholds Unaided, click, UI button, incident drag, the docket drawer, no accidental links)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -1739,6 +1784,39 @@ namespace AlibiCo
             bool ok = pressed && got == want && !s.Case.Suspects.Any(p => got.Contains(p.Name));
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {s.Case.Id} share line: {got}");
             return ok;
+        }
+
+        /// <summary>Texts in the scene (shown or built and hidden) set in a decorative reading face.</summary>
+        static int FancyTexts()
+        {
+            var fancy = new[] { Art.Typewriter, Art.Hand, Art.Mono, Art.SerifItalic };
+            return Object.FindObjectsByType<TMPro.TMP_Text>(FindObjectsInactive.Include).Count(t => t.font != null && fancy.Contains(t.font.name));
+        }
+
+        /// <summary>
+        /// Plain lettering: no text in the scene, shown or built and hidden, is left in a decorative reading
+        /// face (it's an error if one is). Either way, reading texts that run out of their boxes are logged,
+        /// so a plain run can be compared with a normal one.
+        /// </summary>
+        static void CheckLettering(string where)
+        {
+            var fancy = new[] { Art.Typewriter, Art.Hand, Art.Mono, Art.SerifItalic };
+            var left = new System.Collections.Generic.List<string>();
+            var over = new System.Collections.Generic.List<string>();
+            int reading = 0, plain = 0;
+            foreach (var t in Object.FindObjectsByType<TMPro.TMP_Text>(FindObjectsInactive.Include))
+            {
+                if (t.font == null) continue;
+                bool isFancy = fancy.Contains(t.font.name);
+                if (t.TryGetComponent<Lettering>(out _)) { reading++; if (!isFancy) plain++; }
+                if (Settings.PlainText && isFancy) left.Add($"{t.transform.parent?.name}/{t.name} ({t.font.name})");
+                if (!t.gameObject.activeInHierarchy || string.IsNullOrEmpty(t.text) || !t.TryGetComponent<Lettering>(out _)) continue;
+                t.ForceMeshUpdate();
+                if (t.isTextOverflowing || t.isTextTruncated) over.Add($"{t.transform.parent?.name}/{t.name}");
+            }
+            string line = $"{where}: {reading} reading texts, {plain} in a plain face; out of their boxes [{string.Join(", ", over)}]";
+            if (left.Count > 0) Debug.LogError($"[Lettering] FAIL {line}; still decorative [{string.Join(", ", left.Distinct())}]");
+            else Debug.Log($"[Lettering] {(Settings.PlainText ? "plain" : "period")} {line}");
         }
 
         /// <summary>After a firm stand, Connie's next memo explains it and names the clock to blame.</summary>
@@ -1826,6 +1904,7 @@ namespace AlibiCo
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_intro");
                     CheckIntroSeals(c);
+                    CheckLettering(c.Id + " intro");
                 }
                 root.StartCase(c, false);
                 yield return Wait(2.6f);
@@ -1839,6 +1918,7 @@ namespace AlibiCo
                 yield return Wait(1.6f);
                 yield return Shot(c.Id + "_pinned");
                 Debug.Log($"[Legibility] {c.Id} pinned: {s.LegibilityReport()}");
+                CheckLettering(c.Id + " pinned");
                 CheckConflictMarks(s, c.Id + " pinned");
                 // Hover a contradiction card so the inspector shows up in captures.
                 int step = 0;
@@ -1945,6 +2025,7 @@ namespace AlibiCo
                     if (root.Flow != Flow.Closed) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: never reached Case Closed"); }
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_closed");
+                    CheckLettering(c.Id + " closed");
                     if (Cases.IsDocket(c) && !CheckShare(s)) ok = false;
                     // The closing line: case 2's first close announces the Daily Docket, and the last
                     // case points at it with a button; the others have none (dockets have their own).

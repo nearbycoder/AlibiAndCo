@@ -164,7 +164,7 @@ namespace AlibiCo
             body = Txt.Make(root, "body", m.Text, font, textSize, ink, new Vector2(size.x - 0.45f, size.y - 1.15f), TextAlignmentOptions.TopLeft,
                 new Vector3(0, -0.05f, -0.03f));   // stops above the letterhead
             body.Fit(baseSize * 0.62f);
-            if (m.Kind == MemoKind.Witness || m.Kind == MemoKind.Firm) body.lineSpacing = -14;
+            if ((m.Kind == MemoKind.Witness || m.Kind == MemoKind.Firm) && !Settings.PlainText) body.lineSpacing = -14;
             // Paper clip.
             Shapes.Icon(root, "clip", 0.55f, Pal.Hex("9AA3AB"), new Vector3(-size.x / 2 + 0.55f, size.y / 2 - 0.02f, -0.06f), 8);
             body.ForceMeshUpdate();
