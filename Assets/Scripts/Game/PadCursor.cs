@@ -38,8 +38,14 @@ namespace AlibiCo
         public const float HoldToRead = 0.5f;
         /// <summary>Automation only: the shared desktop's real pointer mustn't take over mid-test.</summary>
         public static bool IgnoreRealMouse;
+        /// <summary>Whose button names the pad last used prints (Xbox until a pad has been used).</summary>
+        public static AlibiCo.Logic.PadFamily PadFamily => I != null && I.lastPad != null && I.lastPad.added ? I.lastFamily : AlibiCo.Logic.PadFamily.Xbox;
+        /// <summary>A prompt written with Xbox button names ("[A]", "[LB]"), named for the pad in use.</summary>
+        public static string Label(string prompt) => AlibiCo.Logic.PadLabels.Localize(prompt, PadFamily);
 
         Mouse virtualMouse, realMouse;
+        Gamepad lastPad;
+        AlibiCo.Logic.PadFamily lastFamily;
         Vector2 pos;
         bool active, keys, touch;
         bool touchDown, touchMoved, heldToRead;
@@ -99,7 +105,16 @@ namespace AlibiCo
             bool padTouched = pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.rightStick.ReadValue().sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame));
             bool keysTouched = kb != null && (arrows != Vector2.zero || kb.qKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
                                               kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame);
-            if (padTouched) { keys = false; touch = false; SetActive(true); }
+            if (padTouched)
+            {
+                keys = false; touch = false; SetActive(true);
+                if (pad != lastPad)
+                {
+                    lastPad = pad;
+                    lastFamily = AlibiCo.Logic.PadLabels.Detect(pad.layout, pad.description.manufacturer, pad.description.product, pad.displayName);
+                    Debug.Log($"[PadCursor] pad \"{pad.displayName}\" (layout {pad.layout}, {pad.description.manufacturer} {pad.description.product}): {lastFamily} buttons");
+                }
+            }
             else if (keysTouched) { keys = true; touch = false; SetActive(true); }
             if (!active) { UpdateCursor(); return; }
 

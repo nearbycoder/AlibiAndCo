@@ -1176,7 +1176,9 @@ namespace AlibiCo
         /// The one gesture worth reminding the player of right now, or null. Each tip retires for good
         /// once the player has used that gesture (SaveData.learned).
         /// </summary>
-        public string CoachTip()
+        public string CoachTip() => PadCursor.Label(CoachTipFor());
+
+        string CoachTipFor()
         {
             if (Solved || Board == null) return null;
             var using_ = PadCursor.Using;

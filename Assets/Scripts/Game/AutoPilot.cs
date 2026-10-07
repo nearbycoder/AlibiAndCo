@@ -659,8 +659,30 @@ namespace AlibiCo
             var root = GameRoot.I;
             bool ok = true;
             void Fail(string why) { Debug.LogError("[AutoPilot] FAIL pad: " + why); ok = false; }
-            pad = InputSystem.AddDevice<Gamepad>("TestPad");
+            // -alibiPadLayout ps | nintendo: a PlayStation pad (by its Input System layout) or a Switch Pro
+            // controller (by its name only, as a browser reports one); otherwise a plain (Xbox-named) pad.
+            var cmd = System.Environment.GetCommandLineArgs();
+            int layoutArg = System.Array.IndexOf(cmd, "-alibiPadLayout");
+            string layout = layoutArg >= 0 && layoutArg + 1 < cmd.Length ? cmd[layoutArg + 1] : "xbox";
+            pad = layout == "ps" ? InputSystem.AddDevice<UnityEngine.InputSystem.DualShock.DualShockGamepad>("TestPad")
+                : layout == "nintendo" ? (Gamepad)InputSystem.AddDevice(new UnityEngine.InputSystem.Layouts.InputDeviceDescription { deviceClass = "Gamepad", manufacturer = "Nintendo Co., Ltd.", product = "Pro Controller" })
+                : InputSystem.AddDevice<Gamepad>("TestPad");
             pad.MakeCurrent();
+            var family = layout == "ps" ? PadFamily.PlayStation : layout == "nintendo" ? PadFamily.Nintendo : PadFamily.Xbox;
+            // The labels each prompt must show for this pad, written out by hand (not through PadLabels).
+            string south = family == PadFamily.PlayStation ? "✕" : family == PadFamily.Nintendo ? "B" : "A";
+            string east = family == PadFamily.PlayStation ? "○" : family == PadFamily.Nintendo ? "A" : "B";
+            string west = family == PadFamily.PlayStation ? "□" : family == PadFamily.Nintendo ? "Y" : "X";
+            string north = family == PadFamily.PlayStation ? "△" : family == PadFamily.Nintendo ? "X" : "Y";
+            string bumpers = family == PadFamily.PlayStation ? "[L1]  [R1]" : family == PadFamily.Nintendo ? "[L]  [R]" : "[LB]  [RB]";
+            string start = family == PadFamily.PlayStation ? "Options" : family == PadFamily.Nintendo ? "+" : "Start";
+            void Labels(string where, string text, params string[] want)
+            {
+                var missing = want.Where(w => !text.Contains(w)).ToList();
+                if (missing.Count > 0) Fail($"{where} doesn't name the {family} buttons: missing {string.Join(", ", missing)} in \"{text.Replace("\n", " / ")}\"");
+                else Debug.Log($"[AutoPilot] pad labels ({family}) {where}: " + string.Join(" ", want));
+                if (family == PadFamily.PlayStation && PadLabels.HasXboxTokens(text)) Fail($"{where} still shows Xbox button names: \"{text.Replace("\n", " / ")}\"");
+            }
             PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only step 8 hands over on purpose
             SaveData.UnlockAll = true;
             SaveData.Current.DropAllBoards();
@@ -676,7 +698,11 @@ namespace AlibiCo
             if (!targets.Any(t => (t - PadCursor.I.Position).magnitude < 40f)) Fail("RB didn't land on a card");   // a hovered card lifts a little
             yield return PadTap(GamepadButton.RightShoulder);
             yield return Wait(0.6f);
+            for (float w = 0; w < 3f && !root.Screens.HelpShown.Contains("jump between cards"); w += Clock.Dt) yield return null;
             yield return Shot("pad_jump_prompt");
+            if (PadCursor.PadFamily != family) Fail($"the pad reads as {PadCursor.PadFamily}, not {family}");
+            Labels("the controls strip", root.Screens.HelpShown, $"[{north}]</b> notebook", $"[{west}]</b> hint", $"[{east}]</b> sends", $"[{start}]</b> menu",
+                $"<b>[{south}]</b> on a card pins it", "<b>" + bumpers.Replace("  ", " ") + "</b> jump between cards");
 
             // 2. Hold A and steer: drag the first tray card onto the board.
             var firstId = s.Board.TrayCards.First().Id;
@@ -721,6 +747,7 @@ namespace AlibiCo
             yield return Wait(0.8f);
             if (!GameRoot.Paused) Fail("Start didn't pause");
             yield return Shot("pad_pause_controls");
+            Labels("the pause menu's controls", root.Screens.ControlsShown, bumpers, $"[{south}] on a card", $"Hold [{south}] and steer", $"[{east}]</b>", $"[{north}]  ·  [{west}]", $"[{start}]");
             // LB/RB in a menu jump between the buttons you can actually press.
             yield return PadTap(GamepadButton.RightShoulder);
             var menuTargets = PadCursor.Targets();
@@ -761,6 +788,8 @@ namespace AlibiCo
             }
             yield return PadTap(GamepadButton.North);
             yield return Wait(0.6f);
+            Labels("the notebook's footer", root.Screens.OpenNotebook != null ? root.Screens.OpenNotebook.FootText : "", $"<b>[{north}]</b> or <b>[{east}]</b> to close");
+            if (family != PadFamily.Xbox) yield return Shot("pad_notebook_footer");
             yield return CheckNotebookScroll("pad", PadHold(new Vector2(0, -1), new GamepadButton[0], 2f), PadHold(Vector2.zero, new[] { GamepadButton.DpadUp }, 2f), Fail);
             yield return PadTap(GamepadButton.East);
             yield return Wait(0.4f);

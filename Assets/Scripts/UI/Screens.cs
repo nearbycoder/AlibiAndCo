@@ -787,9 +787,11 @@ namespace AlibiCo
         {
             string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
             var using_ = PadCursor.Using;
-            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadKeys : using_ == PadCursor.Pointer.Touch ? TouchKeys : MouseKeys;
-            // The pause menu's controls list follows whatever the player picks up while it's open.
-            if (controlsBody != null && pause != null && pause.gameObject.activeSelf && using_ != controlsShown) { controlsShown = using_; controlsBody.text = ControlsText(using_); }
+            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadCursor.Label(PadKeys) : using_ == PadCursor.Pointer.Touch ? TouchKeys : MouseKeys;
+            // The pause menu's controls list follows whatever the player picks up while it's open
+            // (and, for a pad, whose button names it prints).
+            if (controlsBody != null && pause != null && pause.gameObject.activeSelf && (using_ != controlsShown || PadCursor.PadFamily != controlsFamily))
+            { controlsShown = using_; controlsFamily = PadCursor.PadFamily; controlsBody.text = ControlsText(using_); }
             if (helpKeys.text != keys) helpKeys.text = keys;
             if (tip != null && tip != helpShown && helpGroup.alpha < 0.05f) { helpShown = tip; helpText.text = tip; }
             bool show = tip != null && tip == helpShown;
@@ -927,6 +929,7 @@ namespace AlibiCo
         {
             if (pause == null) BuildPause();
             controlsShown = PadCursor.Using;
+            controlsFamily = PadCursor.PadFamily;
             if (controlsBody != null) controlsBody.text = ControlsText(controlsShown);
             notebook?.Hide();
             Show(pause);
@@ -962,6 +965,11 @@ namespace AlibiCo
         /// <summary>The full controls list, next to the pause menu (the board itself only shows one tip at a time).</summary>
         TextMeshProUGUI controlsBody;
         PadCursor.Pointer controlsShown;
+        AlibiCo.Logic.PadFamily controlsFamily;
+
+        /// <summary>The controls strip's two lines and the pause menu's controls list, as shown (the tests read them).</summary>
+        public string HelpShown => (helpKeys != null ? helpKeys.text : "") + "\n" + (helpGroup != null && helpGroup.alpha > 0.05f ? helpText.text : "");
+        public string ControlsShown => controlsBody != null ? controlsBody.text : "";
 
         static string ControlsText(PadCursor.Pointer pointer)
         {
@@ -1012,7 +1020,7 @@ namespace AlibiCo
             };
             var sb = new System.Text.StringBuilder();
             foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b>\n<color=#B9AE98>").Append(v).Append("</color>\n");
-            return sb.ToString().TrimEnd();
+            return PadCursor.Label(sb.ToString().TrimEnd());
         }
 
         void BuildControlsCard(Transform parent)

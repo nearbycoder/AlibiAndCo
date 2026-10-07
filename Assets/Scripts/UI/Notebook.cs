@@ -18,6 +18,7 @@ namespace AlibiCo
         readonly TextMeshProUGUI caseTitle, status, log, foot;
         readonly ScrollRect scroll;
         PadCursor.Pointer footFor = (PadCursor.Pointer)(-1);
+        AlibiCo.Logic.PadFamily footFamily;
 
         static readonly Color Ink = Pal.Ink;
         // Rich-text <font> tags don't resolve here (fonts live in Resources/Fonts), so headings are bold Sans.
@@ -94,13 +95,17 @@ namespace AlibiCo
         public void Tick()
         {
             var p = PadCursor.Using;
-            if (p == footFor) return;
+            if (p == footFor && PadCursor.PadFamily == footFamily) return;
             footFor = p;
-            foot.text = p == PadCursor.Pointer.Pad ? "<b>[Y]</b> or <b>[B]</b> to close  ·  <b>right stick</b> or <b>D-pad</b> for older notes"
+            footFamily = PadCursor.PadFamily;
+            foot.text = p == PadCursor.Pointer.Pad ? PadCursor.Label("<b>[Y]</b> or <b>[B]</b> to close  ·  <b>right stick</b> or <b>D-pad</b> for older notes")
                       : p == PadCursor.Pointer.Keys ? "<b>Tab</b> or <b>Esc</b> to close  ·  <b>Up</b> / <b>Down</b> or <b>Page Up</b> / <b>Page Down</b> for older notes"
                       : p == PadCursor.Pointer.Touch ? "<b>Tap</b> outside the page to close  ·  <b>drag</b> the notes for older ones"
                       : "<b>Tab</b> or <b>Esc</b> to close  ·  scroll for older notes";
         }
+
+        /// <summary>The footer as shown (the pad test reads its button names).</summary>
+        public string FootText => foot != null ? foot.text : "";
 
         /// <summary>0 at the oldest note, 1 at the newest (the top).</summary>
         public float ScrollPosition => scroll.verticalNormalizedPosition;
