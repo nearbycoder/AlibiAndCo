@@ -68,7 +68,7 @@ namespace AlibiCo
         static readonly Dictionary<string, CaseDef> dockets = new Dictionary<string, CaseDef>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { all = null; dockets.Clear(); Today = System.DateTime.Now.Date; }   // see Art.ResetStatics
+        static void ResetStatics() { all = null; dockets.Clear(); Today = System.DateTime.Now.Date; TodayFixed = false; }   // see Art.ResetStatics
 
         public static bool IsDocket(CaseDef c) => c != null && Docket.IsDocket(c.Id);
 
@@ -88,12 +88,22 @@ namespace AlibiCo
 
         /// <summary>The local date decides the day's docket (-alibiDocketDate yyyy-MM-dd overrides it for tests).</summary>
         public static System.DateTime Today = System.DateTime.Now.Date;
+        public static bool TodayFixed;
+
+        /// <summary>Called whenever the case files open, so a game left running past midnight gets the new day's docket.</summary>
+        public static void RefreshToday()
+        {
+            if (!TodayFixed) Today = System.DateTime.Now.Date;
+        }
         public static CaseDef TodaysDocket => DocketFor(Today);
 
         /// <summary>The docket opens once case 2 has taught clocks.</summary>
         public static bool DocketUnlocked => SaveData.UnlockAll || (All.Count > 1 && SaveData.Current.Record(All[1].Id).solved);
 
         public static int DocketsClosed => SaveData.Current.cases.FindAll(r => r.solved && Docket.IsDocket(r.id)).Count;
+
+        /// <summary>The save's record for a day's docket, or null if it has never been opened.</summary>
+        public static SaveData.CaseRecord DocketRecord(System.DateTime day) => SaveData.Current.cases.Find(r => r.id == Docket.IdFor(day));
     }
 
     /// <summary>Polaroid portraits (rendered in Blender), with a typographic fallback.</summary>

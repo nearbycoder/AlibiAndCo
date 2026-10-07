@@ -11,7 +11,7 @@ namespace AlibiCo
     public sealed class Screens
     {
         readonly GameRoot root;
-        CanvasGroup title, select, intro, hud, actions, pause, settings, closed, confirm;
+        CanvasGroup title, select, intro, hud, actions, pause, settings, closed, confirm, week;
         CaseSession hudSession;
         RectTransform actionsPanel;
         TextMeshProUGUI actionsTitle, actionsInfo;
@@ -49,7 +49,7 @@ namespace AlibiCo
 
         void HideAllMenus()
         {
-            Hide(title); Hide(select); Hide(intro); Hide(closed); Hide(pause); Hide(settings); Hide(confirm);
+            Hide(title); Hide(select); Hide(intro); Hide(closed); Hide(pause); Hide(settings); Hide(confirm); Hide(week);
         }
 
         /// <summary>Running in a browser: no Quit, and no resolution picker.</summary>
@@ -58,11 +58,13 @@ namespace AlibiCo
         /// <summary>Settings or a confirmation box is on screen.</summary>
         public bool AnyOverlayOpen =>
             (confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.01f) ||
-            (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.01f);
+            (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.01f) ||
+            DocketWeekOpen;
 
         public bool CloseTopOverlay()
         {
             if (confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.5f) { Hide(confirm); return true; }
+            if (DocketWeekOpen) { Hide(week); return true; }
             if (notebook != null && notebook.Open) { notebook.Hide(); return true; }
             if (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.5f) { Hide(settings); return true; }
             if (actions != null && actions.gameObject.activeSelf) { CaseSession.Current?.Deselect(); return true; }
@@ -145,6 +147,7 @@ namespace AlibiCo
 
         void BuildSelect()
         {
+            Cases.RefreshToday();   // a game left open past midnight moves on to the new day's docket
             select = Group("Select");
             var shade = UiKit.Panel(select.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.72f), false);
             shade.rectTransform.Stretch();
@@ -173,32 +176,125 @@ namespace AlibiCo
         }
 
         /// <summary>
-        /// Today's Daily Docket, next to Back: a short generated case, proven airtight before it's
-        /// offered (Logic/Docket). It opens once case 2 has taught clocks.
+        /// The Daily Docket, next to Back: a short generated case each day, proven airtight before
+        /// it's offered (Logic/Docket). It opens once case 2 has taught clocks, and opens the drawer
+        /// of this week's dockets.
         /// </summary>
         void DocketButton(Transform parent)
         {
             string label;
-            CaseDef c = null;
             bool open = Cases.DocketUnlocked;
-            if (open) c = Cases.TodaysDocket;
-            string head = "DAILY DOCKET  ·  " + Cases.Today.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture).ToUpperInvariant();
+            string head = "DAILY DOCKET  ·  " + Day(Cases.Today);
             if (!open) label = $"<size=60%>{head}</size>\n<size=80%>Opens when Case No. 2 is closed</size>";
-            else if (c == null) label = $"<size=60%>{head}</size>\nNo docket today";
             else
             {
-                var rec = SaveData.Current.cases.Find(r => r.id == c.Id);
-                bool going = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
-                string state = rec != null && rec.solved ? $"   {Stars(rec.bestBadges)} <size=80%>{Clock(rec.bestTime)}</size>" : going ? "   <size=70%>IN PROGRESS</size>" : "";
-                int closed = Cases.DocketsClosed;
-                label = $"<size=60%>{head}{(closed > 0 ? $"  ·  {closed} CLOSED" : "")}</size>\n{c.Title}{state}";
+                int week = Docket.Week(Cases.Today).Count(d => Cases.DocketRecord(d)?.solved == true);
+                label = $"<size=60%>{head}  ·  {week} OF {Docket.DaysOnFile} THIS WEEK</size>\n{Docket.TitleFor(Cases.Today)}{DocketState(Cases.Today, true)}";
             }
-            var b = UiKit.Button(parent, label, () => { if (c != null) { Sfx.Play("folder", 0.8f); root.ShowIntro(c); } },
-                c != null ? Pal.Hex("8E2B2B") : Pal.Hex("3A3530"), c != null ? Cream : CreamDim, 26, null, "btn_docket");
+            var b = UiKit.Button(parent, label, () => { if (open) { Sfx.Play("folder", 0.8f); ShowDocketWeek(); } },
+                open ? Pal.Hex("8E2B2B") : Pal.Hex("3A3530"), open ? Cream : CreamDim, 26, null, "btn_docket");
             ((RectTransform)b.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(150, 36), new Vector2(620, 78));
             var t = b.GetComponentInChildren<TextMeshProUGUI>();
             t.lineSpacing = -12;
             t.textWrappingMode = TextWrappingModes.NoWrap;
+        }
+
+        static string Day(System.DateTime d) => d.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture).ToUpperInvariant();
+
+        /// <summary>"   ★★☆ 3:12", "   IN PROGRESS", or (in the drawer) what's left of a day's time on file.</summary>
+        static string DocketState(System.DateTime day, bool onButton)
+        {
+            var rec = Cases.DocketRecord(day);
+            var s = SaveData.Current.inProgress;
+            if (rec != null && rec.solved) return $"   {Stars(rec.bestBadges)} <size=80%>{Clock(rec.bestTime)}</size>";
+            if (s != null && s.caseId == Docket.IdFor(day)) return "   <size=70%>IN PROGRESS</size>";
+            if (onButton) return "";
+            if (day == Cases.Today) return "   <size=70%><color=#E8C27A>NEW TODAY</color></size>";
+            return Docket.OnFileUntil(day) == Cases.Today ? "   <size=70%><color=#E8C27A>LAST DAY ON FILE</color></size>" : "   <size=70%><color=#B9AE98>NOT YET OPENED</color></size>";
+        }
+
+        /// <summary>The drawer is on screen (the case files' week of dockets).</summary>
+        public bool DocketWeekOpen => week != null && week.gameObject.activeSelf && week.alpha > 0.01f;
+
+        /// <summary>
+        /// The docket drawer: the last seven days, today first, each with its crime and your result.
+        /// A missed day can still be opened until it's a week old.
+        /// </summary>
+        public void ShowDocketWeek()
+        {
+            if (week != null) Object.Destroy(week.gameObject);
+            week = Group("DocketWeek");
+            var shade = UiKit.Panel(week.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.6f), false);
+            shade.rectTransform.Stretch();
+            var shut = shade.gameObject.AddComponent<Button>();
+            shut.transition = Selectable.Transition.None;
+            shut.onClick.AddListener(() => Hide(week));
+            var paper = UiKit.Panel(week.transform, "paper", Pal.Hex("F2EAD6"));
+            UiKit.DropShadow(paper.rectTransform, 40f, 0.65f, new Vector2(8, -18));
+            paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1060, 900));
+            UiKit.FitInCanvas(paper.rectTransform, 20);
+            paper.transform.localRotation = Quaternion.Euler(0, 0, 0.4f);
+            var p = paper.rectTransform;
+            var head = UiKit.Text(p, "ALIBI & CO.  ·  THE DAILY DOCKET", Art.SansBold, 22, Pal.Oxblood, TextAlignmentOptions.TopLeft);
+            head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -48), new Vector2(-120, 30));
+            head.characterSpacing = 5;
+            var t = UiKit.Text(p, "This week's dockets", Art.Display, 64, Pal.Ink, TextAlignmentOptions.TopLeft);
+            t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(56, -84), new Vector2(-120, 86));
+            var sub = UiKit.Text(p, "A new case comes in every day, and each one stays on file for a week. Missed one? It's still in the drawer.",
+                Art.SerifItalic, 24, Pal.InkSoft, TextAlignmentOptions.TopLeft);
+            sub.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -174), new Vector2(-120, 64));
+
+            var col = UiKit.Rect(p, "days");
+            col.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -272), new Vector2(-120, 7 * 70));
+            var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
+            vl.spacing = 10; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
+            var days = Docket.Week(Cases.Today);
+            for (int i = 0; i < days.Count; i++)
+            {
+                var day = days[i];
+                string when = i == 0 ? "TODAY" : i == 1 ? "YESTERDAY" : Day(day);
+                var rec = Cases.DocketRecord(day);
+                bool done = rec != null && rec.solved;
+                string label = $"<pos=2%><size=72%><cspace=2>{when}</cspace></size><pos=24%>{Docket.TitleFor(day)}<pos=64%>{DocketState(day, false).Trim()}";
+                var b = UiKit.Button(col, label, () =>
+                {
+                    var c = Cases.DocketFor(day);
+                    if (c == null) return;
+                    Hide(week);
+                    Sfx.Play("folder", 0.8f);
+                    root.ShowIntro(c);
+                }, i == 0 ? Pal.Hex("8E2B2B") : done ? Pal.Hex("2F4A3E") : Pal.Hex("2B3540"), Cream, 26, null, "docket_" + day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                Size(b, 60);
+                var lt = b.GetComponentInChildren<TextMeshProUGUI>();
+                lt.alignment = TextAlignmentOptions.MidlineLeft;
+                lt.textWrappingMode = TextWrappingModes.NoWrap;
+            }
+            var close = UiKit.Button(p, "Close", () => Hide(week), Pal.Hex("2B3540"), Cream, 26);
+            ((RectTransform)close.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 40), new Vector2(200, 60));
+            var foot = UiKit.Text(p, Cases.DocketsClosed > 0 ? $"{Cases.DocketsClosed} closed in all." : "", Art.SerifItalic, 22, Pal.InkSoft, TextAlignmentOptions.MidlineLeft);
+            foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 40), new Vector2(-340, 60));
+            week.transform.SetAsLastSibling();
+            Show(week);
+        }
+
+        /// <summary>A day's row in the drawer, as shown (for the autopilot), or null.</summary>
+        public string DocketRowText(System.DateTime day)
+        {
+            if (week == null) return null;
+            var row = week.transform.Find("paper/days/docket_" + day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            return row != null ? row.GetComponentInChildren<TextMeshProUGUI>().text : null;
+        }
+
+        /// <summary>Press a named button on the case files or the drawer, as a click would (for the autopilot).</summary>
+        public bool Press(string name)
+        {
+            foreach (var g in new[] { week, select })
+            {
+                if (g == null || !g.gameObject.activeSelf) continue;
+                var b = g.GetComponentsInChildren<Button>().FirstOrDefault(x => x.name == name);
+                if (b != null) { b.onClick.Invoke(); return true; }
+            }
+            return false;
         }
 
         void Folder(RectTransform parent, int index)
@@ -400,8 +496,9 @@ namespace AlibiCo
                 var fresh = UiKit.Button(btns, "Start over", () => { Hide(intro); root.StartCase(c, false); }, Pal.Hex("2B3540"), Cream, 26);
                 ((RectTransform)fresh.transform).sizeDelta = new Vector2(220, 70);
             }
-            var back = UiKit.Button(btns, "Back to files", () => { Hide(intro); root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 26);
-            ((RectTransform)back.transform).sizeDelta = new Vector2(240, 70);
+            bool docket = Cases.IsDocket(c);
+            var back = UiKit.Button(btns, docket ? "Back to the dockets" : "Back to files", () => { Hide(intro); root.ShowSelect(); if (docket) ShowDocketWeek(); }, Pal.Hex("2B3540"), Cream, 26);
+            ((RectTransform)back.transform).sizeDelta = new Vector2(docket ? 300 : 240, 70);
             Show(intro);
             Sfx.Play("paper_slide", 0.5f);
         }
@@ -898,8 +995,8 @@ namespace AlibiCo
             int idx = Cases.IndexOf(c.Id);
             bool docket = Cases.IsDocket(c);
             bool last = docket || idx + 1 >= Cases.All.Count;
-            var next = UiKit.Button(btns, last ? "Back to the case files" : "Next case: " + Cases.All[idx + 1].Title,
-                () => { Hide(closed); if (last) root.ShowSelect(); else root.NextCase(c); }, Pal.Hex("8E2B2B"), Cream, 28);
+            var next = UiKit.Button(btns, docket ? "Back to the dockets" : last ? "Back to the case files" : "Next case: " + Cases.All[idx + 1].Title,
+                () => { Hide(closed); if (last) { root.ShowSelect(); if (docket) ShowDocketWeek(); } else root.NextCase(c); }, Pal.Hex("8E2B2B"), Cream, 28);
             ((RectTransform)next.transform).sizeDelta = new Vector2(last ? 380 : 470, 70);
             var replay = UiKit.Button(btns, "Replay this case", () => { Hide(closed); root.StartCase(c, false); }, Pal.Hex("2B3540"), Cream, 24);
             ((RectTransform)replay.transform).sizeDelta = new Vector2(260, 70);
@@ -910,7 +1007,9 @@ namespace AlibiCo
             }
             if (docket)
             {
-                var fin = UiKit.Text(p, "A new docket comes in tomorrow.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                Docket.TryParseId(c.Id, out var day);
+                var fin = UiKit.Text(p, day >= Cases.Today ? "A new docket comes in tomorrow." : $"Seven days on file. {Docket.Week(Cases.Today).Count(d => Cases.DocketRecord(d)?.solved == true)} of this week's closed.",
+                    Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
                 fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
             }
             else if (last)

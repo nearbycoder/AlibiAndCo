@@ -441,10 +441,14 @@ namespace AlibiCo
                 yield return Shot("case_files");
             }
             int passed = 0;
-            // The five cases, then today's Daily Docket and three fixed days (two with a wrong clock).
+            // The five cases, then today's Daily Docket and three fixed days (two with a wrong clock), and a day from
+            // earlier this week, opened from the docket drawer.
             var toPlay = new System.Collections.Generic.List<CaseDef>(Cases.All);
             var trapDocket = Docket.IdFor(new System.DateTime(2026, 10, 7));
-            foreach (var day in new[] { Cases.Today, new System.DateTime(2026, 10, 7), new System.DateTime(2026, 10, 13), new System.DateTime(2026, 12, 25) })
+            // A day from earlier in the week, opened from the docket drawer like a player who missed it.
+            var weekDay = Cases.Today.AddDays(-3);
+            var weekDocket = Docket.IdFor(weekDay);
+            foreach (var day in new[] { Cases.Today, new System.DateTime(2026, 10, 7), new System.DateTime(2026, 10, 13), new System.DateTime(2026, 12, 25), weekDay })
             {
                 var dk = Cases.DocketFor(day);
                 if (dk == null) { Debug.LogError($"[AutoPilot] FAIL no docket for {day:yyyy-MM-dd}"); continue; }
@@ -453,7 +457,23 @@ namespace AlibiCo
             foreach (var c in toPlay)
             {
                 int errorsBefore = errors;
-                if (capture)
+                bool drawerOk = true;
+                if (c.Id == weekDocket)
+                {
+                    // Through the case files' Docket button and the drawer's row for that day.
+                    root.ShowSelect();
+                    yield return Wait(1.5f);
+                    bool pressed = root.Screens.Press("btn_docket");
+                    yield return Wait(1f);
+                    drawerOk = pressed && root.Screens.DocketWeekOpen && root.Screens.DocketRowText(weekDay) != null;
+                    yield return Shot("docket_week");
+                    pressed = root.Screens.Press("docket_" + weekDay.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                    yield return Wait(3.5f);
+                    drawerOk &= pressed && root.Flow == Flow.Intro && root.IntroCase != null && root.IntroCase.Id == c.Id;
+                    Debug.Log($"[AutoPilot] {(drawerOk ? "PASS" : "FAIL")} docket drawer: opened {c.Id} from its row ({(pressed ? "pressed" : "no row")}, flow {root.Flow})");
+                    yield return Shot(c.Id + "_intro_from_drawer");
+                }
+                else if (capture)
                 {
                     root.ShowIntro(c);
                     yield return Wait(3.5f);
@@ -578,6 +598,7 @@ namespace AlibiCo
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_closed");
                 }
+                if (!drawerOk) ok = false;
                 if (errors > errorsBefore) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: {errors - errorsBefore} errors logged"); }
                 if (s.Badges != 3 - trapBadges) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: expected {3 - trapBadges} badges, got {s.Badges}"); }
                 // Seals: no hints and well under par, so Unaided and Swift; Clean unless the trap cost a badge.
@@ -596,6 +617,16 @@ namespace AlibiCo
                 yield return Wait(1.5f);
                 yield return Shot("case_files_sealed");
             }
+            // The drawer shows the result of the day played from it.
+            root.ShowSelect();
+            yield return Wait(1f);
+            root.Screens.Press("btn_docket");
+            yield return Wait(1f);
+            var row = root.Screens.DocketRowText(weekDay) ?? "";
+            bool rowOk = row.Contains("★");
+            Debug.Log($"[AutoPilot] {(rowOk ? "PASS" : "FAIL")} docket drawer shows {weekDocket}'s result: {row}");
+            if (!rowOk) passed--;
+            yield return Shot("docket_week_after");
             Debug.Log($"[AutoPilot] done: {passed}/{toPlay.Count} cases passed ({Cases.All.Count} cases, {toPlay.Count - Cases.All.Count} dockets), {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(passed == toPlay.Count && errors == 0 ? 0 : 1);

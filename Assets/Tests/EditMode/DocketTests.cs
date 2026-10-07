@@ -91,6 +91,21 @@ namespace AlibiCo.Tests
             Assert.Less(culpritFirst, 40, "the intro names the culprit first too often");
         }
 
+        /// <summary>The drawer's seven days, today first, across a month and a year boundary.</summary>
+        [Test]
+        public void TheWeekOnFile()
+        {
+            var week = Docket.Week(new DateTime(2027, 1, 2, 23, 59, 0));
+            Assert.AreEqual(7, week.Count);
+            Assert.AreEqual(new DateTime(2027, 1, 2), week[0]);
+            Assert.AreEqual(new DateTime(2026, 12, 27), week[6]);
+            Assert.AreEqual(7, week.Select(Docket.IdFor).Distinct().Count());
+            var march = Docket.Week(new DateTime(2028, 3, 1));
+            Assert.AreEqual(new DateTime(2028, 2, 29), march[1], "a leap day is on file like any other");
+            Assert.AreEqual(new DateTime(2027, 1, 8), Docket.OnFileUntil(new DateTime(2027, 1, 2)));
+            Assert.IsNotNull(Docket.Generate(new DateTime(2028, 2, 29), Map()), "no docket for a leap day");
+        }
+
         [Test]
         public void IdsRoundTrip()
         {

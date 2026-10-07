@@ -56,7 +56,10 @@ namespace AlibiCo
             int dateArg = Array.IndexOf(args, "-alibiDocketDate");
             if (dateArg >= 0 && dateArg + 1 < args.Length && DateTime.TryParseExact(args[dateArg + 1], "yyyy-MM-dd",
                     System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var docketDate))
+            {
                 Cases.Today = docketDate;
+                Cases.TodayFixed = true;
+            }
 
             AudioDirector.Build();
             UiKit.Init();
@@ -163,6 +166,7 @@ namespace AlibiCo
 
         float lastAspect, aspectCheck;
         CaseDef introCase;
+        public CaseDef IntroCase => introCase;
 
         /// <summary>The set is laid out for one aspect ratio; if the window changes shape, rebuild it.</summary>
         void CheckAspect()

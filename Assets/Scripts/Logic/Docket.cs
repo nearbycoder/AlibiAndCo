@@ -61,6 +61,15 @@ namespace AlibiCo.Logic
             return null;
         }
 
+        /// <summary>How long a day's docket stays on file: a missed day can still be played for a week.</summary>
+        public const int DaysOnFile = 7;
+
+        /// <summary>The days on file, today first.</summary>
+        public static List<DateTime> Week(DateTime today) => Enumerable.Range(0, DaysOnFile).Select(i => today.Date.AddDays(-i)).ToList();
+
+        /// <summary>The last day a docket can be opened from the drawer.</summary>
+        public static DateTime OnFileUntil(DateTime day) => day.Date.AddDays(DaysOnFile - 1);
+
         /// <summary>A day's crime title without generating the docket (the same as its case title).</summary>
         public static string TitleFor(DateTime date) => CrimeFor(date).Title;
 
