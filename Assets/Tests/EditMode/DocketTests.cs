@@ -150,5 +150,33 @@ namespace AlibiCo.Tests
                 foreach (var k in c.Clocks) StringAssert.DoesNotContain(k.Name, line);
             }
         }
+
+        /// <summary>The drawer's run of days: back from today, or from yesterday while today's is still open.</summary>
+        static int Run(string today, params string[] closed)
+        {
+            var set = closed.Select(d => DateTime.Parse(d).Date).ToList();
+            return Docket.Run(DateTime.Parse(today), d => set.Contains(d.Date));
+        }
+
+        [Test]
+        public void RunCountsBackFromTodayOrYesterday()
+        {
+            Assert.AreEqual(0, Run("2026-10-07"));
+            Assert.AreEqual(1, Run("2026-10-07", "2026-10-07"));
+            Assert.AreEqual(1, Run("2026-10-07", "2026-10-06"), "today not played yet: yesterday's run stands");
+            Assert.AreEqual(0, Run("2026-10-07", "2026-10-05"), "a day missed: no run");
+            Assert.AreEqual(3, Run("2026-10-07", "2026-10-07", "2026-10-06", "2026-10-05", "2026-10-03"), "the gap ends it");
+            Assert.AreEqual(2, Run("2026-10-07", "2026-10-06", "2026-10-05", "2026-10-03"));
+        }
+
+        [Test]
+        public void RunCountsDaysMadeUpFromTheDrawerAndCrossesMonths()
+        {
+            // Closed today, then the missed day before it from the drawer: the run joins up.
+            Assert.AreEqual(4, Run("2026-11-02", "2026-11-02", "2026-11-01", "2026-10-31", "2026-10-30"));
+            Assert.AreEqual(3, Run("2027-01-01", "2027-01-01", "2026-12-31", "2026-12-30"));
+            // Today's time of day doesn't matter.
+            Assert.AreEqual(2, Docket.Run(new DateTime(2026, 10, 7, 23, 59, 0), d => d == new DateTime(2026, 10, 7) || d == new DateTime(2026, 10, 6)));
+        }
     }
 }

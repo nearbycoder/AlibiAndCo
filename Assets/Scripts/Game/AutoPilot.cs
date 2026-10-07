@@ -1872,7 +1872,8 @@ namespace AlibiCo
             // A day from earlier in the week, opened from the docket drawer like a player who missed it.
             var weekDay = Cases.Today.AddDays(-3);
             var weekDocket = Docket.IdFor(weekDay);
-            foreach (var day in new[] { Cases.Today, new System.DateTime(2026, 10, 7), new System.DateTime(2026, 10, 13), new System.DateTime(2026, 12, 25), weekDay })
+            // Today's and yesterday's make a run of two days for the drawer and the closed panel to show.
+            foreach (var day in new[] { Cases.Today, Cases.Today.AddDays(-1), new System.DateTime(2026, 10, 7), new System.DateTime(2026, 10, 13), new System.DateTime(2026, 12, 25), weekDay })
             {
                 var dk = Cases.DocketFor(day);
                 if (dk == null) { Debug.LogError($"[AutoPilot] FAIL no docket for {day:yyyy-MM-dd}"); continue; }
@@ -2052,6 +2053,16 @@ namespace AlibiCo
                     yield return Shot(c.Id + "_closed");
                     CheckLettering(c.Id + " closed");
                     if (Cases.IsDocket(c) && !CheckShare(s)) ok = false;
+                    if (Cases.IsDocket(c))
+                    {
+                        // The run of days: on the closed panel once it's two days or more, clear of the epilogue and buttons.
+                        int run = Cases.DocketRun;
+                        var line = root.Screens.ClosedNote;
+                        string clash = root.Screens.ClosedNoteClash();
+                        bool runOk = run >= 2 ? line.Contains($"{run} days in a row.") : !line.Contains("in a row");
+                        if (!runOk || clash != null) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: run of {run} days, closing line \"{line}\"{(clash != null ? ", runs into " + clash : "")}"); }
+                        else Debug.Log($"[AutoPilot] {c.Id} run of {run} day(s), closing line: {line}");
+                    }
                     // The closing line: case 2's first close announces the Daily Docket, and the last
                     // case points at it with a button; the others have none (dockets have their own).
                     int ci = Cases.IndexOf(c.Id);
@@ -2108,6 +2119,12 @@ namespace AlibiCo
             bool rowOk = row.Contains("★");
             Debug.Log($"[AutoPilot] {(rowOk ? "PASS" : "FAIL")} docket drawer shows {weekDocket}'s result: {row}");
             if (!rowOk) passed--;
+            // Today and yesterday were both closed: the drawer's foot counts the run.
+            var foot = root.Screens.DocketFootText ?? "";
+            int wantRun = Cases.DocketRun;
+            bool footOk = wantRun >= 2 && foot.Contains($"{wantRun} days in a row.");
+            Debug.Log($"[AutoPilot] {(footOk ? "PASS" : "FAIL")} docket drawer foot (run of {wantRun}): {foot}");
+            if (!footOk) passed--;
             yield return Shot("docket_week_after");
             Debug.Log($"[AutoPilot] done: {passed}/{toPlay.Count} cases passed ({Cases.All.Count} cases, {toPlay.Count - Cases.All.Count} dockets), {errors} errors");
             yield return Wait(0.5f);

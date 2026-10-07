@@ -67,6 +67,20 @@ namespace AlibiCo.Logic
         /// <summary>The days on file, today first.</summary>
         public static List<DateTime> Week(DateTime today) => Enumerable.Range(0, DaysOnFile).Select(i => today.Date.AddDays(-i)).ToList();
 
+        /// <summary>
+        /// Days in a row with their docket closed, counting back from today, or from yesterday while today's
+        /// is still open (so a run doesn't look broken before you've played). A day closed late, from the
+        /// drawer, counts: the drawer is there so a missed day can be made up.
+        /// </summary>
+        public static int Run(DateTime today, Func<DateTime, bool> closed)
+        {
+            var day = today.Date;
+            if (!closed(day)) day = day.AddDays(-1);
+            int n = 0;
+            while (n < 100000 && closed(day)) { n++; day = day.AddDays(-1); }
+            return n;
+        }
+
         /// <summary>The last day a docket can be opened from the drawer.</summary>
         public static DateTime OnFileUntil(DateTime day) => day.Date.AddDays(DaysOnFile - 1);
 

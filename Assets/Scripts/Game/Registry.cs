@@ -116,6 +116,12 @@ namespace AlibiCo
 
         /// <summary>The save's record for a day's docket, or null if it has never been opened.</summary>
         public static SaveData.CaseRecord DocketRecord(System.DateTime day) => SaveData.Current.cases.Find(r => r.id == Docket.IdFor(day));
+
+        /// <summary>Days in a row with a docket closed, up to today (Docket.Run).</summary>
+        public static int DocketRun => Docket.Run(Today, d => DocketRecord(d)?.solved == true);
+
+        /// <summary>"4 days in a row." once a run is two days or more, else empty.</summary>
+        public static string DocketRunLine { get { int n = DocketRun; return n >= 2 ? $"{n} days in a row." : ""; } }
     }
 
     /// <summary>Polaroid portraits (rendered in Blender), with a typographic fallback.</summary>

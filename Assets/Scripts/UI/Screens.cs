@@ -288,12 +288,15 @@ namespace AlibiCo
             }
             var close = UiKit.Button(p, "Close", () => Hide(week), Pal.Hex("2B3540"), Cream, 26);
             ((RectTransform)close.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 40), new Vector2(200, 60));
-            var foot = UiKit.Text(p, Cases.DocketsClosed > 0 ? $"{Cases.DocketsClosed} closed in all." : "", Art.SerifItalic, 22, Pal.InkSoft, TextAlignmentOptions.MidlineLeft);
+            var foot = UiKit.Text(p, Cases.DocketsClosed > 0 ? $"{Cases.DocketsClosed} closed in all. {Cases.DocketRunLine}".Trim() : "", Art.SerifItalic, 22, Pal.InkSoft, TextAlignmentOptions.MidlineLeft, "foot");
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 40), new Vector2(-340, 60));
             week.transform.SetAsLastSibling();
             if (instant) week.alpha = 1;
             Show(week);
         }
+
+        /// <summary>The drawer's foot line (dockets closed, the run), as shown (for the autopilot), or null.</summary>
+        public string DocketFootText => week != null ? week.transform.Find("paper/foot")?.GetComponent<TextMeshProUGUI>().text : null;
 
         /// <summary>A day's row in the drawer, as shown (for the autopilot), or null.</summary>
         public string DocketRowText(System.DateTime day)
@@ -1238,7 +1241,9 @@ namespace AlibiCo
                     Tween.Delay(2.5f, () => { if (label) label.text = "Copy result"; });
                 }, Pal.Hex("2B3540"), Cream, 24, null, "btn_copy_result");
                 ((RectTransform)copy.transform).sizeDelta = new Vector2(240, 70);
-                var fin = UiKit.Text(p, day >= Cases.Today ? "A new docket comes in tomorrow." : $"Seven days on file. {Docket.Week(Cases.Today).Count(d => Cases.DocketRecord(d)?.solved == true)} of this week's closed.",
+                string run = Cases.DocketRunLine;
+                var fin = UiKit.Text(p, day >= Cases.Today ? (run + " A new docket comes in tomorrow.").Trim()
+                    : $"Seven days on file. {Docket.Week(Cases.Today).Count(d => Cases.DocketRecord(d)?.solved == true)} of this week's closed. {run}".Trim(),
                     Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
                 // Above the buttons, which need the whole row for the Copy button.
                 fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 124), new Vector2(-120, 40));
