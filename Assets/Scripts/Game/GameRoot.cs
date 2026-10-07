@@ -22,11 +22,17 @@ namespace AlibiCo
         /// while it does, so alt-tabbing away never costs the Swift seal.
         /// </summary>
         public static bool Attended { get; private set; } = true;
+        /// <summary>
+        /// Attention has only just come back: this frame's time mostly passed away (one frame at the
+        /// background rate can be a tenth of a second or more), so the case timer leaves it out.
+        /// </summary>
+        public static bool JustBack => Time.frameCount <= backFrame + 1;
+        static int backFrame = -10;
         /// <summary>Automated runs keep their timing whatever the desktop's focus (they usually run unfocused).</summary>
         public static bool TimerIgnoresFocus;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Paused = false; Time.timeScale = 1; Attended = true; TimerIgnoresFocus = false; }   // see Art.ResetStatics
+        static void ResetStatics() { Paused = false; Time.timeScale = 1; Attended = true; TimerIgnoresFocus = false; backFrame = -10; }   // see Art.ResetStatics
 
         void OnApplicationFocus(bool focused) => SetAttended(focused, "window focus");
         void OnApplicationPause(bool paused) => SetAttended(!paused && Application.isFocused, "application pause");
@@ -37,6 +43,7 @@ namespace AlibiCo
         {
             if (on == Attended) return;
             Attended = on;
+            if (on) backFrame = Time.frameCount;
             Debug.Log($"[Focus] {(on ? "attended" : "away")} ({why}){(Session != null ? $", case timer at {Session.Elapsed:0.0}s" : "")}");
             ApplyFrameRate();
         }
