@@ -1812,7 +1812,7 @@ namespace AlibiCo
                 if (Settings.PlainText && isFancy) left.Add($"{t.transform.parent?.name}/{t.name} ({t.font.name})");
                 if (!t.gameObject.activeInHierarchy || string.IsNullOrEmpty(t.text) || !t.TryGetComponent<Lettering>(out _)) continue;
                 t.ForceMeshUpdate();
-                if (t.isTextOverflowing || t.isTextTruncated) over.Add($"{t.transform.parent?.name}/{t.name}");
+                if (t.isTextOverflowing || t.isTextTruncated) over.Add($"{t.GetComponentInParent<CardView>()?.Id ?? t.transform.parent?.name}/{t.name}");
             }
             string line = $"{where}: {reading} reading texts, {plain} in a plain face; out of their boxes [{string.Join(", ", over)}]";
             if (left.Count > 0) Debug.LogError($"[Lettering] FAIL {line}; still decorative [{string.Join(", ", left.Distinct())}]");
@@ -2109,6 +2109,42 @@ namespace AlibiCo
                 root.ShowSelect();
                 yield return Wait(1.5f);
                 yield return Shot("case_files_sealed");
+            }
+            // A replay of case 2, played to its close: the closed panel announced the Daily Docket the first
+            // time, and mustn't again.
+            {
+                var c2 = Cases.All[1];
+                root.StartCase(c2, false);
+                yield return Wait(2.6f);
+                var s = root.Session;
+                foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                yield return Wait(1f);
+                for (int step = 0; step < 20; step++)
+                {
+                    var path = Solver.ShortestSolution(Solver.Shadow(s.Board));
+                    if (path == null || path.Count == 0) break;
+                    var m = path[0];
+                    if (m.Kind == "link")
+                    {
+                        if (!s.Board.Pinned.Contains(m.A)) s.AutoPin(m.A);
+                        if (!s.Board.Pinned.Contains(m.B)) s.AutoPin(m.B);
+                        yield return Wait(0.4f);
+                        s.AutoLink(m.A, m.B);
+                    }
+                    else s.Confront(s.ViewOf(m.A));
+                    yield return Wait(2.4f * pace + 0.6f);
+                    foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                    yield return Wait(0.6f);
+                }
+                s.AutoAccuse(c2.Incident.Culprit);
+                float t = 0;
+                while (root.Flow != Flow.Closed && t < 90) { t += Clock.Dt; yield return null; }
+                yield return Wait(3.5f);
+                yield return Shot(c2.Id + "_replay_closed");
+                var note = root.Screens.ClosedNote;
+                bool replayOk = root.Flow == Flow.Closed && SaveData.Current.Record(c2.Id).plays >= 2 && note == "";
+                Debug.Log($"[AutoPilot] {(replayOk ? "PASS" : "FAIL")} {c2.Id} replayed to its close (play {SaveData.Current.Record(c2.Id).plays}, flow {root.Flow}): closing line \"{note}\"");
+                if (!replayOk) passed--;
             }
             // The drawer shows the result of the day played from it.
             root.ShowSelect();
