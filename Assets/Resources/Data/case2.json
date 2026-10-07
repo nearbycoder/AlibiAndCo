@@ -138,7 +138,7 @@
     { "on": "calibrate", "a": "cafe", "memo": "The café clock is five minutes fast, and so is every docket it stamped." }
   ],
   "memos": [
-    { "when": "start", "text": "Clocks lie too. When two cards describe the same moment, drag one onto the other." },
+    { "when": "start", "text": "Clocks lie too. When two cards describe the same moment, drag one onto the other and hold it there a moment." },
     { "when": "firstConflict", "text": "Before you call Sid a liar, ask which clock he was reading." },
     { "when": "allCovered", "text": "Everyone's covered. Then somebody's cover is false. Look for a moment that's on two clocks." }
   ],

@@ -22,6 +22,8 @@ namespace AlibiCo
         RectTransform helpRect;
         TextMeshProUGUI helpText, helpKeys;
         string helpShown;
+        CanvasGroup linkTag;
+        RectTransform linkTagRect;
 
         static readonly Color Cream = Pal.Hex("F1E6CF");
         static readonly Color CreamDim = Pal.Hex("C9BFA8");
@@ -645,8 +647,22 @@ namespace AlibiCo
             helpKeys.fontSizeMin = 12;
             helpKeys.fontSizeMax = 16;
 
+            // Says a drop will link, once a dragged card has been held over another one long enough.
+            var tag = UiKit.Panel(hud.transform, "linkTag", new Color(0.09f, 0.16f, 0.24f, 0.95f), true, true);
+            linkTagRect = tag.rectTransform;
+            linkTagRect.Place(Vector2.zero, Vector2.zero, new Vector2(0.5f, 0), Vector2.zero, new Vector2(250, 40));
+            linkTag = tag.gameObject.AddComponent<CanvasGroup>();
+            linkTag.blocksRaycasts = false;
+            linkTag.alpha = 0;
+            var tagText = UiKit.Text(linkTagRect, "<b>LINK</b>  ·  same moment?", Art.Sans, 21, Pal.Hex("D8ECFF"), TextAlignmentOptions.Center);
+            tagText.rectTransform.Stretch();
+            tagText.raycastTarget = false;
+
             BuildActions();
         }
+
+        /// <summary>Screen centre of the LINK tag while it's showing (for the input test).</summary>
+        public Vector2? LinkTagScreen => linkTag != null && linkTag.alpha > 0.5f ? (Vector2?)linkTagRect.position : null;
 
         /// <summary>Tab / the Notes button: open the notebook on the current case, or close it.</summary>
         public void ToggleNotebook()
@@ -677,6 +693,7 @@ namespace AlibiCo
         public void Tick()
         {
             if (helpGroup != null) TickHelp();
+            if (linkTag != null) TickLinkTag();
             if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {
                 hudSession.View.Timer.text = Settings.ShowTimer ? Clock(hudSession.Elapsed) : "";
@@ -710,6 +727,20 @@ namespace AlibiCo
             float yTray = st.WorldToScreen(st.DeskToWorld(new Vector2(0, st.Tray.yMax))).y;
             float scale = UiKit.Canvas != null ? UiKit.Canvas.scaleFactor : 1f;
             helpRect.anchoredPosition = new Vector2(0, (yBoard + yTray) * 0.5f / Mathf.Max(0.01f, scale));
+        }
+
+        void TickLinkTag()
+        {
+            var aim = hudSession != null ? hudSession.LinkTarget : null;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (aim != null && mouse != null)
+            {
+                var scale = UiKit.Root.localScale.x;
+                var pos = mouse.position.ReadValue() / scale;
+                var canvasSize = UiKit.Root.sizeDelta;
+                linkTagRect.anchoredPosition = new Vector2(Mathf.Clamp(pos.x, 135, canvasSize.x - 135), Mathf.Min(pos.y + 70, canvasSize.y - 50));
+            }
+            linkTag.alpha = Mathf.MoveTowards(linkTag.alpha, aim != null ? 1f : 0f, AlibiCo.Clock.Dt * 8f);
         }
 
         void BuildActions()
@@ -886,7 +917,7 @@ namespace AlibiCo
             {
                 ("Drag a card to the board", "pin it (or just click it)"),
                 ("Hover a card", "read it in full; see the walk"),
-                ("Drop a card on a card", "link: one moment, two clocks"),
+                ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
                 ("Click a pinned statement", "Confront, or send it back"),
                 ("Right-click a pinned card", "back to the tray"),
                 ("Drag the incident card", "accuse: the one line it fits"),

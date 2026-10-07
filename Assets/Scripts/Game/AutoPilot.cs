@@ -690,6 +690,108 @@ namespace AlibiCo
             yield return Wait(0.15f);
         }
 
+        /// <summary>
+        /// A drag that ends on another card and lets go on arrival, like a player dropping a card
+        /// anywhere on its lane: a quarter of a second in real time, so a slow frame rate doesn't
+        /// turn it into a long hover.
+        /// </summary>
+        IEnumerator QuickDrop(Vector2 from, Vector2 to)
+        {
+            MouseTo(from);
+            yield return Wait(0.15f);
+            MouseTo(from, true);
+            yield return null;
+            int frames = 0;
+            for (float t = 0; t < 0.25f; t += Clock.Dt, frames++)
+            {
+                MouseTo(Vector2.Lerp(from, to, t / 0.25f), true);
+                yield return null;
+            }
+            MouseTo(to, false);
+            Debug.Log($"[AutoPilot] links: quick drop took {frames + 1} frames");
+            yield return Wait(0.8f);
+        }
+
+        /// <summary>
+        /// Case 2 with a moving cursor: a card dropped in one movement onto a pinned chip of another
+        /// moment pins to its own lane, a card tossed onto another tray card goes back to the tray,
+        /// and neither costs a badge. A card held over its twin until the LINK tag shows links them
+        /// and corrects the clock.
+        /// </summary>
+        IEnumerator LinkByHand(System.Action<string> fail)
+        {
+            var root = GameRoot.I;
+            root.StartCase(Cases.All[1], false);
+            yield return Wait(3f);
+            var s = root.Session;
+            var board = s.Board;
+            // Play the case in code up to its first link (the pair only turns up partway through).
+            Move link = null;
+            for (int guard = 0; guard < 12 && link == null; guard++)
+            {
+                foreach (var id in board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                yield return Wait(1f);
+                var path = Solver.ShortestSolution(Solver.Shadow(board));
+                if (path == null || path.Count == 0) break;
+                if (path[0].Kind == "link") { link = path[0]; break; }
+                s.Confront(s.ViewOf(path[0].A));
+                yield return Wait(3f);
+            }
+            if (link == null) { fail("links: case 2's solution never reached a link"); yield break; }
+            var ca = s.Case.CardById[link.A];
+            var cb = s.Case.CardById[link.B];
+            var trusted = board.IsTrusted(ca.Clock) ? ca : cb;
+            var twin = trusted == ca ? cb : ca;
+            if (!board.Pinned.Contains(trusted.Id)) s.AutoPin(trusted.Id);
+            // Back to the tray: the wrong clock's card, and two cards of other moments.
+            var others = board.Pinned.Select(id => s.Case.CardById[id])
+                .Where(x => x.Id != trusted.Id && x.Id != twin.Id && !x.IsUnknown && !board.Struck.Contains(x.Id) && x.Event != trusted.Event)
+                .Take(2).ToList();
+            if (others.Count < 2) { fail("links: not enough other cards on case 2's board"); yield break; }
+            foreach (var x in new[] { twin }.Concat(others)) if (board.Pinned.Contains(x.Id)) s.Unpin(s.ViewOf(x.Id));
+            yield return Wait(1.5f);
+            Debug.Log($"[AutoPilot] links: case 2 at its link ({twin.Id} onto {trusted.Id}); {others[0].Id} and {others[1].Id} back in the tray, {board.Mistakes} badges lost so far");
+            int lost = board.Mistakes;
+
+            // Toss one tray card onto another on the desk: it stays in the tray.
+            int memos = s.Memos.History.Count;
+            yield return QuickDrop(Grab(s.ViewOf(others[0].Id)), Grab(s.ViewOf(others[1].Id)));
+            bool wrongLink = s.Memos.History.Skip(memos).Any(m => m.Title == "NOT THE SAME MOMENT");
+            if (board.Mistakes != lost || wrongLink || board.Pinned.Contains(others[0].Id))
+                fail($"links: tossing {others[0].Id} onto {others[1].Id} in the tray (mistakes {board.Mistakes}, pinned {board.Pinned.Contains(others[0].Id)}, wrong-link memo {wrongLink})");
+            else Debug.Log($"[AutoPilot] links: {others[0].Id} tossed onto {others[1].Id} went back to the tray, no badge lost");
+            yield return Wait(1f);
+
+            // Aim a card of another moment straight at the trusted card's chip: it pins to its own lane.
+            var other = others[0];
+            memos = s.Memos.History.Count;
+            yield return QuickDrop(Grab(s.ViewOf(other.Id)), Screen(s.ViewOf(trusted.Id).transform.position));
+            wrongLink = s.Memos.History.Skip(memos).Any(m => m.Title == "NOT THE SAME MOMENT");
+            if (board.Mistakes != lost || wrongLink || !board.Pinned.Contains(other.Id))
+                fail($"links: a quick drop of {other.Id} onto {trusted.Id}'s chip (mistakes {board.Mistakes}, pinned {board.Pinned.Contains(other.Id)}, wrong-link memo {wrongLink})");
+            else Debug.Log($"[AutoPilot] links: {other.Id} dropped in one movement onto {trusted.Id}'s chip pinned to its own lane, no badge lost");
+            yield return Wait(1f);
+
+            // The real thing: hold the wrong clock's card over its twin until the tag says LINK.
+            var from = Grab(s.ViewOf(twin.Id));
+            var to = Screen(s.ViewOf(trusted.Id).transform.position);
+            MouseTo(from);
+            yield return Wait(0.15f);
+            MouseTo(from, true);
+            yield return null;
+            yield return Glide(from, to, true);
+            float t = 0;
+            while (root.Screens.LinkTagScreen == null && t < 3f) { MouseTo(to, true); t += Clock.Dt; yield return null; }
+            if (root.Screens.LinkTagScreen == null) fail("links: holding a card over its twin never showed the LINK tag");
+            else Debug.Log($"[AutoPilot] links: LINK tag shown after {t:0.00}s held over {trusted.Id}");
+            yield return Shot("input_link_armed");
+            MouseTo(to, false);
+            yield return Wait(2.5f);
+            if (!board.Calibrated.Contains(twin.Clock) || board.Mistakes != lost)
+                fail($"links: the held link {twin.Id} onto {trusted.Id} (calibrated {board.Calibrated.Contains(twin.Clock)}, mistakes {board.Mistakes})");
+            else Debug.Log($"[AutoPilot] PASS links: {twin.Id} held onto {trusted.Id} linked and corrected {twin.Clock}; no badge lost");
+        }
+
         IEnumerator InputTest()
         {
             var root = GameRoot.I;
@@ -788,8 +890,10 @@ namespace AlibiCo
             // 6. On to the docket drawer: click through the case files and the drawer to an earlier day's board.
             yield return DrawerByHand("mouse", p => Click(p), () => Click(root.Screens.ButtonScreen("btn_Close") ?? Vector2.zero),
                 why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
+            // 7. Case 2: drops that land on another card don't link by accident; a held one does.
+            yield return LinkByHand(why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag, the docket drawer)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, hint withholds Unaided, click, UI button, incident drag, the docket drawer, no accidental links)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);

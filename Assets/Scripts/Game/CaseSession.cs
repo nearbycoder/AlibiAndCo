@@ -52,6 +52,12 @@ namespace AlibiCo
 
         // interaction
         CardView hover, pressed, dragging, selected, linkTarget, inspecting;
+        // A link arms only after the dragged card has been held over the same card for a moment, so
+        // a drop that merely lands on another card (pinning anywhere on a lane, or tossing a card back
+        // into the tray) never costs a badge by accident.
+        CardView linkAim;
+        float linkAimTime;
+        public const float LinkArmSeconds = 0.45f;
         string inspectingId;
         Vector2 pressScreen;
         float hoverTime;
@@ -764,6 +770,9 @@ namespace AlibiCo
 
         public CardView Selected => selected;
 
+        /// <summary>A link is armed: the dragged card will be linked to this one if it's dropped now.</summary>
+        public CardView LinkTarget => dragging != null ? linkTarget : null;
+
         // ------------------------------------------------------------------ drag
 
         void StartDrag(CardView v, Vector2 mp)
@@ -771,6 +780,8 @@ namespace AlibiCo
             Deselect();
             HideInspector();
             dragging = v;
+            linkAim = null;
+            linkAimTime = 0;
             v.EnableCollider(false);
             v.LiftTarget = 0;
             dragPrev = v.transform.position;
@@ -827,7 +838,10 @@ namespace AlibiCo
             else
             {
                 var target = Primary(Pick(mp, v));
-                if (target != null && target != v && !target.IsIncident) linkTarget = target;
+                var aim = target != null && target != v && !target.IsIncident ? target : null;
+                if (aim != linkAim) { linkAim = aim; linkAimTime = 0; }
+                else if (aim != null) linkAimTime += Clock.Dt;
+                if (aim != null && linkAimTime >= LinkArmSeconds) linkTarget = aim;
                 if (linkTarget == null && onBoard)
                 {
                     var lane = View.LaneAt(local);
@@ -866,6 +880,7 @@ namespace AlibiCo
             v.EnableCollider(true);
             var link = linkTarget;
             linkTarget = null;
+            linkAim = null;
             if (v.IsIncident)
             {
                 if (dropLane != null) Accuse(dropLane);
@@ -1168,9 +1183,9 @@ namespace AlibiCo
                      : keys ? "Move onto a statement in the red, <b>Enter</b>, then <b>Confront</b> the witness"
                            : "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
             if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))
-                return pad ? "One moment on two clocks? Hold <b>[A]</b> on one card and drop it <b>onto the other</b>"
-                     : keys ? "One moment on two clocks? Hold <b>Enter</b> on one card and steer it <b>onto the other</b>"
-                           : "One moment on two clocks? Drop one card <b>onto the other</b> to link them";
+                return pad ? "One moment on two clocks? Hold <b>[A]</b> on one card, steer it <b>onto the other</b> and wait for <b>LINK</b>"
+                     : keys ? "One moment on two clocks? Hold <b>Enter</b> on one card, steer it <b>onto the other</b> and wait for <b>LINK</b>"
+                           : "One moment on two clocks? Drag one card <b>onto the other</b> and hold it there until it says <b>LINK</b>";
             if (!SaveData.Learned("accuse") && Board.CheckAccusation(Case.Incident.Culprit).Ok)
                 return pad ? "Hold <b>[A]</b> on the <b>incident card</b> (top left) and drop it on the one line it fits"
                      : keys ? "Hold <b>Enter</b> on the <b>incident card</b> (top left) and steer it onto the one line it fits"
@@ -1213,7 +1228,7 @@ namespace AlibiCo
                 if (hintLevel == 1)
                     Memos.Post(MemoKind.Connie, null, $"Somebody's clock is wrong. Look at cards timed by {Case.ClockById[untrusted.Clock].InSentence}. Is one of them the same moment as a card on a reliable clock?");
                 else
-                    Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other.");
+                    Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other and hold it there until it says LINK.");
             }
             else
             {
