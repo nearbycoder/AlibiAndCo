@@ -145,6 +145,21 @@ namespace AlibiCo
             Show(select);
         }
 
+        /// <summary>
+        /// The day moved on while the case files were up: redraw them in place for the new day, and
+        /// the docket drawer too if it's open.
+        /// </summary>
+        public void RedrawSelect()
+        {
+            if (select == null) return;
+            bool drawer = DocketWeekOpen;
+            Object.Destroy(select.gameObject);
+            BuildSelect();
+            select.alpha = 1;
+            Show(select);
+            if (drawer) ShowDocketWeek(true);
+        }
+
         void BuildSelect()
         {
             Cases.RefreshToday();   // a game left open past midnight moves on to the new day's docket
@@ -220,7 +235,7 @@ namespace AlibiCo
         /// The docket drawer: the last seven days, today first, each with its crime and your result.
         /// A missed day can still be opened until it's a week old.
         /// </summary>
-        public void ShowDocketWeek()
+        public void ShowDocketWeek(bool instant = false)
         {
             if (week != null) Object.Destroy(week.gameObject);
             week = Group("DocketWeek");
@@ -274,6 +289,7 @@ namespace AlibiCo
             var foot = UiKit.Text(p, Cases.DocketsClosed > 0 ? $"{Cases.DocketsClosed} closed in all." : "", Art.SerifItalic, 22, Pal.InkSoft, TextAlignmentOptions.MidlineLeft);
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 40), new Vector2(-340, 60));
             week.transform.SetAsLastSibling();
+            if (instant) week.alpha = 1;
             Show(week);
         }
 
@@ -285,10 +301,10 @@ namespace AlibiCo
             return row != null ? row.GetComponentInChildren<TextMeshProUGUI>().text : null;
         }
 
-        /// <summary>Press a named button on the case files or the drawer, as a click would (for the autopilot).</summary>
+        /// <summary>Press a named button on the case files, the drawer or the title, as a click would (for the autopilot).</summary>
         public bool Press(string name)
         {
-            foreach (var g in new[] { week, select })
+            foreach (var g in new[] { week, select, title })
             {
                 if (g == null || !g.gameObject.activeSelf) continue;
                 var b = g.GetComponentsInChildren<Button>().FirstOrDefault(x => x.name == name);

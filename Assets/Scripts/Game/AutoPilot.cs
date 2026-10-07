@@ -38,6 +38,97 @@ namespace AlibiCo
             else Debug.LogError($"[AutoPilot] FAIL conflict markers {when}: {report}");
         }
 
+        // ------------------------------------------------------------------ midnight test
+
+        public void RunMidnight(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(MidnightTest());
+        }
+
+        /// <summary>
+        /// -alibiMidnightTest: leave today's docket in progress, open the docket drawer and wait for
+        /// midnight (start the clock near it with -alibiClockAt). The drawer must redraw on its own
+        /// for the new day, and yesterday's docket must still continue.
+        /// </summary>
+        IEnumerator MidnightTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL midnight: " + why); ok = false; }
+            string Iso(System.DateTime d) => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            var day0 = Cases.Today;
+            var day1 = day0.AddDays(1);
+            var toMidnight = day1 - Cases.Now;
+            Debug.Log($"[Midnight] clock {Cases.Now:yyyy-MM-dd HH:mm:ss} (shift {Cases.ClockShift.TotalSeconds:0}s), {toMidnight.TotalSeconds:0}s to midnight");
+            if (toMidnight.TotalMinutes > 20) { Fail($"midnight is {toMidnight.TotalMinutes:0} minutes away; start the clock nearer it (-alibiClockAt)"); goto end; }
+
+            // A docket for today, two cards pinned, left in progress.
+            var dk = Cases.TodaysDocket;
+            root.StartCase(dk, false);
+            yield return Wait(2.6f);
+            var s = root.Session;
+            foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).Take(2).ToList())
+            {
+                s.AutoPin(id);
+                yield return Wait(0.4f);
+            }
+            yield return Wait(1f);
+            int pinned = s.Board.Pinned.Count;
+            root.ShowSelect();
+            yield return Wait(1.2f);
+            if (SaveData.Current.inProgress?.caseId != dk.Id) Fail($"{dk.Id} wasn't left in progress");
+            root.Screens.Press("btn_docket");
+            yield return Wait(1f);
+            string before = root.Screens.DocketRowText(day0) ?? "";
+            Debug.Log($"[Midnight] before: today {Iso(day0)} row: {before}");
+            if (!before.Contains("TODAY") || !before.Contains("IN PROGRESS")) Fail("before midnight, today's row isn't TODAY and IN PROGRESS: " + before);
+            if (root.Screens.DocketRowText(day0.AddDays(-6)) == null) Fail("before midnight, the week's oldest day isn't in the drawer");
+            yield return Shot("drawer_before_midnight");
+
+            // Wait for the date to change, then for the drawer to notice on its own.
+            while (Cases.Now.Date == day0) yield return null;
+            float t = 0;
+            while (Cases.Today != day1 && t < 5f) { t += Time.unscaledDeltaTime; yield return null; }
+            yield return Wait(0.6f);
+            Debug.Log($"[Midnight] clock {Cases.Now:yyyy-MM-dd HH:mm:ss}: Today={Iso(Cases.Today)}, redrawn {t:0.0}s after midnight, drawer open={root.Screens.DocketWeekOpen}");
+            if (Cases.Today != day1) Fail("the case files didn't move on to the new day");
+            if (!root.Screens.DocketWeekOpen) Fail("the drawer closed at midnight");
+            string newRow = root.Screens.DocketRowText(day1) ?? "", oldRow = root.Screens.DocketRowText(day0) ?? "";
+            Debug.Log($"[Midnight] after: {Iso(day1)} row: {newRow}");
+            Debug.Log($"[Midnight] after: {Iso(day0)} row: {oldRow}");
+            if (!newRow.Contains("TODAY") || newRow.Contains("YESTERDAY")) Fail("the new day's row isn't TODAY: " + newRow);
+            if (!oldRow.Contains("YESTERDAY") || !oldRow.Contains("IN PROGRESS")) Fail("the old day's row isn't YESTERDAY and IN PROGRESS: " + oldRow);
+            if (root.Screens.DocketRowText(day0.AddDays(-6)) != null) Fail("the day that's now eight days old is still in the drawer");
+            if (root.Screens.DocketRowText(day1.AddDays(-6)) == null) Fail("the week's oldest day is missing after midnight");
+            yield return Shot("drawer_after_midnight");
+
+            // Yesterday's docket still continues, with its pins.
+            root.Screens.CloseTopOverlay();
+            yield return Wait(0.6f);
+            yield return Shot("case_files_after_midnight");
+            root.ShowTitle(false);
+            yield return Wait(1.5f);
+            if (!root.Screens.Press("btn_Continue")) Fail("no Continue button on the title");
+            yield return Wait(2.6f);
+            s = root.Session;
+            if (s == null || s.Case.Id != dk.Id || s.Board.Pinned.Count != pinned)
+                Fail($"Continue didn't resume {dk.Id} with {pinned} pins ({(s != null ? s.Case.Id + ", " + s.Board.Pinned.Count + " pins" : "no session")})");
+            else Debug.Log($"[Midnight] Continue resumed {dk.Id} with {pinned} pins");
+            yield return Shot("continued_after_midnight");
+        end:
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} midnight test ({Iso(day0)} -> {Iso(day1)})");
+            Debug.Log($"[AutoPilot] done: midnight test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
         // ------------------------------------------------------------------ gamepad test
 
         Gamepad pad;

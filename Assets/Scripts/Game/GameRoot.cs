@@ -60,6 +60,13 @@ namespace AlibiCo
                 Cases.Today = docketDate;
                 Cases.TodayFixed = true;
             }
+            int clockArg = Array.IndexOf(args, "-alibiClockAt");
+            if (clockArg >= 0 && clockArg + 1 < args.Length && DateTime.TryParseExact(args[clockArg + 1], "yyyy-MM-ddTHH:mm:ss",
+                    System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var clockAt))
+            {
+                Cases.ClockShift = clockAt - DateTime.Now;
+                Cases.Today = Cases.Now.Date;
+            }
 
             AudioDirector.Build();
             UiKit.Init();
@@ -78,8 +85,9 @@ namespace AlibiCo
             int capArg = Array.IndexOf(args, "-alibiCapture");
             int inputArg = Array.IndexOf(args, "-alibiInputTest");
             int padArg = Array.IndexOf(args, "-alibiPadTest");
+            int midnightArg = Array.IndexOf(args, "-alibiMidnightTest");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            bool automated = inputArg >= 0 || padArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            bool automated = inputArg >= 0 || padArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             if (automated) SaveData.UseVolatile();
@@ -108,6 +116,12 @@ namespace AlibiCo
             {
                 string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
+                yield break;
+            }
+            if (midnightArg >= 0)
+            {
+                string dir = midnightArg + 1 < args.Length && !args[midnightArg + 1].StartsWith("-") ? args[midnightArg + 1] : "Captures/midnight-test";
+                gameObject.AddComponent<AutoPilot>().RunMidnight(dir);
                 yield break;
             }
             if (inputArg >= 0)
@@ -208,10 +222,25 @@ namespace AlibiCo
             StartCase(Session.Case, true, true);
         }
 
+        float dayCheck;
+
+        /// <summary>The case files (and the docket drawer) roll over to the new day while they're on screen.</summary>
+        void CheckDay()
+        {
+            if (Flow != Flow.Select) return;
+            dayCheck -= Time.unscaledDeltaTime;
+            if (dayCheck > 0) return;
+            dayCheck = 1f;
+            if (!Cases.RefreshToday()) return;
+            Debug.Log($"[Docket] the day moved on to {Cases.Today:yyyy-MM-dd} with the case files open; redrawing them");
+            Screens.RedrawSelect();
+        }
+
         void Update()
         {
             CheckAspect();
             CheckTextSize();
+            CheckDay();
             var kb = Keyboard.current;
             if (kb == null) return;
             if (kb.escapeKey.wasPressedThisFrame) BackOrPause();

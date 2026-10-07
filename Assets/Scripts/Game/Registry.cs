@@ -68,7 +68,7 @@ namespace AlibiCo
         static readonly Dictionary<string, CaseDef> dockets = new Dictionary<string, CaseDef>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { all = null; dockets.Clear(); Today = System.DateTime.Now.Date; TodayFixed = false; }   // see Art.ResetStatics
+        static void ResetStatics() { all = null; dockets.Clear(); ClockShift = System.TimeSpan.Zero; Today = System.DateTime.Now.Date; TodayFixed = false; }   // see Art.ResetStatics
 
         public static bool IsDocket(CaseDef c) => c != null && Docket.IsDocket(c.Id);
 
@@ -86,14 +86,26 @@ namespace AlibiCo
             return c;
         }
 
+        /// <summary>
+        /// The local time, which decides the day's docket. Tests can start it at a chosen moment
+        /// (-alibiClockAt yyyy-MM-ddTHH:mm:ss), after which it runs forward in real time.
+        /// </summary>
+        public static System.DateTime Now => System.DateTime.Now + ClockShift;
+        public static System.TimeSpan ClockShift;
+
         /// <summary>The local date decides the day's docket (-alibiDocketDate yyyy-MM-dd overrides it for tests).</summary>
         public static System.DateTime Today = System.DateTime.Now.Date;
         public static bool TodayFixed;
 
-        /// <summary>Called whenever the case files open, so a game left running past midnight gets the new day's docket.</summary>
-        public static void RefreshToday()
+        /// <summary>
+        /// Called whenever the case files open, and every second while they're on screen, so a game
+        /// left running past midnight gets the new day's docket. True if the day moved on.
+        /// </summary>
+        public static bool RefreshToday()
         {
-            if (!TodayFixed) Today = System.DateTime.Now.Date;
+            if (TodayFixed || Now.Date == Today) return false;
+            Today = Now.Date;
+            return true;
         }
         public static CaseDef TodaysDocket => DocketFor(Today);
 
