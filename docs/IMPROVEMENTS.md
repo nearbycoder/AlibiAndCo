@@ -433,3 +433,88 @@ Owner decisions this round adds:
   the repo. Alternatively, test on a Mac in Safari.
 - **The Daily Docket in a release**: whether to announce it with the next release (the trailer
   doesn't show it), and whether opening it only after case 2 is the right gate.
+
+## Round 4 scope (6 Oct 2026, branch `improvements-4`)
+
+Baseline on `91203dc`: the validator proves cases 1–5 airtight (60 pin orders each) and the Linux
+build is clean (134 MB). The ranked list above is nearly used up: what's left needs the owner
+(Windows, signing, hosting, the licence) or a person (audio by ear, a real controller). So this
+round looks at what a player meets **after** the five cases. That's the Daily Docket, which is
+the game's replay hook, plus the moment the game most often feels unfair: losing a badge.
+
+Reading eight days of dockets in a row (`--docket-show`, 6–13 Oct) showed the problems:
+
+- **The same words every day.** The culprit's confession is always "Fine. I left X at T. I went
+  for a walk. Needed some air. That's not a crime.", and their second statement always ends "Then
+  I walked about a bit. That's the truth." The liar's always starts "…All right. I wasn't at X." A
+  daily player sees the joins by day three.
+- **Props that don't fit the place.** On a clock day, the note that times the wrong clock is
+  always an "Order pad note… written on the back of the order pad", even at the pier turnstile, the
+  Grand's lobby or the Odeon box office.
+- **A missed day is gone.** The case files only offer today's docket. Skip a day and that case
+  can never be played. The day is also fixed when the game starts, so a game left open past
+  midnight keeps offering yesterday's.
+- **A badge lost and no reason why.** Confronting an honest witness costs a badge, and the only
+  feedback is their firm reply ("I've told you…"). The game never says what made an honest story
+  turn red, though that's exactly the lesson of cases 2, 4 and 5 and of every clock day.
+
+I'll build these in this order. Screenshots go to `docs/media/improvements/round4/`.
+
+### R4-1. Connie explains a firm stand
+
+When a confrontation costs a badge, Connie follows the witness's reply with a one-line memo on
+what made that true story red, worked out from the board (plain C# in the logic core, so it's
+testable): the card against it was timed by a clock nobody has checked yet (and she names the
+clock), or it's one story against another, or the conflict involves a guess about an unknown
+person. It explains the mistake you've just paid for. It doesn't count as a hint, so the Unaided
+seal is kept.
+
+**Acceptance:** an EditMode test covers each kind of explanation, using case 4's trap (Maud,
+Town Hall clock), case 5's and a clock-day docket. Autoplay's two deliberate traps (case 4 and the
+7 October docket) check that a Connie memo follows the firm reply and names the right clock, and
+that Unaided is still earned. Autoplay, the input test and the pad test still pass.
+**Verify:** `Tools/unity.sh test`, autoplay, and a screenshot of the memo.
+
+### R4-2. The docket in other words
+
+A writing pass on the generator. Each part of a docket gets several hand-written variants instead
+of one: the culprit's confession and second statement, the liar's confession, the opening line of
+each story, what each place is for, the clock note (each place with a clock gets its own prop: a
+turnstile tally card, a porter's message pad, a box-office float slip…), and Connie's memos. Two
+crimes are added at places without one yet (the bus depot and the cliff path), so the rota goes
+from 13 to 15 days. The puzzle logic doesn't change.
+
+**Acceptance:** a new validator mode (`--docket-phrases N`) counts, over N consecutive days, the
+sentences that turn up on more than a quarter of them. Over 28 days that count drops by at least
+half from the baseline. Every clock note's prop matches its place. A ten-year sweep (3,653 days)
+still comes out all airtight, with the worst day within the 40 variations allowed. The EditMode
+docket tests pass. I'll read ten new dockets through.
+**Verify:** `Tools/validate.sh --docket-phrases 28` before and after, `--docket 3653`, EditMode
+tests, a read-through, and autoplay on four dockets.
+
+### R4-3. The docket week
+
+The Daily Docket button opens a small drawer of the last seven days, today first. Each row shows
+the date, the day's crime and your result (stars and time, IN PROGRESS, or not yet played). Any of
+them can be opened, so a missed day can still be played for a week. The day is checked again
+whenever the case files open, so the docket rolls over at midnight. Older dockets in the save
+still load and Continue still works. A docket's case-closed panel offers "Back to the dockets".
+
+**Acceptance:** autoplay opens the drawer through its button, screenshots it, opens a day three
+days back from it, plays it to CASE CLOSED, and checks that the drawer then shows that day's
+result. A test for the week's date list covers month and year boundaries. Autoplay, input and pad
+tests still pass at 1920×1080, and the drawer is checked at 1280×720 and 1280×800.
+**Verify:** autoplay, EditMode tests, screenshots at three sizes.
+
+### R4-4. The browser build, checked again
+
+Rebuild the web build with this round's changes and run `Tools/webtest.mjs` in Chromium and
+Firefox (autoplay, the pad test, the reload check).
+
+**Acceptance:** 0 console errors, every check PASS, size still under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`. WebKit stays untested (system
+libraries, owner's call).
+
+Not in this round: keyboard-only play (useful, but not something the current audience is
+missing), a share-your-result line (the browser clipboard needs a JavaScript plugin and can't be
+checked headless), and the owner and hardware items listed under round 3.
