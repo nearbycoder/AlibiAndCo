@@ -572,3 +572,79 @@ Owner decisions this round adds:
   example, 7 October's docket is now "The Coastguard's Glasses", not "The Night Till". No release
   has the docket yet, so no player loses anything, but dates that appear in earlier notes or
   screenshots now show different cases.
+
+## Round 5 scope (6 Oct 2026, branch `improvements-5`)
+
+Baseline on `8f7c96b` (main = origin/main). Round 4 left four gaps a player could fall into: the
+docket drawer has never been driven by a moving mouse or a pad cursor, the daily rollover has never
+run across a midnight, the game can't be played without a pointing device, and a daily puzzle has no
+way to tell a friend how it went. Reading the code also showed that the rollover only happens when
+the case files are *re-opened*: a player who leaves the case files (or the drawer) on screen past
+midnight still sees yesterday marked TODAY.
+
+I'll build these in this order. The midnight item goes first because tonight's real midnight is the
+only one in this round. Screenshots go to `docs/media/improvements/round5/`.
+
+### R5-1. The docket at midnight
+
+The case files and the drawer notice the date changing while they're on screen and redraw: the new
+day becomes TODAY, yesterday's row says YESTERDAY, the day that fell off the week goes, and an
+in-progress docket from yesterday still continues. The local time goes through one seam
+(`Cases.Now`), which tests can start at a chosen moment (`-alibiClockAt yyyy-MM-ddTHH:mm:ss`, then
+it runs forward in real time). A new self-test, `-alibiMidnightTest`, starts a docket, leaves it in
+progress, opens the drawer and waits for midnight.
+
+**Acceptance:** with the clock started at 23:59:40, the test sees the drawer redraw on its own within
+a couple of seconds of midnight with the new day first, the old day as YESTERDAY and IN PROGRESS, the
+week still seven rows; Continue then resumes yesterday's docket with its pins. Month and year
+boundaries are covered (31 Oct, 31 Dec). Once, the same test runs across the **real** midnight of 6–7
+October 2026 with no clock override. Autoplay still passes.
+**Verify:** `-alibiMidnightTest` logs and screenshots before and after midnight (simulated and real).
+
+### R5-2. The drawer by mouse and pad
+
+The mouse input test and the pad test go on past case 1: to the case files, the Daily Docket button,
+the drawer (each row reached and read), Close and B to shut it, and a row three days back opened to
+its intro and begun. Whatever doesn't work by hand gets fixed.
+
+**Acceptance:** `-alibiInputTest` and `-alibiPadTest` both reach the drawer by moving the cursor, open
+an earlier day's docket from its row and see it begin, with PASS and 0 errors, at 1920×1080 and
+1280×800.
+**Verify:** both tests, with screenshots of the cursor on the drawer.
+
+### R5-3. Keyboard-only play
+
+The pad's virtual cursor also answers to the keyboard: arrow keys move it (faster the longer they're
+held), Q and E jump to the previous and next card (or button), Enter clicks and **held Enter with the
+arrows drags**, Backspace sends a card back (and closes menus), with the existing H, Tab, Space and Esc
+unchanged. The controls strip and the pause menu's controls list show keys while the keyboard drives.
+Touching the mouse hands control back.
+
+**Acceptance:** a new `-alibiKeysTest` plays case 1 from the dealt tray to CASE CLOSED with simulated
+key presses only (pins by Enter and by an Enter-held drag, a send-back, a confront, the incident drag),
+then opens the drawer and a docket the same way, with PASS and 0 errors. The mouse and pad tests still
+pass. Typing elsewhere doesn't move anything (there are no text fields in the game).
+**Verify:** `-alibiKeysTest`, the other input suites, screenshots of the key prompts.
+
+### R5-4. Share your docket
+
+A docket's case-closed panel gets a **Copy result** button that puts a spoiler-free line on the
+clipboard, for example `Alibi & Co. Daily Docket, Wed 7 Oct 2026: The Coastguard's Glasses ★★★ 2:41
+(Clean · Unaided · Swift)`. It names no suspect and no move. In the browser it uses the page's
+clipboard (a small `.jslib`); on the desktop, Unity's clipboard.
+
+**Acceptance:** an EditMode test pins the line's format (stars, time, seals, no names). Autoplay presses
+the button after a docket and reads the clipboard back; on Linux the text is also read from outside the
+game (`wl-paste`). In headless Chromium, `webtest.mjs` reads it back with clipboard permission granted.
+If a platform can't be checked, that's written down.
+**Verify:** EditMode tests, autoplay log, `wl-paste`, webtest.
+
+### R5-5. The browser build, checked again
+
+Rebuild the web build with this round's changes and run `Tools/webtest.mjs` in Chromium and Firefox.
+
+**Acceptance:** 0 console errors, autoplay, pad and reload checks PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the drawer's seven-day window and WebKit (owner's call), and the hardware and owner
+items listed under round 3.
