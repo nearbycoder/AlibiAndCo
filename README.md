@@ -150,7 +150,9 @@ Docket*: a short generated case for the day, with three of the town's regulars, 
 three stories. It's built from the town map and its people, and the same validator that checks the
 handwritten cases proves each one airtight before it's offered. On some days a wrong clock puts an
 honest story in the red. The last seven days stay in the docket drawer, so a missed day can still be
-played for a week, and the case files keep each day's best result.
+played for a week, and the case files keep each day's best result. **Copy result** puts a
+spoiler-free line on the clipboard to send a friend (the day, the crime, the stars, the time and the
+seals).
 
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
@@ -245,9 +247,12 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and five Daily Dockets (today's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame. It checks every contradiction carries its marker, saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
-| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start) and prints PASS/FAIL. |
+| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc). |
+| `Tools/play.sh [-alibiClockAt yyyy-MM-ddTHH:mm:ss] -alibiMidnightTest [outdir]` | Leaves today's docket in progress, opens the docket drawer and waits for midnight (within 20 minutes; `-alibiClockAt` starts the game's clock at a chosen moment), then checks the drawer redrew itself for the new day and that Continue resumes yesterday's docket. |
+| `Tools/play.sh -alibiClipboardCheck -alibiShareCheck [outdir]` | Solves today's docket, clicks Copy result and holds the line on the system clipboard for 8 seconds, so a script can read it from outside. Without `-alibiClipboardCheck`, automated runs never touch the system clipboard. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
-| `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,reload]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`), the pad test (`?padtest`) and a reload check that the save persists (`?savecheck`), logging load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
+| `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,keys,reload]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`, then reads back the copied docket result), the pad and keyboard tests (`?padtest`, `?keystest`) and a reload check that the save persists (`?savecheck`), logging load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
 Automated runs use a blank in-memory save, so they never touch your progress.
@@ -368,10 +373,12 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 4). In both, autoplay plays all five
-  cases and five Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
-  errors at 60 fps, the simulated-gamepad test passes, and progress survives a page reload. It loads
-  from localhost in under 2 seconds (26.5 MB). It hasn't been tried
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 5). In both, autoplay plays all five
+  cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
+  errors, the simulated-gamepad and keyboard-only tests pass, a real mouse click on Copy result puts
+  the line on the page's clipboard, and progress survives a page reload. It's 26.5 MB and loads from
+  localhost in 2–5 seconds at 30–60 fps on a busy machine (under 2 seconds at 60 fps on a quiet one,
+  in round 4). It hasn't been tried
   in Safari: Playwright's WebKit build needs Ubuntu libraries this machine doesn't have. It also
   hasn't been tried on a phone (touch isn't supported) or with a person watching, and its sound
   wasn't checked. There's no Quit button or resolution picker in the browser, where the page sets
@@ -381,12 +388,13 @@ changes since then aren't released yet.
   layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
   first launch: right-click the app and choose Open, or allow it under System Settings → Privacy &
   Security.
-- **The docket drawer was checked by autoplay**, which presses its buttons in code, at 1920×1080,
-  1280×800 and 1280×720 and in both browsers. No test moves the mouse or the pad cursor through it. Its rows are ordinary buttons
-  (LB/RB jump between them, B closes it), so it should work with a pad; that's untested.
-- **Gamepad support was tested with a simulated pad only.** A scripted test (`-alibiPadTest`)
-  plays case 1 to the end with nothing but stick and button events, in the Linux build and in the
-  browser. It hasn't been tried with a physical controller or on a Steam Deck, and there's no touch
+- **The docket drawer was checked by autoplay and by moving a cursor**: autoplay presses its buttons
+  in code at 1920×1080, 1280×800 and 1280×720 and in both browsers, and the mouse, pad and keyboard
+  tests move their cursor through the case files and the drawer to an earlier day's board at
+  1920×1080 and 1280×800 (simulated input, not a person's hands).
+- **Gamepad and keyboard-only play were tested with simulated input only.** Scripted tests
+  (`-alibiPadTest`, `-alibiKeysTest`) play case 1 to the end and open a docket from the drawer with
+  nothing but stick and button events, or key presses, in the Linux build and in the browser. It hasn't been tried with a physical controller or on a Steam Deck, and there's no touch
   support. The layout was checked at the Deck's 1280×800.
 - **The Daily Docket is short and formulaic by design.** Each one is about case 1's size (two or
   three moves): one false alibi that hides the culprit, one lie that turns out innocent, one honest
@@ -394,8 +402,16 @@ changes since then aren't released yet.
   pieces with several variants each, so no sentence turns up on more than about a third of days,
   but a regular player will still recognise the shape. Every docket is proven airtight before it's
   offered. The generated stories have had two read-throughs of ten days each during development,
-  not a playtest. The day follows the computer's local date and moves on at midnight the next time
-  the case files open. A docket stays playable from the drawer for seven days.
+  not a playtest. The day follows the computer's local date and moves on at midnight, even with
+  the case files or the drawer on screen (tested across a real midnight, 6–7 October 2026, and with
+  the clock started just before the ends of October and December). A docket stays playable from the
+  drawer for seven days.
+- **Copy result** puts a docket's result on the clipboard as one line (no names, no moves). In
+  automated runs the game read the line back from Unity's clipboard and headless Chromium read it
+  from the page's, but on this Linux desktop a *simulated* click didn't reach the desktop clipboard
+  (KDE's Klipper never saw it, likely because Wayland only lets a real input event set the
+  clipboard). A real click on Linux, and the browsers' clipboard prompts for a real person, haven't
+  been tried.
 - **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
   triangle as well as the red glow, and the locks differ by icon and word. That was checked on
   protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.

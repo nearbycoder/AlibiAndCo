@@ -648,3 +648,59 @@ Rebuild the web build with this round's changes and run `Tools/webtest.mjs` in C
 
 Not in this round: the drawer's seven-day window and WebKit (owner's call), and the hardware and owner
 items listed under round 3.
+
+## Round 5 results (7 Oct 2026)
+
+All five items landed on `improvements-5`. Screenshots are in `docs/media/improvements/round5/`
+(`r5-1-*` the real midnight, `r5-2-*` the drawer by mouse and pad, `r5-3-*` keyboard play, `r5-4-*`
+Copy result).
+
+| # | Item | Commits | Verified by | Result |
+|---|---|---|---|---|
+| R5-1 | The docket at midnight | 6b52513 | `-alibiMidnightTest` with the clock started at 23:59:40 on 6 Oct and 23:59:45 on 31 Oct and 31 Dec (the drawer redrew itself within a second of midnight each time, with the new day TODAY, the old one YESTERDAY and IN PROGRESS, the eighth day gone), and once across the **real** midnight of 6–7 October 2026 with no clock override: redrawn 0.4 s after 00:00:00, and Continue resumed 6 October's docket with its two pins | Met |
+| R5-2 | The drawer by hand | 5f752e5 | The mouse and pad tests now go on from case 1's closed panel through the case files and the drawer (every row reachable, and by RB with the pad), close it, open the day three days back, go back, and open its board, at 1920×1080 and 1280×800, and in Chromium and Firefox | Met. It turned up the resize bug below |
+| R5-3 | Keyboard-only play | b9c8da7 | New `-alibiKeysTest`: case 1 to CASE CLOSED and on to a docket's board with simulated key presses only, at 1920×1080 and 1280×800 and in Chromium and Firefox. Screenshots of the key prompts and the pause menu's key list | Met |
+| R5-4 | Share your docket | c4f1330 | EditMode test of the line (format, and 15 days' lines checked against every name and clock in their cases). Autoplay presses Copy result after every docket and checks the line. In headless Chromium and Firefox, `webtest.mjs` clicks the button with a real (trusted) mouse click and reads the page's clipboard back: the exact line in both | Met in the browser. **Not met on the Linux desktop with simulated input**: Unity's clipboard holds the line, but KDE's Klipper never received it (see below) |
+| R5-5 | The browser build, checked again | 997a33f | `node Tools/webtest.mjs --engine chromium,firefox` on the final build | Met. Both engines: autoplay 9/9 (5 cases, 4 dockets), pad, keyboard, share and reload checks PASS, 0 console errors, 26.5 MB. Chromium 55–60 fps; Firefox 29–57 fps and loads of 3.3–4.6 s, slower than round 4's 60 fps and 1.7 s at a load of 5, and not re-measured on a quiet machine |
+
+EditMode tests: 43/43 (42 before the round). The validator proves cases 1–5 airtight with 60 pin
+orders each, and `--docket 365` from 7 October 2026 is all airtight (worst day 5 of 40 variations).
+Autoplay at 1080p: 10/10 (5 cases, 5 dockets), 0 errors, with the share line checked after each
+docket. The input, pad and keyboard tests pass at 1920×1080 and 1280×800. Load averages were high
+(about 20–40, other sessions) for most of these runs; nothing in this round is timed, and the
+browser figures were measured at a load average of about 14–16. The real `alibi_save.json` and `prefs` were
+byte-identical before and after the round.
+
+Found along the way:
+
+- **Resizing the window in a case's first second threw an exception** (0d15d43). A new window
+  shape rebuilds the board and ends the old session, but Connie's delayed opening memo, and two
+  delayed screen shakes, still ran against the destroyed memo desk and stage. The pad test at
+  1280×800, whose resolution change lands just after case 1 opens, hit it. They now check the
+  session is still alive.
+- **Copy result on the Linux desktop.** Unity's Wayland backend (SDL) does publish a clipboard, but
+  a click made of simulated Input System events carries no Wayland input serial, which the
+  compositor needs before it accepts a new clipboard owner; that's the likely reason Klipper never
+  saw the line. The X11 path couldn't be tried: it hung at startup again (the known XWayland hang)
+  and had to be killed. So a real click on Linux is untested. Automated runs keep the line to
+  themselves unless `-alibiClipboardCheck` is passed, and the one deliberate check put the desktop's
+  previous clipboard text back afterwards.
+- **Firefox refuses a clipboard write that isn't part of a click.** Autoplay presses Copy result in
+  code, so in Firefox the write is refused (Chromium allows it with the permission granted). The
+  share run, with a real click, works in both.
+- **Today's date moved during the round** (it crossed midnight), so browser autoplay played 4
+  dockets instead of 5: 7 October is both "today" and one of autoplay's fixed days.
+
+Not done, and why:
+
+- **A real click on Copy result on Linux, and a person's hands on the drawer, the pad and the
+  keyboard**: the tests use simulated input. A physical controller or Steam Deck is still untested.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, the sound
+  by ear, colour-blind players): unchanged from round 3.
+
+Owner decisions this round adds:
+
+- **Keyboard keys.** Q/E jump and Backspace sends back, chosen because nothing used them; Tab stays
+  the notebook. Rebinding isn't offered.
+- **What the share line says.** It gives the date, the crime's title, stars, time and seals, and
+  nothing else. Whether to add a link (to a hosted web build, once there is one) is your call.

@@ -439,5 +439,7 @@ moments get the polish budget first.
   validator console sweeps dates (`--docket N`) and prints one in full (`--docket-show`). The
   words come from a second generator seeded the same way, with several hand-written variants per
   line, so rewording never changes a puzzle (`--docket-phrases N` counts what still recurs). The
-  case files keep the last seven days in a drawer, so a missed day stays playable for a week.
+  case files keep the last seven days in a drawer, so a missed day stays playable for a week, and
+  they roll over at midnight even while they're on screen. A solved docket's **Copy result** puts a
+  spoiler-free line on the clipboard (`Docket.ShareLine`: date, crime, stars, time, seals).
 - A case editor menu in the Unity Editor.
