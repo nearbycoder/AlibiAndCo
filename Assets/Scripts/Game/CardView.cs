@@ -225,11 +225,15 @@ namespace AlibiCo
 
             // Footer: time, place, clock.
             Shapes.Quad(full, "rule", new Vector2(size.x - 0.4f, 0.012f), Art.Unlit(new Color(0.12f, 0.16f, 0.22f, 0.35f), true), new Vector3(0, -size.y / 2 + 0.56f, z));
-            fullTime = Txt(full, "time", "", AlibiCo.Art.MonoBold, 0.36f, Pal.Ink, new Vector2(2.4f, 0.46f), TextAlignmentOptions.Left,
-                new Vector3(left + 1.2f, -size.y / 2 + 0.3f, z), false);
-
             var loc = Stage.I != null ? Locations.Get(Def.Location) : null;
-            if (!Def.Town || IsIncident)
+            bool showPlace = !Def.Town || IsIncident;
+            // The time stops short of the place's icon, and a long range ("20:15–21:30") shrinks to fit.
+            float timeWidth = showPlace ? right - 1.62f - left : 2.4f;
+            fullTime = Txt(full, "time", "", AlibiCo.Art.MonoBold, 0.36f, Pal.Ink, new Vector2(timeWidth, 0.46f), TextAlignmentOptions.Left,
+                new Vector3(left + timeWidth / 2, -size.y / 2 + 0.3f, z), false);
+            fullTime.Fit(0.24f);
+
+            if (showPlace)
             {
                 var locCol = loc != null ? Pal.Hex(loc.Color) : Pal.InkSoft;
                 Shapes.Icon(full, loc != null ? loc.Icon : "pin", 0.26f, Darken(locCol, 0.75f), new Vector3(right - 1.45f, -size.y / 2 + 0.3f, z));
