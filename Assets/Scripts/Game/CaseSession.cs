@@ -65,6 +65,11 @@ namespace AlibiCo
         string dropLane;
         int hintLevel;
         string hintState;
+        /// <summary>The cards Connie's last hint names, tagged on the board until the board changes.</summary>
+        readonly HashSet<string> hinted = new HashSet<string>();
+        string hintedState;
+        bool hintJumpPending;
+        const string IncidentKey = "@incident";
 
         // ------------------------------------------------------------------ lifecycle
 
@@ -482,6 +487,7 @@ namespace AlibiCo
             }
             bool ready = Board.CheckAccusation(Case.Incident.Culprit).Ok;
             incident.SetGlow(ready ? GlowKind.LinkTarget : (incident == hover ? GlowKind.Hover : GlowKind.Incident));
+            UpdateHintTags();
         }
 
         IEnumerable<CardView> AllViews()
@@ -1209,9 +1215,10 @@ namespace AlibiCo
         public void Hint()
         {
             UsedHints = true;
-            string state = Board.StateKey() + "|" + string.Join(",", Board.Pinned.OrderBy(x => x));
+            string state = HintBoardKey();
             if (state != hintState) { hintState = state; hintLevel = 0; }
             hintLevel++;
+            PointAt(null);
             var tray = Board.TrayCards.ToList();
             if (tray.Count > 0 && tray.Any(x => !x.IsUnknown))
             {
@@ -1223,11 +1230,13 @@ namespace AlibiCo
             if (path == null)
             {
                 Memos.Post(MemoKind.Connie, null, "Something on the board is a guess. Take any hunches back to the tray and let the paper decide.");
+                PointAt(AllViews().Where(v => v.Hypothesis).Select(v => v.Id));
                 return;
             }
             if (path.Count == 0)
             {
                 Memos.Post(MemoKind.Connie, null, "It's all there. One suspect's lock is open. Drag the incident card (top left) into that line.");
+                PointAt(new[] { IncidentKey });
                 return;
             }
             var m = path[0];
@@ -1237,9 +1246,15 @@ namespace AlibiCo
                 var b = Case.CardById[m.B];
                 var untrusted = Board.IsTrusted(a.Clock) ? b : a;
                 if (hintLevel == 1)
+                {
                     Memos.Post(MemoKind.Connie, null, $"Somebody's clock is wrong. Look at cards timed by {Case.ClockById[untrusted.Clock].InSentence}. Is one of them the same moment as a card on a reliable clock?");
+                    PointAt(OnBoard().Where(x => x.Clock == untrusted.Clock).Select(x => x.Id));
+                }
                 else
+                {
                     Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other and hold it there until it says LINK.");
+                    PointAt(new[] { a.Id, b.Id });
+                }
             }
             else
             {
@@ -1247,8 +1262,57 @@ namespace AlibiCo
                 if (hintLevel == 1)
                     Memos.Post(MemoKind.Connie, null, "One of the statements in the red can't be true. Which one is the paper against?");
                 else
+                {
                     Memos.Post(MemoKind.Connie, null, $"{c.Title}'s statement doesn't hold up. Click it and confront them.");
+                    PointAt(new[] { c.Id });
+                }
             }
+        }
+
+        string HintBoardKey() => Board.StateKey() + "|" + string.Join(",", Board.Pinned.OrderBy(x => x));
+
+        /// <summary>Cards on the board right now: pinned, unlocked and not struck.</summary>
+        IEnumerable<CardDef> OnBoard() => Board.UnlockedCards.Where(x => Board.Pinned.Contains(x.Id) && !Board.Struck.Contains(x.Id));
+
+        /// <summary>Tag the cards a hint names (the incident card as IncidentKey) until the board changes.</summary>
+        void PointAt(IEnumerable<string> ids)
+        {
+            hinted.Clear();
+            if (ids != null) hinted.UnionWith(ids);
+            hintedState = HintBoardKey();
+            hintJumpPending = hinted.Count > 0;
+            if (hinted.Count > 0) Debug.Log("[Hint] points at " + string.Join(", ", hinted.OrderBy(x => x)));
+            UpdateHintTags();
+        }
+
+        void UpdateHintTags()
+        {
+            if (hinted.Count > 0 && HintBoardKey() != hintedState) { hinted.Clear(); hintJumpPending = false; }
+            foreach (var v in AllViews()) v.SetHinted(hinted.Contains(v.Id) && !Board.Struck.Contains(v.Id));
+            if (incident) incident.SetHinted(hinted.Contains(IncidentKey) && !Solved);
+        }
+
+        /// <summary>Every card view wearing a hint tag (two-person statements have one per line).</summary>
+        public IEnumerable<CardView> TaggedViews => AllViews().Where(v => v.Hinted).Concat(incident && incident.Hinted ? new[] { incident } : new CardView[0]);
+
+        /// <summary>The ids the hint tags are on right now, as drawn (the incident card as "@incident").</summary>
+        public SortedSet<string> HintTagged()
+        {
+            var r = new SortedSet<string>(AllViews().Where(v => v.Hinted).Select(v => v.Id));
+            if (incident && incident.Hinted) r.Add(IncidentKey);
+            return r;
+        }
+
+        /// <summary>
+        /// The pad's or keyboard's next jump after a hint goes to the first card it names (once), so
+        /// nobody has to hunt for it with a cursor. Screen point, or null.
+        /// </summary>
+        public Vector2? TakeHintJump()
+        {
+            if (!hintJumpPending) return null;
+            hintJumpPending = false;
+            var v = hinted.Contains(IncidentKey) ? incident : AllViews().Where(x => x.Hinted && x.Compact).OrderByDescending(x => x.transform.position.y).ThenBy(x => x.transform.position.x).FirstOrDefault();
+            return v ? (Vector2?)(Vector2)stage.Cam.WorldToScreenPoint(v.transform.position) : null;
         }
 
         // ------------------------------------------------------------------ automation (autopilot & tests)

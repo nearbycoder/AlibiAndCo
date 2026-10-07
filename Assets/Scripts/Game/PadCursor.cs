@@ -286,6 +286,15 @@ namespace AlibiCo
         /// <summary>LB/RB (Q/E): the previous/next card on the desk and board, or button in a menu.</summary>
         void Jump(int dir)
         {
+            // Just after a hint, the first jump goes to the first card it names.
+            var root = GameRoot.I;
+            if (root != null && root.Flow == Flow.Playing && !GameRoot.Paused && root.Session != null && !root.Screens.AnyOverlayOpen && !root.Screens.NotebookOpen
+                && root.Session.TakeHintJump() is Vector2 hint)
+            {
+                pos = hint;
+                Sfx.Play("paper_touch", 0.2f, 1.2f);
+                return;
+            }
             var targets = Targets();
             if (targets.Count == 0) return;
             int nearest = 0;

@@ -170,6 +170,112 @@ namespace AlibiCo
             Application.Quit(ok ? 0 : 1);
         }
 
+        // ------------------------------------------------------------------ hints that point
+
+        public void RunHintTour(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(HintTour());
+        }
+
+        /// <summary>
+        /// -alibiHintTour: case 4 and a clock day's docket, asking Connie twice before every move. The
+        /// CONNIE tags must sit on exactly the cards each hint names (none for the vague first hint
+        /// about a statement, the clock's cards for the first about a link, the cards themselves for
+        /// the second), clear once the move is made, and the first jump (E) after a hint lands on one.
+        /// </summary>
+        IEnumerator HintTour()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL hints: " + why); ok = false; }
+            SaveData.UnlockAll = true;
+            SaveData.Current.DropAllBoards();
+            keyboard = InputSystem.AddDevice<Keyboard>("TestKeys");
+            keyboard.MakeCurrent();
+            PadCursor.IgnoreRealMouse = true;
+            var day = new System.DateTime(2026, 10, 7);
+            int checks = 0;
+            foreach (var c in new[] { Cases.All[3], Cases.DocketFor(day) })
+            {
+                root.StartCase(c, false);
+                yield return Wait(2.6f);
+                var s = root.Session;
+                string Tagged() => string.Join(",", s.HintTagged());
+                void Expect(string when, System.Collections.Generic.IEnumerable<string> want)
+                {
+                    var w = string.Join(",", new System.Collections.Generic.SortedSet<string>(want));
+                    checks++;
+                    if (Tagged() != w) Fail($"{c.Id} {when}: tagged [{Tagged()}], the hint names [{w}]");
+                    else Debug.Log($"[AutoPilot] hints {c.Id} {when}: tagged [{w}]");
+                }
+                bool jumped = false;
+                for (int step = 0; step < 20; step++)
+                {
+                    foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                    yield return Wait(1.2f);
+                    var path = Solver.ShortestSolution(Solver.Shadow(s.Board));
+                    if (path == null) { Fail($"{c.Id}: no solution"); break; }
+                    if (path.Count == 0)
+                    {
+                        s.Hint();
+                        yield return Wait(0.6f);
+                        Expect("the last hint", new[] { "@incident" });
+                        yield return Shot(c.Id + "_hint_incident");
+                        break;
+                    }
+                    var m = path[0];
+                    var a = c.CardById[m.A];
+                    s.Hint();
+                    yield return Wait(0.6f);
+                    if (m.Kind == "link")
+                    {
+                        var b = c.CardById[m.B];
+                        var wrong = s.Board.IsTrusted(a.Clock) ? b : a;
+                        Expect($"step {step + 1}, first hint (the {wrong.Clock} clock)", s.Board.UnlockedCards.Where(x => s.Board.Pinned.Contains(x.Id) && !s.Board.Struck.Contains(x.Id) && x.Clock == wrong.Clock).Select(x => x.Id));
+                    }
+                    else Expect($"step {step + 1}, first hint (vague)", new string[0]);
+                    s.Hint();
+                    yield return Wait(0.6f);
+                    var named = m.Kind == "link" ? new[] { m.A, m.B } : new[] { m.A };
+                    Expect($"step {step + 1}, second hint ({m.Kind} {string.Join(" + ", named)})", named);
+                    var said = s.Memos.History.Count > 0 ? s.Memos.History[s.Memos.History.Count - 1].Text : "";
+                    foreach (var id in named)
+                        if (!said.Contains(m.Kind == "link" ? c.CardById[id].Title : c.CardById[id].Title + "'s")) Fail($"{c.Id} step {step + 1}: the hint \"{said}\" doesn't name {id}, which is tagged");
+                    if (!jumped)
+                    {
+                        // The first jump after a hint goes to the first tagged card.
+                        jumped = true;
+                        yield return KeyTap(Key.E);
+                        var on = s.TaggedViews.Select(v => Screen(v.transform.position)).ToList();
+                        if (!PadCursor.Active || !on.Any(p => (p - PadCursor.I.Position).magnitude < 40f))   // a hovered card lifts a little
+                            Fail($"{c.Id}: E after the hint didn't jump to a tagged card (cursor {(PadCursor.Active ? PadCursor.I.Position.ToString() : "off")}, tagged at {string.Join(" ", on)})");
+                        else Debug.Log($"[AutoPilot] hints {c.Id}: E after the hint jumped onto a tagged card");
+                        yield return Wait(0.3f);
+                        yield return Shot(c.Id + "_hint_tagged");
+                    }
+                    if (m.Kind == "link") s.AutoLink(m.A, m.B); else s.Confront(s.ViewOf(m.A));
+                    yield return Wait(2.6f);
+                    checks++;
+                    if (s.HintTagged().Count > 0) Fail($"{c.Id} step {step + 1}: tags still on [{Tagged()}] after the move");
+                }
+                s.AutoAccuse(c.Incident.Culprit);
+                float t = 0;
+                while (root.Flow != Flow.Closed && t < 90) { t += Clock.Dt; yield return null; }
+                if (root.Flow != Flow.Closed) Fail($"{c.Id} didn't close");
+                if (s.SealUnaided) Fail($"{c.Id}: hints were asked for, but Unaided was earned");
+                yield return Wait(2.5f);
+            }
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} hint tour ({checks} checks)");
+            Debug.Log($"[AutoPilot] done: hint tour, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
         // ------------------------------------------------------------------ every case keeps its board
 
         public void RunBoards(string outDir)

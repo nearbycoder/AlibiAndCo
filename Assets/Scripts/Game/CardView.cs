@@ -503,6 +503,44 @@ namespace AlibiCo
             if (newTagRoot) newTagRoot.SetActive(isNew);
         }
 
+        GameObject hintFull, hintChip;
+        /// <summary>Connie's hint names this card: it wears a brass CONNIE tag until the board changes.</summary>
+        public bool Hinted { get; private set; }
+
+        public void SetHinted(bool on)
+        {
+            if (on == Hinted) return;
+            Hinted = on;
+            if (on && hintFull == null)
+            {
+                // Top left, clear of the contradiction triangle (top right) and the NEW tag.
+                hintFull = HintTag(full, FullSize, 1f);
+                hintChip = HintTag(chip, ChipSize, 0.82f);
+            }
+            if (hintFull) hintFull.SetActive(on);
+            if (hintChip) hintChip.SetActive(on);
+            if (on && !Settings.ReducedMotion)
+            {
+                var t = (Compact ? hintChip : hintFull).transform;
+                t.localScale = Vector3.one * 0.2f;
+                Tween.Run((t, "hint"), 0.35f, k => t.localScale = Vector3.one * Mathf.LerpUnclamped(0.2f, 1f, k), Ease.OutBack);
+            }
+        }
+
+        static GameObject HintTag(Transform parent, Vector2 size, float k)
+        {
+            var tag = new GameObject("hintTag").transform;
+            tag.SetParent(parent, false);
+            var w = new Vector2(1.02f, 0.28f) * k;
+            tag.localPosition = new Vector3(-size.x / 2 + w.x / 2 + 0.06f * k, size.y / 2 + 0.1f * k, -Thick - 0.03f);
+            tag.localRotation = Quaternion.Euler(0, 0, 5);
+            Shapes.Quad(tag, "edge", w + new Vector2(0.05f, 0.05f) * k, Art.Unlit(Pal.Ink), new Vector3(0, 0, 0.002f));
+            Shapes.Quad(tag, "bg", w, Art.Unlit(Pal.Brass), Vector3.zero);
+            AlibiCo.Txt.Make(tag, "hintText", "CONNIE", AlibiCo.Art.SansBold, 0.19f * k, Pal.Ink, w, TextAlignmentOptions.Center, new Vector3(0, 0, -0.01f), false);
+            tag.gameObject.SetActive(false);
+            return tag.gameObject;
+        }
+
         /// <summary>Cross out the faces of candidates who've been ruled out.</summary>
         public void SetCandidates(ICollection<string> stillPossible, bool animate)
         {
