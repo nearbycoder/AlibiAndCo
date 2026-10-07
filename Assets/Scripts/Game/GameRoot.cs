@@ -110,7 +110,8 @@ namespace AlibiCo
             int recordArg = Array.IndexOf(args, "-alibiRecord");
             int focusArg = Array.IndexOf(args, "-alibiFocusTest");
             int touchArg = Array.IndexOf(args, "-alibiTouchTest");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0;
+            int boardsArg = Array.IndexOf(args, "-alibiBoardsTest");
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0;
             TimerIgnoresFocus = automated && focusArg < 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
@@ -168,6 +169,12 @@ namespace AlibiCo
                 gameObject.AddComponent<AutoPilot>().RunFocus(dir, args.Contains("-alibiFocusReal"));
                 yield break;
             }
+            if (boardsArg >= 0)
+            {
+                string dir = boardsArg + 1 < args.Length && !args[boardsArg + 1].StartsWith("-") ? args[boardsArg + 1] : "Captures/boards-test";
+                gameObject.AddComponent<AutoPilot>().RunBoards(dir);
+                yield break;
+            }
             if (midnightArg >= 0)
             {
                 string dir = midnightArg + 1 < args.Length && !args[midnightArg + 1].StartsWith("-") ? args[midnightArg + 1] : "Captures/midnight-test";
@@ -214,7 +221,7 @@ namespace AlibiCo
             }
             var save = SaveData.Current;
             var solved = string.Join(",", save.cases.Where(c => c.solved).Select(c => c.id));
-            Debug.Log($"[SaveCheck] folder={SaveData.Folder} loadedFrom={SaveData.LoadedFrom} solved=[{solved}] inProgress={save.inProgress?.caseId ?? "none"}");
+            Debug.Log($"[SaveCheck] folder={SaveData.Folder} loadedFrom={SaveData.LoadedFrom} solved=[{solved}] inProgress={save.inProgress?.caseId ?? "none"} shelved=[{string.Join(",", save.shelved.Select(b => $"{b.caseId}:{b.pinned.Count}pins"))}]");
             ShowTitle(true);
             yield return new WaitForSecondsRealtime(3f);
             if (!web) Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "title.png"), Screen.width, Screen.height));
@@ -391,8 +398,9 @@ namespace AlibiCo
             ShowDecor(false);
             Stage.Focus = 0;
             Stage.DimLamp(1f, 0.8f);
-            var snap = resume ? SaveData.Current.inProgress : null;
-            if (!resume && SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id) SaveData.Current.inProgress = null;
+            // Every case keeps its own board; starting this one afresh only drops this one's.
+            var snap = resume ? SaveData.Current.BoardFor(c.Id) : null;
+            if (!resume) SaveData.Current.Drop(c.Id);
             var rec = SaveData.Current.Record(c.Id);
             if (!resume) rec.plays++;
             SaveData.Write();
@@ -405,7 +413,7 @@ namespace AlibiCo
         {
             if (Session == null) return;
             var c = Session.Case;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.Drop(c.Id);
             StartCase(c, false);
         }
 
@@ -442,7 +450,7 @@ namespace AlibiCo
             rec.sealUnaided |= s.SealUnaided;
             rec.sealSwift |= s.SealSwift;
             Debug.Log($"[Seals] {s.Case.Id}: clean={s.SealClean} unaided={s.SealUnaided} swift={s.SealSwift} (time {s.Elapsed:0}s, par {s.Case.ParSeconds}s)");
-            SaveData.Current.inProgress = null;
+            SaveData.Current.Drop(s.Case.Id);
             SaveData.Write();
             Screens.HideHud();
             StartCoroutine(Reconstruction.Play(this, s, () =>

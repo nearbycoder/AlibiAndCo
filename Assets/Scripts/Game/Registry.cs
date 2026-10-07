@@ -318,7 +318,66 @@ namespace AlibiCo
         }
 
         public List<CaseRecord> cases = new List<CaseRecord>();
+        /// <summary>The board played most recently: the title's Continue.</summary>
         public Snapshot inProgress;
+        /// <summary>
+        /// Every other board left part-way, one per case or docket, oldest first. Opening one case
+        /// shelves the board you were on rather than losing it. (Saves from before round 7 have none.)
+        /// </summary>
+        public List<Snapshot> shelved = new List<Snapshot>();
+
+        /// <summary>The board left part-way on this case or docket, or null.</summary>
+        public Snapshot BoardFor(string caseId)
+        {
+            if (inProgress != null && inProgress.caseId == caseId) return inProgress;
+            return shelved.Find(s => s.caseId == caseId);
+        }
+
+        /// <summary>This board is the one being played: it becomes Continue, and the one before it goes on the shelf.</summary>
+        public void Keep(Snapshot board)
+        {
+            shelved.RemoveAll(s => s.caseId == board.caseId);
+            if (inProgress != null && inProgress.caseId != board.caseId) shelved.Add(inProgress);
+            inProgress = board;
+        }
+
+        /// <summary>A case's board is finished with (solved, or started over). Continue moves to the next most recent board.</summary>
+        public void Drop(string caseId)
+        {
+            shelved.RemoveAll(s => s.caseId == caseId);
+            if (inProgress != null && inProgress.caseId == caseId)
+            {
+                inProgress = null;
+                if (shelved.Count > 0) { inProgress = shelved[shelved.Count - 1]; shelved.RemoveAt(shelved.Count - 1); }
+            }
+        }
+
+        /// <summary>
+        /// JsonUtility can't write a null board, so "none" comes back as an empty one: read it as none.
+        /// A save from before round 7 has no shelf at all.
+        /// </summary>
+        void Tidy()
+        {
+            if (shelved == null) shelved = new List<Snapshot>();
+            shelved.RemoveAll(s => s == null || string.IsNullOrEmpty(s.caseId));
+            if (inProgress != null && string.IsNullOrEmpty(inProgress.caseId)) inProgress = null;
+        }
+
+        /// <summary>Automated runs start from a clean desk.</summary>
+        public void DropAllBoards()
+        {
+            inProgress = null;
+            shelved.Clear();
+        }
+
+        /// <summary>
+        /// A shelved docket goes once its day leaves the drawer (it can't be opened from there any
+        /// more). The most recent board stays, so Continue still finds it. True if anything went.
+        /// </summary>
+        public bool DropDocketsBefore(System.DateTime oldestOnFile)
+        {
+            return shelved.RemoveAll(s => Docket.TryParseId(s.caseId, out var day) && day < oldestOnFile.Date) > 0;
+        }
         public bool seenIntro;
         /// <summary>Gestures the player has used at least once; the controls strip stops teaching them.</summary>
         public List<string> learned = new List<string>();
@@ -363,6 +422,7 @@ namespace AlibiCo
                 LoadedFrom = source;
                 if (source == SafeFile.Source.Backup) Debug.LogWarning("[Save] recovered progress from the backup save");
                 if (current == null) current = new SaveData();
+                current.Tidy();
                 return current;
             }
         }

@@ -165,6 +165,7 @@ namespace AlibiCo
         void BuildSelect()
         {
             Cases.RefreshToday();   // a game left open past midnight moves on to the new day's docket
+            if (SaveData.Current.DropDocketsBefore(Docket.Week(Cases.Today).Min())) SaveData.Write();   // boards for days the drawer no longer offers
             select = Group("Select");
             var shade = UiKit.Panel(select.transform, "shade", new Color(0.02f, 0.02f, 0.03f, 0.72f), false);
             shade.rectTransform.Stretch();
@@ -222,9 +223,8 @@ namespace AlibiCo
         static string DocketState(System.DateTime day, bool onButton)
         {
             var rec = Cases.DocketRecord(day);
-            var s = SaveData.Current.inProgress;
             if (rec != null && rec.solved) return $"   {Stars(rec.bestBadges)} <size=80%>{Clock(rec.bestTime)}</size>";
-            if (s != null && s.caseId == Docket.IdFor(day)) return "   <size=70%>IN PROGRESS</size>";
+            if (SaveData.Current.BoardFor(Docket.IdFor(day)) != null) return "   <size=70%>IN PROGRESS</size>";
             if (onButton) return "";
             if (day == Cases.Today) return "   <size=70%><color=#E8C27A>NEW TODAY</color></size>";
             return Docket.OnFileUntil(day) == Cases.Today ? "   <size=70%><color=#E8C27A>LAST DAY ON FILE</color></size>" : "   <size=70%><color=#B9AE98>NOT YET OPENED</color></size>";
@@ -323,9 +323,19 @@ namespace AlibiCo
         }
 
         /// <summary>Press a named button on the case files, the drawer, the title or the closed panel, as a click would (for the autopilot).</summary>
+        /// <summary>Everything a case's folder says (title, status), or null if the case files aren't built.</summary>
+        public string FolderText(string caseId)
+        {
+            var f = select != null ? select.transform.Find("row/folder_" + caseId) : null;
+            return f != null ? string.Join(" | ", f.GetComponentsInChildren<TextMeshProUGUI>().Select(t => t.text)) : null;
+        }
+
+        /// <summary>A yes/no question is on screen.</summary>
+        public bool ConfirmOpen => confirm != null && confirm.gameObject.activeSelf && confirm.alpha > 0.5f;
+
         public bool Press(string name)
         {
-            foreach (var g in new[] { week, select, title, closed })
+            foreach (var g in new[] { confirm, week, intro, select, title, closed })
             {
                 if (g == null || !g.gameObject.activeSelf) continue;
                 var b = g.GetComponentsInChildren<Button>().FirstOrDefault(x => x.name == name);
@@ -339,7 +349,7 @@ namespace AlibiCo
             var c = Cases.All[index];
             var rec = SaveData.Current.Record(c.Id);
             bool unlocked = SaveData.Current.IsUnlocked(index);
-            bool inProgress = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
+            bool inProgress = SaveData.Current.BoardFor(c.Id) != null;
 
             var folder = UiKit.Panel(parent, "folder_" + c.Id, unlocked ? Pal.Hex("D8B97E") : Pal.Hex("6C6253"));
             UiKit.DropShadow(folder.rectTransform, 30f, 0.6f, new Vector2(6, -14));
@@ -484,7 +494,7 @@ namespace AlibiCo
             clipImg.color = Pal.Hex("8E969E");
             clipImg.raycastTarget = false;
             var rec = SaveData.Current.Record(c.Id);
-            bool resumeFile = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
+            bool resumeFile = SaveData.Current.BoardFor(c.Id) != null;
             string stampText = rec.solved ? "CLOSED" : resumeFile ? "IN PROGRESS" : "OPEN FILE";
             var stampCol = rec.solved ? new Color(0.18f, 0.42f, 0.31f, 0.85f) : new Color(0.66f, 0.14f, 0.17f, 0.82f);
             Stamp(p, stampText, stampCol, new Vector2(-70, -64), -8f);
@@ -525,12 +535,12 @@ namespace AlibiCo
             btns.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 46), new Vector2(-120, 70));
             var hl = btns.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 18; hl.childControlWidth = false; hl.childForceExpandWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
-            bool resume = SaveData.Current.inProgress != null && SaveData.Current.inProgress.caseId == c.Id;
+            bool resume = resumeFile;
             var open = UiKit.Button(btns, resume ? "Continue the board" : "Open the board", () => { Hide(intro); Sfx.Play("folder", 0.8f); root.StartCase(c, resume); }, Pal.Hex("8E2B2B"), Cream, 30);
             ((RectTransform)open.transform).sizeDelta = new Vector2(340, 70);
             if (resume)
             {
-                var fresh = UiKit.Button(btns, "Start over", () => { Hide(intro); root.StartCase(c, false); }, Pal.Hex("2B3540"), Cream, 26);
+                var fresh = UiKit.Button(btns, "Start over", () => Confirm("Start this case over? Your pins and badges reset.", () => { Hide(intro); root.StartCase(c, false); }), Pal.Hex("2B3540"), Cream, 26);
                 ((RectTransform)fresh.transform).sizeDelta = new Vector2(220, 70);
             }
             bool docket = Cases.IsDocket(c);

@@ -117,7 +117,7 @@ namespace AlibiCo
             var root = GameRoot.I;
             bool ok = true;
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var c = Cases.TodaysDocket;
             root.StartCase(c, false);
             yield return Wait(2.6f);
@@ -167,6 +167,174 @@ namespace AlibiCo
             if (errors > 0) ok = false;
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} share check");
             Debug.Log($"[AutoPilot] done: share check, {errors} errors");
+            Application.Quit(ok ? 0 : 1);
+        }
+
+        // ------------------------------------------------------------------ every case keeps its board
+
+        public void RunBoards(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(BoardsTest());
+        }
+
+        /// <summary>
+        /// -alibiBoardsTest: leave three boards part-way (case 1, case 2 with a badge lost, today's
+        /// docket), then check each one is still there: the folders and the drawer say IN PROGRESS,
+        /// Continue resumes the last one, each case reopens with its own pins, badges and timer, and
+        /// the intro's Start over asks before it wipes anything.
+        /// </summary>
+        IEnumerator BoardsTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL boards: " + why); ok = false; }
+            SaveData.UnlockAll = true;
+            SaveData.Current.DropAllBoards();
+            var c1 = Cases.All[0];
+            var c2 = Cases.All[1];
+            var dk = Cases.TodaysDocket;
+
+            IEnumerator Leave(CaseDef c, int pins, bool wrongLink)
+            {
+                root.StartCase(c, false);
+                yield return Wait(2.6f);
+                var s = root.Session;
+                foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).Take(pins).ToList())
+                {
+                    s.AutoPin(id);
+                    yield return Wait(0.4f);
+                }
+                if (wrongLink)
+                {
+                    // Two cards that aren't one moment: a badge lost.
+                    var cards = s.Board.UnlockedCards.ToList();
+                    var pair = cards.SelectMany(a => cards.Where(b => b.Id != a.Id && (a.Event == null || a.Event != b.Event)).Select(b => (a, b))).First();
+                    s.AutoLink(pair.a.Id, pair.b.Id);
+                    yield return Wait(0.8f);
+                }
+                yield return Wait(1f);
+                Debug.Log($"[Boards] left {c.Id} with {s.Board.Pinned.Count} pins, {s.Badges} badges, {s.Elapsed:0.0}s");
+            }
+
+            // Three boards, left one after another through the case files.
+            yield return Leave(c1, 2, false);
+            int pins1 = root.Session.Board.Pinned.Count;
+            float time1 = root.Session.Elapsed;
+            root.ShowSelect();
+            yield return Wait(1f);
+            yield return Leave(c2, 1, true);
+            int pins2 = root.Session.Board.Pinned.Count, badges2 = root.Session.Badges;
+            root.ShowSelect();
+            yield return Wait(1f);
+            yield return Leave(dk, 1, false);
+            int pinsD = root.Session.Board.Pinned.Count;
+            root.ShowSelect();
+            yield return Wait(1.2f);
+
+            var save = SaveData.Current;
+            Debug.Log($"[Boards] save: inProgress={save.inProgress?.caseId ?? "none"} shelved=[{string.Join(",", save.shelved.Select(b => $"{b.caseId}:{b.pinned.Count}pins/{b.mistakes}mistakes"))}]");
+            if (save.inProgress?.caseId != dk.Id) Fail($"the most recent board isn't {dk.Id}");
+            if (save.BoardFor(c1.Id)?.pinned.Count != pins1) Fail($"{c1.Id}'s board wasn't kept with {pins1} pins");
+            if (save.BoardFor(c2.Id) is var b2 && (b2 == null || b2.pinned.Count != pins2 || b2.mistakes != 1)) Fail($"{c2.Id}'s board wasn't kept with {pins2} pins and a badge lost");
+            foreach (var c in new[] { c1, c2 })
+            {
+                var text = root.Screens.FolderText(c.Id) ?? "";
+                if (!text.Contains("IN PROGRESS")) Fail($"{c.Id}'s folder doesn't say IN PROGRESS: {text}");
+            }
+            if ((root.Screens.FolderText(Cases.All[2].Id) ?? "").Contains("IN PROGRESS")) Fail("case 3's folder says IN PROGRESS but was never opened");
+            yield return Shot("case_files_two_in_progress");
+            root.Screens.Press("btn_docket");
+            yield return Wait(1f);
+            var row = root.Screens.DocketRowText(Cases.Today) ?? "";
+            if (!row.Contains("IN PROGRESS")) Fail("today's drawer row doesn't say IN PROGRESS: " + row);
+            yield return Shot("drawer_in_progress");
+            root.Screens.CloseTopOverlay();
+            yield return Wait(0.6f);
+
+            // Continue: the board played last.
+            root.ShowTitle(false);
+            yield return Wait(1.5f);
+            yield return Shot("title_continue");
+            if (!root.Screens.Press("btn_Continue")) Fail("no Continue button on the title");
+            yield return Wait(2.6f);
+            if (root.Session?.Case.Id != dk.Id || root.Session.Board.Pinned.Count != pinsD) Fail($"Continue didn't resume {dk.Id} with {pinsD} pins");
+            else Debug.Log($"[Boards] Continue resumed {dk.Id} with {pinsD} pins");
+
+            // Case 1 from its folder: Start over asks, No keeps the board, Continue the board resumes it.
+            root.ShowSelect();
+            yield return Wait(1f);
+            root.ShowIntro(c1);
+            yield return Wait(1.5f);
+            if (root.Screens.ButtonScreen("btn_Continue the board") == null) Fail($"{c1.Id}'s intro doesn't offer Continue the board");
+            if (!root.Screens.Press("btn_Start over")) Fail($"{c1.Id}'s intro has no Start over");
+            yield return Wait(0.6f);
+            if (!root.Screens.ConfirmOpen) Fail("Start over didn't ask first");
+            yield return Shot("start_over_asks");
+            root.Screens.Press("btn_No");
+            yield return Wait(0.6f);
+            if (root.Flow != Flow.Intro || save.BoardFor(c1.Id)?.pinned.Count != pins1) Fail($"answering No to Start over didn't keep {c1.Id}'s board (flow {root.Flow})");
+            float saved1 = save.BoardFor(c1.Id)?.elapsed ?? -1;
+            if (saved1 < time1) Fail($"{c1.Id}'s board kept {saved1:0.0}s on its timer, not {time1:0.0}s");
+            root.Screens.Press("btn_Continue the board");
+            yield return null;
+            var s1 = root.Session;
+            // The timer picks up where it stopped (the board has only just reopened).
+            if (s1?.Case.Id != c1.Id || s1.Board.Pinned.Count != pins1 || s1.Elapsed < saved1 || s1.Elapsed > saved1 + 0.5f)
+                Fail($"{c1.Id} didn't reopen with {pins1} pins at {saved1:0.0}s ({(s1 != null ? $"{s1.Case.Id}, {s1.Board.Pinned.Count} pins, {s1.Elapsed:0.0}s" : "no session")})");
+            else Debug.Log($"[Boards] {c1.Id} reopened with {pins1} pins at {s1.Elapsed:0.0}s (left at {time1:0.0}s)");
+            yield return Wait(2.6f);
+            yield return Shot("case1_reopened");
+
+            // Case 2 the same way: its pins, and the badge it lost.
+            root.ShowSelect();
+            yield return Wait(1f);
+            root.ShowIntro(c2);
+            yield return Wait(1.5f);
+            root.Screens.Press("btn_Continue the board");
+            yield return Wait(2.6f);
+            var s2 = root.Session;
+            if (s2?.Case.Id != c2.Id || s2.Board.Pinned.Count != pins2 || s2.Badges != badges2)
+                Fail($"{c2.Id} didn't reopen with {pins2} pins and {badges2} badges");
+            else Debug.Log($"[Boards] {c2.Id} reopened with {pins2} pins and {s2.Badges} badges");
+
+            // Start over, answered Yes, wipes that case's board and nothing else.
+            root.ShowSelect();
+            yield return Wait(1f);
+            root.ShowIntro(c2);
+            yield return Wait(1.5f);
+            root.Screens.Press("btn_Start over");
+            yield return Wait(0.6f);
+            root.Screens.Press("btn_Yes");
+            yield return Wait(2.6f);
+            if (root.Session?.Case.Id != c2.Id || root.Session.Board.Pinned.Count != 0 || root.Session.Badges != 3) Fail($"Start over, Yes, didn't start {c2.Id} afresh");
+            if (save.BoardFor(c1.Id)?.pinned.Count != pins1 || save.BoardFor(dk.Id)?.pinned.Count != pinsD) Fail("starting case 2 over touched another board");
+
+            // Solving a case drops its board only; Continue then moves to the next most recent one.
+            var sv = root.Session;
+            for (int step = 0; step < 20; step++)
+            {
+                foreach (var id in sv.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) sv.AutoPin(id);
+                yield return Wait(0.8f);
+                var path = Solver.ShortestSolution(Solver.Shadow(sv.Board));
+                if (path == null || path.Count == 0) break;
+                var m = path[0];
+                if (m.Kind == "link") sv.AutoLink(m.A, m.B); else sv.Confront(sv.ViewOf(m.A));
+                yield return Wait(2.2f);
+            }
+            sv.AutoAccuse(c2.Incident.Culprit);
+            for (float t = 0; root.Flow != Flow.Closed && t < 90; t += Clock.Dt) yield return null;
+            if (save.BoardFor(c2.Id) != null) Fail($"{c2.Id}'s board outlived solving it");
+            if (save.BoardFor(c1.Id) == null || save.BoardFor(dk.Id) == null) Fail("solving case 2 dropped another board");
+            Debug.Log($"[Boards] after solving {c2.Id}: inProgress={save.inProgress?.caseId ?? "none"} shelved=[{string.Join(",", save.shelved.Select(b => b.caseId))}]");
+
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} boards test");
+            Debug.Log($"[AutoPilot] done: boards test, {errors} errors");
+            yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
         }
 
@@ -263,7 +431,7 @@ namespace AlibiCo
             void Fail(string why) { Debug.LogError("[AutoPilot] FAIL midnight: " + why); ok = false; }
             string Iso(System.DateTime d) => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var day0 = Cases.Today;
             var day1 = day0.AddDays(1);
             var toMidnight = day1 - Cases.Now;
@@ -402,7 +570,7 @@ namespace AlibiCo
             pad.MakeCurrent();
             PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only step 8 hands over on purpose
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var c = Cases.All[0];
             root.StartCase(c, false);
             yield return Wait(3f);
@@ -583,7 +751,7 @@ namespace AlibiCo
             touchscreen = InputSystem.AddDevice<Touchscreen>("TestTouch");
             PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only the last step hands over on purpose
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var c = Cases.All[0];
             root.StartCase(c, false);
             yield return Wait(3f);
@@ -729,7 +897,7 @@ namespace AlibiCo
             bool ok = true;
             void Fail(string why) { Debug.LogError("[AutoPilot] FAIL touch (real): " + why); ok = false; }
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             root.StartCase(Cases.All[0], false);
             yield return Wait(3f);
             var s = root.Session;
@@ -854,7 +1022,7 @@ namespace AlibiCo
             keyboard.MakeCurrent();
             PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only the last step hands over on purpose
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var c = Cases.All[0];
             root.StartCase(c, false);
             yield return Wait(3f);
@@ -1125,7 +1293,7 @@ namespace AlibiCo
         {
             var root = GameRoot.I;
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             var c = Cases.All[0];
             root.StartCase(c, false);
             yield return Wait(3f);
@@ -1290,7 +1458,7 @@ namespace AlibiCo
         {
             var root = GameRoot.I;
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
             float pace = capture ? 1f : 0.6f;
             if (capture)
             {

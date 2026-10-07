@@ -177,7 +177,7 @@ namespace AlibiCo
 
         public void SaveProgress()
         {
-            if (Solved) { SaveData.Current.inProgress = null; SaveData.Write(); return; }
+            if (Solved) { SaveData.Current.Drop(Case.Id); SaveData.Write(); return; }
             var s = new SaveData.Snapshot { caseId = Case.Id, mistakes = Board.Mistakes, elapsed = Elapsed, usedHints = UsedHints };
             s.unlocked.AddRange(Board.Unlocked);
             s.pinned.AddRange(Board.Pinned);
@@ -189,7 +189,7 @@ namespace AlibiCo
             foreach (var kv in Board.Links) { s.linkA.Add(kv.Key); s.linkB.Add(kv.Value); }
             s.seenMemos.AddRange(seenMemos);
             foreach (var m in Memos.History) s.memoLog.Add(m.Pack());
-            SaveData.Current.inProgress = s;
+            SaveData.Current.Keep(s);   // any other case's board stays on the shelf
             SaveData.Write();
         }
 
@@ -1066,7 +1066,7 @@ namespace AlibiCo
                 incident.Punch(0.2f, 0.4f);
                 Fx.Dust(incident.transform.position);
             });
-            SaveData.Current.inProgress = null;
+            SaveData.Current.Drop(Case.Id);
             SaveData.Write();
             Tween.Delay(1.1f, () => SolvedEvent?.Invoke(this));
         }
