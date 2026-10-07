@@ -445,6 +445,56 @@ namespace AlibiCo
             return line;
         }
 
+        /// <summary>
+        /// "SEALS   ✔ CLEAN no badge lost  ·  UNAIDED no hint  ·  SWIFT under 6:00": each seal and what
+        /// it asks for, with the ones the case files already hold ticked in green.
+        /// </summary>
+        public static string IntroSeals(CaseDef c, SaveData.CaseRecord rec)
+        {
+            string One(bool got, string name, string asks) =>
+                (got ? $"<color=#2F6B4F>✔ {name}</color>" : $"<color=#7A6E5E>{name}</color>") + $" <size=92%><color=#6B6155>{asks}</color></size>";
+            var line = One(rec.sealClean, "CLEAN", "no badge lost") + "   ·   " + One(rec.sealUnaided, "UNAIDED", "no hint");
+            if (c.ParSeconds > 0) line += "   ·   " + One(rec.sealSwift, "SWIFT", "under " + Clock(c.ParSeconds));
+            return $"<color=#8E2B2B><cspace=3>SEALS</cspace></color>     {line}";
+        }
+
+        /// <summary>The intro's seals line as it reads now (for the tests), or null.</summary>
+        public string IntroSealsText => intro != null && intro.gameObject.activeSelf ? intro.transform.Find("paper/seals")?.GetComponent<TextMeshProUGUI>()?.text : null;
+
+        /// <summary>
+        /// For the tests: what the intro's seals line runs into (the buttons, the press cutting, the
+        /// suspects column, the edge of the paper), or null if it sits clear. Screen-space boxes of the inked text.
+        /// </summary>
+        public string IntroSealsClash()
+        {
+            var paper = intro != null ? intro.transform.Find("paper") : null;
+            var seals = paper != null ? paper.Find("seals")?.GetComponent<TextMeshProUGUI>() : null;
+            if (seals == null) return "no seals line";
+            seals.ForceMeshUpdate();
+            var b = seals.textBounds;
+            Rect Box(Transform t, Vector3 min, Vector3 max)
+            {
+                var pts = new[] { new Vector3(min.x, min.y), new Vector3(max.x, min.y), new Vector3(min.x, max.y), new Vector3(max.x, max.y) }.Select(p => t.TransformPoint(p)).ToList();
+                return Rect.MinMaxRect(pts.Min(p => p.x), pts.Min(p => p.y), pts.Max(p => p.x), pts.Max(p => p.y));
+            }
+            Rect RectBox(RectTransform r) => Box(r, r.rect.min, r.rect.max);
+            var line = Box(seals.transform, b.min, b.max);
+            var clashes = new List<string>();
+            foreach (var b2 in paper.Find("buttons").GetComponentsInChildren<Button>())
+                if (RectBox((RectTransform)b2.transform).Overlaps(line)) clashes.Add("the " + b2.name + " button");
+            var cut = paper.Find("cutting") as RectTransform;
+            if (cut != null && cut.gameObject.activeSelf && RectBox(cut).Overlaps(line)) clashes.Add("the press cutting");
+            var col = paper.Find("suspects") as RectTransform;
+            foreach (var t in col.GetComponentsInChildren<TextMeshProUGUI>())
+            {
+                t.ForceMeshUpdate();
+                if (t.textInfo.characterCount > 0 && Box(t.transform, t.textBounds.min, t.textBounds.max).Overlaps(line)) clashes.Add("the suspects column");
+            }
+            var page = RectBox((RectTransform)paper);
+            if (line.xMax > page.xMax - 20 || line.yMin < page.yMin + 10) clashes.Add("the paper's edge");
+            return clashes.Count == 0 ? null : string.Join(", ", clashes) + $" (line {line})";
+        }
+
         public static string Stars(int n) => "<color=#B8862E>" + new string('★', n) + "</color><color=#9A9080>" + new string('☆', 3 - n) + "</color>";
 
         public static string Clock(float seconds)
@@ -464,7 +514,9 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var paper = UiKit.Panel(intro.transform, "paper", Pal.Hex("F2EAD6"));
             UiKit.DropShadow(paper.rectTransform, 40f, 0.65f, new Vector2(8, -18));
-            paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240, 900));
+            // 950 tall: the foot of the file carries the seals line under the buttons.
+            const float paperH = 950, buttonsY = 74, cuttingY = 174;
+            paper.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240, paperH));
             UiKit.FitInCanvas(paper.rectTransform, 20);
             paper.transform.localRotation = Quaternion.Euler(0, 0, -0.6f);
             var p = paper.rectTransform;
@@ -502,7 +554,7 @@ namespace AlibiCo
             if (news != null)
             {
                 var cut = UiKit.Rect(p, "cutting");
-                cut.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(64, 146), new Vector2(560, 140));
+                cut.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(64, cuttingY), new Vector2(560, 140));
                 cut.localRotation = Quaternion.Euler(0, 0, 1.2f);
                 UiKit.DropShadow(cut, 10f, 0.35f, new Vector2(3, -5));
                 var raw = cut.gameObject.AddComponent<RawImage>();
@@ -510,8 +562,15 @@ namespace AlibiCo
                 raw.uvRect = new Rect(0.03f, 0.64f, 0.94f, 0.335f);   // masthead, headline and standfirst
                 raw.raycastTarget = false;
                 cut.gameObject.SetActive(false);
-                root.StartCoroutine(ShowCuttingIfRoom(c, body, cut, 900 - 146 - 140 - 236 - 24));
+                root.StartCoroutine(ShowCuttingIfRoom(c, body, cut, paperH - cuttingY - 140 - 236 - 24));
             }
+
+            // The seals this case can earn, the ones already held ticked, so a replay has a goal
+            // (the par time used to appear only on the case-closed panel, after the run).
+            var seals = UiKit.Text(p, IntroSeals(c, rec), Art.SansBold, 19, Pal.Ink, TextAlignmentOptions.BottomLeft);
+            seals.name = "seals";
+            seals.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(62, 26), new Vector2(-124, 30));
+            seals.textWrappingMode = TextWrappingModes.NoWrap;
 
             // Suspects column.
             var col = UiKit.Rect(p, "suspects");
@@ -532,7 +591,7 @@ namespace AlibiCo
             }
 
             var btns = UiKit.Rect(p, "buttons");
-            btns.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 46), new Vector2(-120, 70));
+            btns.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, buttonsY), new Vector2(-120, 70));
             var hl = btns.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 18; hl.childControlWidth = false; hl.childForceExpandWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
             bool resume = resumeFile;

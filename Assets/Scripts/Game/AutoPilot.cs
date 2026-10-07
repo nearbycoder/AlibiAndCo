@@ -252,8 +252,14 @@ namespace AlibiCo
             var row = root.Screens.DocketRowText(Cases.Today) ?? "";
             if (!row.Contains("IN PROGRESS")) Fail("today's drawer row doesn't say IN PROGRESS: " + row);
             yield return Shot("drawer_in_progress");
-            root.Screens.CloseTopOverlay();
-            yield return Wait(0.6f);
+            // Today's docket, in progress: its file has the widest row of buttons of all.
+            root.Screens.Press("docket_" + Cases.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            yield return Wait(2f);
+            if (root.Screens.ButtonScreen("btn_Continue the board") == null) Fail($"{dk.Id}'s intro doesn't offer Continue the board");
+            CheckIntroSeals(dk);
+            yield return Shot("docket_intro_in_progress");
+            root.ShowSelect();
+            yield return Wait(1f);
 
             // Continue: the board played last.
             root.ShowTitle(false);
@@ -270,6 +276,7 @@ namespace AlibiCo
             root.ShowIntro(c1);
             yield return Wait(1.5f);
             if (root.Screens.ButtonScreen("btn_Continue the board") == null) Fail($"{c1.Id}'s intro doesn't offer Continue the board");
+            CheckIntroSeals(c1);   // with the widest row of buttons a case file has
             if (!root.Screens.Press("btn_Start over")) Fail($"{c1.Id}'s intro has no Start over");
             yield return Wait(0.6f);
             if (!root.Screens.ConfirmOpen) Fail("Start over didn't ask first");
@@ -1576,6 +1583,17 @@ namespace AlibiCo
             if (again < bottom + 0.5f) fail($"{how}: scrolling back up only moved the notes from {bottom:0.00} to {again:0.00}");
         }
 
+        /// <summary>The case file names the three seals and the par time, clear of the stamp and the suspects.</summary>
+        void CheckIntroSeals(CaseDef c)
+        {
+            var text = GameRoot.I.Screens.IntroSealsText ?? "";
+            var clash = GameRoot.I.Screens.IntroSealsClash();
+            bool ok = text.Contains("SEALS") && text.Contains("CLEAN") && text.Contains("UNAIDED") && text.Contains("no badge lost") && text.Contains("no hint") && text.IndexOf("CLEAN") < text.IndexOf("no badge lost")
+                      && (c.ParSeconds <= 0 || (text.Contains("SWIFT") && text.Contains("under " + Screens.Clock(c.ParSeconds)))) && clash == null;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {c.Id} intro seals (par {c.ParSeconds}s){(clash != null ? ", runs into " + clash : "")}: {System.Text.RegularExpressions.Regex.Replace(text.Replace("\n", " / "), "<[^>]+>", "")}");
+            if (!ok) errors++;
+        }
+
         /// <summary>A docket's Copy result button copies its share line, which names nobody.</summary>
         bool CheckShare(CaseSession s)
         {
@@ -1665,12 +1683,14 @@ namespace AlibiCo
                     drawerOk &= pressed && root.Flow == Flow.Intro && root.IntroCase != null && root.IntroCase.Id == c.Id;
                     Debug.Log($"[AutoPilot] {(drawerOk ? "PASS" : "FAIL")} docket drawer: opened {c.Id} from its row ({(pressed ? "pressed" : "no row")}, flow {root.Flow})");
                     yield return Shot(c.Id + "_intro_from_drawer");
+                    CheckIntroSeals(c);
                 }
                 else if (capture)
                 {
                     root.ShowIntro(c);
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_intro");
+                    CheckIntroSeals(c);
                 }
                 root.StartCase(c, false);
                 yield return Wait(2.6f);
