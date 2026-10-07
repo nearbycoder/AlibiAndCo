@@ -38,6 +38,28 @@ namespace AlibiCo
             if (on == Attended) return;
             Attended = on;
             Debug.Log($"[Focus] {(on ? "attended" : "away")} ({why}){(Session != null ? $", case timer at {Session.Elapsed:0.0}s" : "")}");
+            ApplyFrameRate();
+        }
+
+        /// <summary>
+        /// Frames a second while nobody's looking: plenty for memos typing and music fades, and it
+        /// spares a laptop's battery and fans. Sound runs on its own thread either way.
+        /// </summary>
+        public const int AwayFrameRate = 10;
+
+        /// <summary>
+        /// Full speed (vsync, capped at 120) while attended; a slow, unsynced trickle while away.
+        /// Automated runs stay at full speed and keep their own pacing (the recorder sets its own).
+        /// </summary>
+        static void ApplyFrameRate(bool force = false)
+        {
+            if (TimerIgnoresFocus && !force) return;
+            bool web = Application.platform == RuntimePlatform.WebGLPlayer;
+            bool rest = !Attended && !TimerIgnoresFocus;
+            // A frame-rate cap only applies with vsync off.
+            QualitySettings.vSyncCount = rest ? 0 : 1;
+            // In a browser, requestAnimationFrame paces the frames (-1); a cap switches it to a timer.
+            Application.targetFrameRate = rest ? AwayFrameRate : web ? -1 : 120;
         }
 
         public Stage Stage { get; private set; }
@@ -64,9 +86,7 @@ namespace AlibiCo
         void Awake()
         {
             I = this;
-            // In a browser, requestAnimationFrame paces the frames.
-            Application.targetFrameRate = Application.platform == RuntimePlatform.WebGLPlayer ? -1 : 120;
-            QualitySettings.vSyncCount = 1;
+            ApplyFrameRate(true);
             foreach (var cam in FindObjectsByType<Camera>()) Destroy(cam.gameObject);
             foreach (var l in FindObjectsByType<Light>()) Destroy(l.gameObject);
 
@@ -113,6 +133,7 @@ namespace AlibiCo
             int boardsArg = Array.IndexOf(args, "-alibiBoardsTest");
             bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0;
             TimerIgnoresFocus = automated && focusArg < 0;
+            ApplyFrameRate(true);   // focus may have gone before this was known
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             // Automated runs don't overwrite the desktop's clipboard (a browser's belongs to the test).

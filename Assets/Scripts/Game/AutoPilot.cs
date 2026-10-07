@@ -354,46 +354,130 @@ namespace AlibiCo
         /// By default it drives the handler Unity calls on a focus change; with -alibiFocusReal it
         /// waits for a real one from outside (Tools/webtest.mjs, or a person) and times it.
         /// </summary>
+        /// <summary>
+        /// Frames a second and CPU use in percent of one core over a stretch of real time: the game's
+        /// own threads (main, rendering, jobs, audio), and apart from them the engine's HIDInput
+        /// thread, which polls input devices at its own pace whatever the frame rate (-1: unknown).
+        /// </summary>
+        sealed class Sample
+        {
+            public float Fps, Cpu = -1, Input = -1;
+            public override string ToString() => $"{Fps:0.0} fps, CPU {(Cpu < 0 ? "n/a" : Cpu.ToString("0.0") + "%")}" + (Input < 0 ? "" : $" (+{Input:0}% in Unity's HIDInput thread)");
+        }
+
+        /// <summary>CPU seconds so far: the game's threads, and the engine's HIDInput thread. Linux only (else -1).</summary>
+        static (double game, double input) ThreadCpu()
+        {
+            double game = 0, input = 0;
+            try
+            {
+                foreach (var task in Directory.GetDirectories("/proc/self/task"))
+                {
+                    string stat;
+                    try { stat = File.ReadAllText(Path.Combine(task, "stat")); } catch (System.Exception) { continue; }   // a thread that just ended
+                    var name = stat.Substring(stat.IndexOf('(') + 1, stat.LastIndexOf(')') - stat.IndexOf('(') - 1);
+                    var f = stat.Substring(stat.LastIndexOf(')') + 2).Split(' ');
+                    double ticks = long.Parse(f[11]) + long.Parse(f[12]);   // utime + stime
+                    if (name == "HIDInput") input += ticks; else game += ticks;
+                }
+                return (game / 100.0, input / 100.0);   // USER_HZ is 100 on Linux
+            }
+            catch (System.Exception) { return (-1, -1); }   // not Linux (or a browser)
+        }
+
+        static IEnumerator Measure(float seconds, Sample into)
+        {
+            var c0 = ThreadCpu();
+            int f0 = Time.frameCount;
+            float t0 = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - t0 < seconds) yield return null;
+            float dt = Time.realtimeSinceStartup - t0;
+            into.Fps = (Time.frameCount - f0) / dt;
+            var c1 = ThreadCpu();
+            if (c0.game >= 0 && c1.game >= 0)
+            {
+                into.Cpu = (float)((c1.game - c0.game) / dt * 100);
+                into.Input = (float)((c1.input - c0.input) / dt * 100);
+            }
+        }
+
         IEnumerator FocusTest(bool real)
         {
             var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL focus: " + why); ok = false; }
             SaveData.UnlockAll = true;
-            SaveData.Current.inProgress = null;
+            SaveData.Current.DropAllBoards();
+
+            // The game rests while it's away: about 10 frames a second, and far less CPU.
+            void CheckRest(string where, Sample here, Sample away)
+            {
+                Debug.Log($"[AutoPilot] focus: {where} attended {here}; away {away}");
+                if (away.Fps > GameRoot.AwayFrameRate + 2) Fail($"{where}: still drawing {away.Fps:0.0} fps while away");
+                // The saving only shows when the game runs well above the cap with focus. On a busy
+                // machine (or a throttled window) it may already crawl at about 10 fps.
+                if (here.Fps < GameRoot.AwayFrameRate * 2.5f)
+                    Debug.Log($"[AutoPilot] focus: {where}: only {here.Fps:0.0} fps with focus, so the rest can't be told apart here (not judged)");
+                else if (here.Cpu > 0 && away.Cpu > here.Cpu * 0.5f) Fail($"{where}: the game's threads used {away.Cpu:0.0}% away against {here.Cpu:0.0}% attended (should be under half)");
+            }
+            if (!real)
+            {
+                root.ShowTitle(true);
+                yield return Wait(3f);
+                var titleHere = new Sample();
+                var titleAway = new Sample();
+                yield return Measure(4f, titleHere);
+                root.SendMessage("OnApplicationFocus", false);
+                yield return Measure(4f, titleAway);
+                root.SendMessage("OnApplicationFocus", true);
+                CheckRest("title", titleHere, titleAway);
+            }
+
             root.StartCase(Cases.All[0], false);
             yield return Wait(3f);
             var s = root.Session;
-            bool ok = true;
-            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL focus: " + why); ok = false; }
             float awayReal, awayTimer;
+            var boardHere = new Sample();
+            var boardAway = new Sample();
             if (!real)
             {
                 root.SendMessage("OnApplicationFocus", true);
                 yield return Wait(1f);
+                yield return Measure(4f, boardHere);
                 float e0 = s.Elapsed, t0 = Time.realtimeSinceStartup;
                 root.SendMessage("OnApplicationFocus", false);
-                yield return Wait(1.5f);
                 yield return Shot("focus_away");
-                yield return Wait(1.5f);
+                yield return Measure(4f, boardAway);
                 awayTimer = s.Elapsed - e0;
                 awayReal = Time.realtimeSinceStartup - t0;
                 root.SendMessage("OnApplicationFocus", true);
+                CheckRest("board", boardHere, boardAway);
             }
             else
             {
+                yield return Measure(3f, boardHere);
                 Debug.Log("[AutoPilot] focus: ready, waiting for the game to lose focus");
                 float t = 0;
                 while (GameRoot.Attended && t < 120f) { t += Time.unscaledDeltaTime; yield return null; }
                 if (GameRoot.Attended) { Fail("the game never lost focus"); Finish(); yield break; }
                 float e0 = s.Elapsed, t0 = Time.realtimeSinceStartup;
+                int f0 = Time.frameCount;
                 t = 0;
                 while (!GameRoot.Attended && t < 120f) { t += Time.unscaledDeltaTime; yield return null; }
                 awayTimer = s.Elapsed - e0;
                 awayReal = Time.realtimeSinceStartup - t0;
+                // In a background browser tab the page may draw nothing at all, which is fine too.
+                boardAway.Fps = (Time.frameCount - f0) / Mathf.Max(0.01f, awayReal);
                 if (!GameRoot.Attended) Fail("the game never got focus back");
+                Debug.Log($"[AutoPilot] focus: board attended {boardHere}; away {boardAway.Fps:0.0} fps");
+                if (boardAway.Fps > GameRoot.AwayFrameRate + 2) Fail($"still drawing {boardAway.Fps:0.0} fps while away");
             }
             float e1 = s.Elapsed;
-            yield return Wait(2f);
+            var back = new Sample();
+            yield return Measure(2f, back);
             float backTimer = s.Elapsed - e1;
+            Debug.Log($"[AutoPilot] focus: back {back}");
+            if (back.Fps < boardHere.Fps * 0.6f) Fail($"only {back.Fps:0.0} fps after focus came back, against {boardHere.Fps:0.0} before");
             yield return Shot("focus_back");
             Debug.Log($"[AutoPilot] focus: away {awayReal:0.0}s, the case timer moved {awayTimer:0.00}s; back 2s, it moved {backTimer:0.00}s");
             if (awayReal < 2f) Fail($"away for only {awayReal:0.0}s");
