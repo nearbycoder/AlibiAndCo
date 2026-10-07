@@ -1104,8 +1104,41 @@ namespace AlibiCo
 
         // ------------------------------------------------------------------ case closed
 
+        /// <summary>The closed panel's closing line above its buttons, if it has one (the tests read it).</summary>
+        TextMeshProUGUI closedNote, closedBody;
+        RectTransform closedButtons, closedPaper;
+        public string ClosedNote => closedNote != null && closedNote.gameObject.activeInHierarchy ? closedNote.text : "";
+
+        /// <summary>
+        /// For the tests: what the closed panel's closing line runs into (the epilogue, measured at its
+        /// full length even while it's still typing, the buttons, the paper's edge), or null if it sits clear.
+        /// </summary>
+        public string ClosedNoteClash()
+        {
+            if (closedNote == null) return "no closing line";
+            Rect Box(Transform t, Vector3 min, Vector3 max)
+            {
+                var pts = new[] { new Vector3(min.x, min.y), new Vector3(max.x, min.y), new Vector3(min.x, max.y), new Vector3(max.x, max.y) }.Select(q => t.TransformPoint(q)).ToList();
+                return Rect.MinMaxRect(pts.Min(q => q.x), pts.Min(q => q.y), pts.Max(q => q.x), pts.Max(q => q.y));
+            }
+            Rect RectBox(RectTransform r) => Box(r, r.rect.min, r.rect.max);
+            closedNote.ForceMeshUpdate();
+            var line = Box(closedNote.transform, closedNote.textBounds.min, closedNote.textBounds.max);
+            var clashes = new List<string>();
+            var br = closedBody.rectTransform.rect;
+            float textHeight = closedBody.GetPreferredValues(closedBody.text, br.width, 0).y;
+            var text = Box(closedBody.transform, new Vector3(br.xMin, br.yMax - textHeight), new Vector3(br.xMax, br.yMax));
+            if (text.Overlaps(line)) clashes.Add("the epilogue");
+            foreach (var b in closedButtons.GetComponentsInChildren<Button>())
+                if (RectBox((RectTransform)b.transform).Overlaps(line)) clashes.Add("the " + b.name + " button");
+            var page = RectBox(closedPaper);
+            if (line.xMin < page.xMin + 20 || line.xMax > page.xMax - 20) clashes.Add("the paper's edge");
+            return clashes.Count == 0 ? null : string.Join(", ", clashes) + $" (line {line}, epilogue to {text.yMin:0})";
+        }
+
         public void ShowClosed(CaseSession s, bool firstClear)
         {
+            closedNote = null;
             HideAllMenus();
             if (closed != null) Object.Destroy(closed.gameObject);
             closed = Group("Closed");
@@ -1139,6 +1172,8 @@ namespace AlibiCo
             seals.characterSpacing = 3;
 
             var body = UiKit.Text(p, string.Join("\n\n", c.Epilogue), Art.Typewriter, 24, Pal.Ink, TextAlignmentOptions.TopLeft);
+            closedBody = body;
+            closedPaper = p;
             body.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(60, -366), new Vector2(-120, 318));
             body.lineSpacing = 6;
             body.gameObject.AddComponent<TypeReveal>().Begin(body, 120f, 1.2f);
@@ -1164,6 +1199,7 @@ namespace AlibiCo
             }, 0.6f);
 
             var btns = UiKit.Rect(p, "buttons");
+            closedButtons = btns;
             btns.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(60, 46), new Vector2(-120, 70));
             var hl = btns.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 18; hl.childControlWidth = false; hl.childForceExpandWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
@@ -1175,6 +1211,12 @@ namespace AlibiCo
             ((RectTransform)next.transform).sizeDelta = new Vector2(last ? 380 : 470, 70);
             var replay = UiKit.Button(btns, "Replay this case", () => { Hide(closed); root.StartCase(c, false); }, Pal.Hex("2B3540"), Cream, 24);
             ((RectTransform)replay.transform).sizeDelta = new Vector2(260, 70);
+            // After the last case, the one file that never runs out.
+            if (last && !docket && Cases.DocketUnlocked && Cases.TodaysDocket != null)
+            {
+                var today = UiKit.Button(btns, "Today's docket", () => { Hide(closed); Sfx.Play("folder", 0.8f); root.ShowIntro(Cases.TodaysDocket); }, Pal.Hex("2B3540"), Cream, 24, null, "btn_todays_docket");
+                ((RectTransform)today.transform).sizeDelta = new Vector2(250, 70);
+            }
             if (!last)
             {
                 var files = UiKit.Button(btns, "Case files", () => { Hide(closed); root.ShowSelect(); }, Pal.Hex("2B3540"), Cream, 24);
@@ -1199,13 +1241,24 @@ namespace AlibiCo
                     Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
                 // Above the buttons, which need the whole row for the Copy button.
                 fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 124), new Vector2(-120, 40));
+                closedNote = fin;
             }
             else if (last)
             {
                 string[] words = { "None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" };
                 string n = Cases.All.Count < words.Length ? words[Cases.All.Count] : Cases.All.Count.ToString();
-                var fin = UiKit.Text(p, $"{n} for {n.ToLowerInvariant()}. Wrenhaven sleeps a little easier.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
-                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
+                string more = Cases.DocketUnlocked ? " And the Daily Docket brings a new one every day." : "";
+                var fin = UiKit.Text(p, $"{n} for {n.ToLowerInvariant()}. Wrenhaven sleeps a little easier.{more}", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                // Above the buttons, which need the whole row for Today's docket.
+                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 124), new Vector2(-120, 40));
+                closedNote = fin;
+            }
+            else if (Cases.IndexOf(c.Id) == 1 && firstClear)
+            {
+                // Closing case 2 for the first time opens the Daily Docket: say so, where it can be seen.
+                var fin = UiKit.Text(p, "The Daily Docket is open: a short new case every day, in the case files.", Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
+                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 124), new Vector2(-120, 40));
+                closedNote = fin;
             }
             Show(closed);
             AudioDirector.I.PlayMusic("music_closed", 1.5f);

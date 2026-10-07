@@ -1946,6 +1946,33 @@ namespace AlibiCo
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_closed");
                     if (Cases.IsDocket(c) && !CheckShare(s)) ok = false;
+                    // The closing line: case 2's first close announces the Daily Docket, and the last
+                    // case points at it with a button; the others have none (dockets have their own).
+                    int ci = Cases.IndexOf(c.Id);
+                    bool lastCase = !Cases.IsDocket(c) && ci == Cases.All.Count - 1;
+                    var note = root.Screens.ClosedNote;
+                    if (!Cases.IsDocket(c))
+                    {
+                        bool want = ci == 1 || lastCase;
+                        string clash = want ? root.Screens.ClosedNoteClash() : null;
+                        if (want != (note != "") || (ci == 1 && !note.Contains("The Daily Docket is open")) || (lastCase && !note.Contains("Daily Docket")))
+                        { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: closing line \"{note}\""); }
+                        else if (clash != null) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: the closing line runs into {clash}"); }
+                        else if (want) Debug.Log($"[AutoPilot] {c.Id} closing line, clear of the epilogue and buttons: {note}");
+                        if (lastCase)
+                        {
+                            var today = Cases.TodaysDocket;
+                            if (root.Screens.ButtonScreen("btn_todays_docket") == null) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: no Today's docket button"); }
+                            else
+                            {
+                                root.Screens.Press("btn_todays_docket");
+                                yield return Wait(1.5f);
+                                if (root.Flow != Flow.Intro || root.IntroCase?.Id != today.Id) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: Today's docket opened {root.Flow} {root.IntroCase?.Id}, not {today.Id}'s file"); }
+                                else Debug.Log($"[AutoPilot] {c.Id}: Today's docket opened {today.Id}'s file");
+                                yield return Shot(c.Id + "_todays_docket");
+                            }
+                        }
+                    }
                 }
                 if (!drawerOk) ok = false;
                 if (errors > errorsBefore) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: {errors - errorsBefore} errors logged"); }
