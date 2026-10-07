@@ -17,9 +17,28 @@ namespace AlibiCo
     {
         public static GameRoot I { get; private set; }
         public static bool Paused { get; private set; }
+        /// <summary>
+        /// The window (in a browser, the page) has the player's attention. The case timer only runs
+        /// while it does, so alt-tabbing away never costs the Swift seal.
+        /// </summary>
+        public static bool Attended { get; private set; } = true;
+        /// <summary>Automated runs keep their timing whatever the desktop's focus (they usually run unfocused).</summary>
+        public static bool TimerIgnoresFocus;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Paused = false; Time.timeScale = 1; }   // see Art.ResetStatics
+        static void ResetStatics() { Paused = false; Time.timeScale = 1; Attended = true; TimerIgnoresFocus = false; }   // see Art.ResetStatics
+
+        void OnApplicationFocus(bool focused) => SetAttended(focused, "window focus");
+        void OnApplicationPause(bool paused) => SetAttended(!paused && Application.isFocused, "application pause");
+        /// <summary>From the web page (Assets/WebGLTemplates/Alibi): "1" when it's visible and focused, else "0".</summary>
+        public void PageAttention(string on) => SetAttended(on == "1", "page focus");
+
+        void SetAttended(bool on, string why)
+        {
+            if (on == Attended) return;
+            Attended = on;
+            Debug.Log($"[Focus] {(on ? "attended" : "away")} ({why}){(Session != null ? $", case timer at {Session.Elapsed:0.0}s" : "")}");
+        }
 
         public Stage Stage { get; private set; }
         public Screens Screens { get; private set; }
@@ -89,7 +108,9 @@ namespace AlibiCo
             int keysArg = Array.IndexOf(args, "-alibiKeysTest");
             int shareArg = Array.IndexOf(args, "-alibiShareCheck");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            int focusArg = Array.IndexOf(args, "-alibiFocusTest");
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0;
+            TimerIgnoresFocus = automated && focusArg < 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             // Automated runs don't overwrite the desktop's clipboard (a browser's belongs to the test).
@@ -132,6 +153,12 @@ namespace AlibiCo
             {
                 string dir = keysArg + 1 < args.Length && !args[keysArg + 1].StartsWith("-") ? args[keysArg + 1] : "Captures/keys-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, false, true);
+                yield break;
+            }
+            if (focusArg >= 0)
+            {
+                string dir = focusArg + 1 < args.Length && !args[focusArg + 1].StartsWith("-") ? args[focusArg + 1] : "Captures/focus-test";
+                gameObject.AddComponent<AutoPilot>().RunFocus(dir, args.Contains("-alibiFocusReal"));
                 yield break;
             }
             if (midnightArg >= 0)

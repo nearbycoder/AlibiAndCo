@@ -496,7 +496,7 @@ namespace AlibiCo
 
         void Update()
         {
-            if (!Solved && !InputLocked && !GameRoot.Paused) Elapsed += Clock.Dt;
+            if (!Solved && !InputLocked && !GameRoot.Paused && (GameRoot.Attended || GameRoot.TimerIgnoresFocus)) Elapsed += Clock.Dt;
             if (GameRoot.Paused || InputLocked) { EndHover(); return; }
             var mouse = Mouse.current;
             if (mouse == null) return;

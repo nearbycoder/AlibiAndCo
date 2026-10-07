@@ -172,6 +172,76 @@ namespace AlibiCo
 
         // ------------------------------------------------------------------ midnight test
 
+        public void RunFocus(string outDir, bool real)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(FocusTest(real));
+        }
+
+        /// <summary>
+        /// -alibiFocusTest: the case timer stops while the game doesn't have the player's attention.
+        /// By default it drives the handler Unity calls on a focus change; with -alibiFocusReal it
+        /// waits for a real one from outside (Tools/webtest.mjs, or a person) and times it.
+        /// </summary>
+        IEnumerator FocusTest(bool real)
+        {
+            var root = GameRoot.I;
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            root.StartCase(Cases.All[0], false);
+            yield return Wait(3f);
+            var s = root.Session;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL focus: " + why); ok = false; }
+            float awayReal, awayTimer;
+            if (!real)
+            {
+                root.SendMessage("OnApplicationFocus", true);
+                yield return Wait(1f);
+                float e0 = s.Elapsed, t0 = Time.realtimeSinceStartup;
+                root.SendMessage("OnApplicationFocus", false);
+                yield return Wait(1.5f);
+                yield return Shot("focus_away");
+                yield return Wait(1.5f);
+                awayTimer = s.Elapsed - e0;
+                awayReal = Time.realtimeSinceStartup - t0;
+                root.SendMessage("OnApplicationFocus", true);
+            }
+            else
+            {
+                Debug.Log("[AutoPilot] focus: ready, waiting for the game to lose focus");
+                float t = 0;
+                while (GameRoot.Attended && t < 120f) { t += Time.unscaledDeltaTime; yield return null; }
+                if (GameRoot.Attended) { Fail("the game never lost focus"); Finish(); yield break; }
+                float e0 = s.Elapsed, t0 = Time.realtimeSinceStartup;
+                t = 0;
+                while (!GameRoot.Attended && t < 120f) { t += Time.unscaledDeltaTime; yield return null; }
+                awayTimer = s.Elapsed - e0;
+                awayReal = Time.realtimeSinceStartup - t0;
+                if (!GameRoot.Attended) Fail("the game never got focus back");
+            }
+            float e1 = s.Elapsed;
+            yield return Wait(2f);
+            float backTimer = s.Elapsed - e1;
+            yield return Shot("focus_back");
+            Debug.Log($"[AutoPilot] focus: away {awayReal:0.0}s, the case timer moved {awayTimer:0.00}s; back 2s, it moved {backTimer:0.00}s");
+            if (awayReal < 2f) Fail($"away for only {awayReal:0.0}s");
+            if (awayTimer > 0.15f) Fail($"the case timer ran {awayTimer:0.00}s while the game was away");
+            if (backTimer < 1.5f) Fail($"the case timer only ran {backTimer:0.00}s in 2s back in focus");
+            Finish();
+
+            void Finish()
+            {
+                if (errors > 0) ok = false;
+                Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} focus test ({(real ? "a real focus change" : "the focus handler")})");
+                Debug.Log($"[AutoPilot] done: focus test, {errors} errors");
+                Application.Quit(ok ? 0 : 1);
+            }
+        }
+
         public void RunMidnight(string outDir)
         {
             dir = outDir;

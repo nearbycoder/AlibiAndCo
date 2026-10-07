@@ -20,12 +20,13 @@
     <script src="Build/{{{ LOADER_FILENAME }}}"></script>
     <script>
       const canvas = document.querySelector("#unity-canvas");
-      // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck or ?savecheck become the player's
+      // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck, ?savecheck or ?focustest become the player's
       // command-line flags. Nothing else in the address is passed on.
       const query = new URLSearchParams(location.search);
-      const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", keystest: "-alibiKeysTest", sharecheck: "-alibiShareCheck", savecheck: "-alibiSaveCheck" };
+      const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", keystest: "-alibiKeysTest", sharecheck: "-alibiShareCheck", savecheck: "-alibiSaveCheck",
+                      focustest: "-alibiFocusTest -alibiFocusReal" };
       createUnityInstance(canvas, {
-        arguments: Object.keys(flags).filter((k) => query.has(k)).map((k) => flags[k]),
+        arguments: Object.keys(flags).filter((k) => query.has(k)).flatMap((k) => flags[k].split(" ")),
         dataUrl: "Build/{{{ DATA_FILENAME }}}",
         frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
 #if USE_WASM
@@ -41,7 +42,18 @@
         // Progress and settings live in IndexedDB; without this they're lost when the page closes.
         autoSyncPersistentDataPath: true,
       }, (p) => { document.querySelector("#fill").style.width = Math.round(100 * p) + "%"; })
-      .then(() => { document.querySelector("#loader").remove(); canvas.focus(); })
+      .then((unity) => {
+        document.querySelector("#loader").remove();
+        canvas.focus();
+        // The case timer only runs while the page is visible and focused (GameRoot.PageAttention).
+        // Once the player has quit (the self-tests do), there's nothing left to tell.
+        let alive = true;
+        const tell = (on) => { if (alive) try { unity.SendMessage("GameRoot", "PageAttention", on ? "1" : "0"); } catch { alive = false; } };
+        window.addEventListener("blur", () => tell(false));
+        window.addEventListener("focus", () => tell(document.visibilityState === "visible"));
+        document.addEventListener("visibilitychange", () => tell(document.visibilityState === "visible" && document.hasFocus()));
+        if (!document.hasFocus()) tell(false);
+      })
       .catch((message) => { document.querySelector("#loader").textContent = message; });
     </script>
   </body>
