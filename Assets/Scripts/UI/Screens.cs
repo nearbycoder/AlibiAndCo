@@ -708,12 +708,13 @@ namespace AlibiCo
         const string MouseKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>right-click</b> sends a card back   ·   <b>Esc</b> menu and controls";
         const string PadKeys = "<b>[Y]</b> notebook   ·   <b>[X]</b> hint   ·   <b>[B]</b> sends a card back   ·   <b>[Start]</b> menu and controls";
         const string KeyKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Backspace</b> sends a card back   ·   <b>Esc</b> menu and controls";
+        const string TouchKeys = "<b>Hint</b>, <b>Notes</b> and <b>Menu</b> are top right   ·   <b>tap</b> a pinned card to send it back   ·   <b>press and hold</b> to read a card";
 
         void TickHelp()
         {
             string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
             var using_ = PadCursor.Using;
-            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadKeys : MouseKeys;
+            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadKeys : using_ == PadCursor.Pointer.Touch ? TouchKeys : MouseKeys;
             // The pause menu's controls list follows whatever the player picks up while it's open.
             if (controlsBody != null && pause != null && pause.gameObject.activeSelf && using_ != controlsShown) { controlsShown = using_; controlsBody.text = ControlsText(using_); }
             if (helpKeys.text != keys) helpKeys.text = keys;
@@ -913,6 +914,15 @@ namespace AlibiCo
                 ("[Y]  ·  [X]", "notebook  ·  Connie's hint"),
                 ("[Start]", "pause, resume"),
                 ("Move the mouse", "hands control back to the mouse"),
+            } : pointer == PadCursor.Pointer.Touch ? new[]
+            {
+                ("Drag a card to the board", "pin it (or just tap it)"),
+                ("Press and hold a card", "read it in full; see the walk"),
+                ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
+                ("Tap a pinned card", "its panel: Confront, or back to the tray"),
+                ("Drag the incident card", "accuse: the one line it fits"),
+                ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
+                ("Tap an empty spot", "skip a memo"),
             } : new[]
             {
                 ("Drag a card to the board", "pin it (or just click it)"),

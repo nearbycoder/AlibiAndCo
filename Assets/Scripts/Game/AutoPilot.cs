@@ -526,6 +526,265 @@ namespace AlibiCo
             Application.Quit(ok ? 0 : 1);
         }
 
+        // ------------------------------------------------------------------ touch test
+
+        Touchscreen touchscreen;
+        int touchId;
+
+        void Finger(Vector2 at, UnityEngine.InputSystem.TouchPhase phase) =>
+            InputSystem.QueueStateEvent(touchscreen, new TouchState { touchId = touchId, phase = phase, position = at, pressure = 1 });
+
+        IEnumerator TouchTap(Vector2 at, float hold = 0.1f)
+        {
+            touchId++;
+            Finger(at, UnityEngine.InputSystem.TouchPhase.Began);
+            yield return null;
+            yield return Wait(hold);
+            Finger(at, UnityEngine.InputSystem.TouchPhase.Ended);
+            yield return null;
+            yield return Wait(0.35f);
+        }
+
+        IEnumerator TouchDrag(Vector2 from, Vector2 to)
+        {
+            touchId++;
+            Finger(from, UnityEngine.InputSystem.TouchPhase.Began);
+            yield return Wait(0.1f);
+            for (int i = 1; i <= 20; i++)
+            {
+                Finger(Vector2.Lerp(from, to, Easing.Apply(Ease.InOutSine, i / 20f)), UnityEngine.InputSystem.TouchPhase.Moved);
+                yield return null;
+            }
+            yield return Wait(0.12f);
+            Finger(to, UnityEngine.InputSystem.TouchPhase.Ended);
+            yield return null;
+            yield return Wait(0.5f);
+        }
+
+        public void RunTouch(string outDir, bool real)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(real ? TouchReal() : TouchTest());
+        }
+
+        /// <summary>
+        /// -alibiTouchTest: case 1 from the dealt tray to CASE CLOSED with nothing but a (simulated)
+        /// touchscreen: taps, finger drags, a press held to read a chip, the card panel, the HUD's
+        /// buttons and the incident drag. Each HUD button must act exactly once per tap.
+        /// </summary>
+        IEnumerator TouchTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL touch: " + why); ok = false; }
+            touchscreen = InputSystem.AddDevice<Touchscreen>("TestTouch");
+            PadCursor.IgnoreRealMouse = true;   // the desktop is shared; only the last step hands over on purpose
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            var c = Cases.All[0];
+            root.StartCase(c, false);
+            yield return Wait(3f);
+            var s = root.Session;
+            var middle = Screen(Stage.I.BoardToWorld(Vector2.zero));
+            Vector2 Button(string name) => root.Screens.ButtonScreen(name) ?? new Vector2(-1, -1);
+
+            // 1. A tap on a tray card pins it, and the touch pointer takes over (no cursor drawn).
+            var firstId = s.Board.TrayCards.First().Id;
+            yield return TouchTap(TrayPoint(s.ViewOf(firstId)));
+            yield return Wait(0.4f);
+            if (PadCursor.Using != PadCursor.Pointer.Touch) Fail("a touch didn't hand the pointer to touch");
+            if (!s.Board.Pinned.Contains(firstId)) Fail($"a tap didn't pin {firstId}");
+            yield return Shot("touch_tap_prompt");
+
+            // 2. A finger drag onto the board pins a card.
+            var dragId = s.Board.TrayCards.First().Id;
+            yield return TouchDrag(TrayPoint(s.ViewOf(dragId)), middle);
+            yield return Wait(0.5f);
+            if (!s.Board.Pinned.Contains(dragId)) Fail($"a finger drag didn't pin {dragId}");
+
+            // 3. Taps pin the rest.
+            foreach (var id in s.Board.TrayCards.Select(x => x.Id).ToList())
+            {
+                yield return TouchTap(TrayPoint(s.ViewOf(id)));
+                yield return Wait(0.4f);
+                if (!s.Board.Pinned.Contains(id)) Fail($"a tap didn't pin {id}");
+            }
+            yield return Wait(1f);
+
+            // 4. Press and hold a chip: its full card shows; letting go doesn't open its panel.
+            var read = s.ViewOf("b_receipt");
+            touchId++;
+            Finger(Screen(read.transform.position), UnityEngine.InputSystem.TouchPhase.Began);
+            yield return Wait(1f);
+            string inspecting = s.InspectingId;
+            yield return Shot("touch_hold_to_read");
+            Finger(Screen(read.transform.position), UnityEngine.InputSystem.TouchPhase.Ended);
+            yield return Wait(0.6f);
+            if (inspecting != "b_receipt") Fail($"holding a finger on b_receipt showed {inspecting ?? "nothing"}");
+            if (s.Selected != null || root.Screens.ConfrontButtonScreen() != null) Fail("letting go after a hold opened the card's panel");
+            if (s.InspectingId != null) Fail($"the full card ({s.InspectingId}) stayed up after the finger lifted");
+
+            // 5. A tap on a pinned card opens its panel; Back to the tray sends it back; a tap pins it again.
+            var back = s.ViewOf("a_tab");
+            yield return TouchTap(Screen(back.transform.position));
+            yield return Wait(0.4f);
+            var backBtn = Button("btn_Back to the tray");
+            if (backBtn.x < 0) Fail("no Back to the tray button after tapping a_tab");
+            else
+            {
+                yield return Shot("touch_panel");
+                yield return TouchTap(backBtn);
+                yield return Wait(0.6f);
+                if (s.Board.Pinned.Contains("a_tab")) Fail("Back to the tray didn't send a_tab back");
+                yield return TouchTap(TrayPoint(back));
+                yield return Wait(0.6f);
+                if (!s.Board.Pinned.Contains("a_tab")) Fail("a tap didn't re-pin a_tab");
+            }
+
+            // 6. The HUD's buttons, once per tap: Notes opens (and stays open), the shade closes it,
+            //    Hint posts one memo, Menu pauses and Resume resumes.
+            yield return TouchTap(Button("btn_Notes"));
+            yield return Wait(0.6f);
+            if (!root.Screens.NotebookOpen) Fail("a tap on Notes didn't leave the notebook open");
+            yield return TouchTap(new Vector2(UnityEngine.Screen.width * 0.03f, UnityEngine.Screen.height * 0.5f));
+            yield return Wait(0.5f);
+            if (root.Screens.NotebookOpen) Fail("a tap on the shade didn't close the notebook");
+            int memos = s.Memos.History.Count;
+            yield return TouchTap(Button("btn_Hint"));
+            yield return Wait(0.5f);
+            if (s.Memos.History.Count != memos + 1) Fail($"a tap on Hint posted {s.Memos.History.Count - memos} memos");
+            yield return TouchTap(Button("btn_Menu"));
+            yield return Wait(0.8f);
+            if (!GameRoot.Paused) Fail("a tap on Menu didn't pause");
+            yield return Shot("touch_pause_controls");
+            yield return TouchTap(Button("btn_Resume"));
+            yield return Wait(0.6f);
+            if (GameRoot.Paused) Fail("a tap on Resume didn't resume");
+
+            // 7. Confront each liar: tap the chip, tap Confront; tap the new cards in.
+            foreach (var id in new[] { "a_claim", "c_claim", "b_claim" })
+            {
+                var at = Screen(s.ViewOf(id).transform.position);
+                yield return TouchTap(at);
+                yield return Wait(0.5f);
+                var btn = root.Screens.ConfrontButtonScreen();
+                if (btn == null)
+                {
+                    Fail($"no Confront button for {id} (tapped {at}, selected {(s.Selected ? s.Selected.Id : "none")}, pointer {PadCursor.Using}, frame time {Clock.Dt:0.000}s)");
+                    yield return Shot("touch_no_confront_" + id);
+                    continue;
+                }
+                yield return TouchTap(btn.Value);
+                yield return Wait(2.6f);
+                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it");
+                foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
+                {
+                    yield return TouchTap(TrayPoint(s.ViewOf(nid)));
+                    yield return Wait(0.5f);
+                }
+            }
+            yield return Wait(1f);
+
+            // 8. Drag the incident into the culprit's line.
+            var lane = s.View.LaneById[c.Incident.Culprit];
+            var fit = s.Board.Fits[c.Incident.Culprit];
+            var slot = Screen(Stage.I.BoardToWorld(new Vector2(s.View.TimeToX(fit.EarliestStart), lane.Track + 0.5f)));
+            yield return TouchDrag(Screen(s.IncidentView.transform.position), slot);
+            float t = 0;
+            while (root.Flow != Flow.Closed && t < 60) { t += Clock.Dt; yield return null; }
+            yield return Wait(2f);
+            yield return Shot("touch_closed");
+            if (root.Flow != Flow.Closed) Fail("the incident drag didn't close the case");
+            if (s.Board.Mistakes != 0) Fail($"{s.Board.Mistakes} badges lost");
+
+            // 9. Moving the real mouse hands control back.
+            PadCursor.IgnoreRealMouse = false;
+            yield return Wait(0.8f);
+            var real = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m.name != "PadCursor");
+            if (real != null && PadCursor.Active)
+            {
+                InputSystem.QueueStateEvent(real, new MouseState { position = new Vector2(200, 200), delta = new Vector2(40, 0) });
+                yield return null;
+                yield return null;
+                if (PadCursor.Active) Fail("moving the mouse didn't hand control back");
+            }
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (tap pin, finger drag, hold to read, panel, Back to the tray, Notes, Hint, Menu, Resume, confront, incident drag, mouse takes over)");
+            Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
+        /// <summary>
+        /// -alibiTouchTest -alibiTouchReal (the browser's ?touchreal): asks for real touches from
+        /// outside (Tools/webtest.mjs sends them through the browser) and checks what they did.
+        /// Each request is one log line, "touch: waiting for a tap|hold|drag at x,y [to x,y] of WxH".
+        /// </summary>
+        IEnumerator TouchReal()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL touch (real): " + why); ok = false; }
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            root.StartCase(Cases.All[0], false);
+            yield return Wait(3f);
+            var s = root.Session;
+            string Px(Vector2 p) => $"{Mathf.RoundToInt(p.x)},{Mathf.RoundToInt(p.y)}";
+            string Of() => $"of {UnityEngine.Screen.width}x{UnityEngine.Screen.height}";
+            IEnumerator Until(System.Func<bool> done, float limit = 30f)
+            {
+                for (float t = 0; t < limit && !done(); t += Time.unscaledDeltaTime) yield return null;
+            }
+
+            // A tap pins a tray card.
+            var a = s.Board.TrayCards.First().Id;
+            Debug.Log($"[AutoPilot] touch: waiting for a tap at {Px(TrayPoint(s.ViewOf(a)))} {Of()}");
+            yield return Until(() => s.Board.Pinned.Contains(a));
+            if (!s.Board.Pinned.Contains(a)) Fail($"a real tap didn't pin {a}");
+            else Debug.Log($"[AutoPilot] touch: a real tap pinned {a} (pointer {PadCursor.Using})");
+            yield return Wait(1f);
+
+            // A finger drag pins another.
+            var b = s.Board.TrayCards.First().Id;
+            Debug.Log($"[AutoPilot] touch: waiting for a drag at {Px(TrayPoint(s.ViewOf(b)))} to {Px(Screen(Stage.I.BoardToWorld(Vector2.zero)))} {Of()}");
+            yield return Until(() => s.Board.Pinned.Contains(b));
+            if (!s.Board.Pinned.Contains(b)) Fail($"a real finger drag didn't pin {b}");
+            else Debug.Log($"[AutoPilot] touch: a real finger drag pinned {b}");
+            yield return Wait(1f);
+
+            // A press held still on a chip reads it, and letting go doesn't open its panel.
+            var chip = s.ViewOf(a);
+            string seen = null;
+            Debug.Log($"[AutoPilot] touch: waiting for a hold at {Px(Screen(chip.transform.position))} {Of()}");
+            for (float t = 0; t < 30f && seen == null; t += Time.unscaledDeltaTime) { seen = s.InspectingId; yield return null; }
+            yield return Wait(2.5f);
+            if (seen != a) Fail($"a real held finger on {a} showed {seen ?? "nothing"}");
+            else if (s.Selected != null) Fail("letting go after a real hold opened the card's panel");
+            else Debug.Log($"[AutoPilot] touch: a real held finger read {a} without opening it");
+
+            // A tap on Notes opens the notebook once (a second press would close it again on the shade).
+            var notes = root.Screens.ButtonScreen("btn_Notes");
+            if (notes == null) Fail("no Notes button");
+            else
+            {
+                Debug.Log($"[AutoPilot] touch: waiting for a tap at {Px(notes.Value)} {Of()}");
+                yield return Until(() => root.Screens.NotebookOpen);
+                yield return Wait(1.5f);
+                if (!root.Screens.NotebookOpen) Fail("a real tap on Notes didn't leave the notebook open");
+                else Debug.Log("[AutoPilot] touch: a real tap on Notes opened the notebook, once");
+            }
+            root.Screens.CloseTopOverlay();
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (real touches: tap, drag, hold, a HUD button)");
+            Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
         // ------------------------------------------------------------------ keyboard test
 
         Keyboard keyboard;

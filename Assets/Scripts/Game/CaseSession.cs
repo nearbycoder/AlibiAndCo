@@ -509,8 +509,9 @@ namespace AlibiCo
 
             if (dragging != null) { UpdateDrag(mp, mouse); return; }
 
-            // Hover.
-            var hit = overUi ? null : Pick(mp, null);
+            // Hover. (With touch, only while a finger is down.)
+            bool fingerUp = PadCursor.FingerUp;
+            var hit = overUi || fingerUp ? null : Pick(mp, null);
             if (DebugHoverId != null) hit = DebugHoverId == "incident" ? incident : ViewOf(DebugHoverId);
             if (hit != hover)
             {
@@ -527,7 +528,7 @@ namespace AlibiCo
             }
             hoverTime += Clock.Dt;
             UpdateInspector();
-            bool overMap = (!overUi && hit == null && Map != null && MapHit(mp)) || DebugMapZoom;
+            bool overMap = (!overUi && !fingerUp && hit == null && Map != null && MapHit(mp)) || DebugMapZoom;
             Map.SetZoom(overMap);
             UpdateRoutes();
 
@@ -542,7 +543,8 @@ namespace AlibiCo
                 var p = Primary(hit);
                 if (!p.IsIncident && Board.Pinned.Contains(p.Id) && !Board.Struck.Contains(p.Id) && !Solved) Unpin(p);
             }
-            if (pressed != null && mouse.leftButton.isPressed && (mp - pressScreen).magnitude > 7f && !Solved && !Board.Struck.Contains(Primary(pressed).Id))
+            float slop = PadCursor.Using == PadCursor.Pointer.Touch ? PadCursor.TouchSlop : 7f;
+            if (pressed != null && mouse.leftButton.isPressed && (mp - pressScreen).magnitude > slop && !Solved && !Board.Struck.Contains(Primary(pressed).Id))
             {
                 var p = Primary(pressed);
                 pressed = null;
@@ -553,7 +555,7 @@ namespace AlibiCo
             {
                 var p = Primary(pressed);
                 pressed = null;
-                Click(p, mp);
+                if (!PadCursor.TakeHeldToRead()) Click(p, mp);
             }
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) Memos.Skip();
         }
@@ -635,7 +637,9 @@ namespace AlibiCo
 
         void UpdateInspector()
         {
-            var target = hover != null && hover.Compact && hoverTime > 0.12f && selected == null ? hover : null;
+            // A finger has to rest a moment longer than a mouse, so a quick tap doesn't flash the card.
+            float delay = PadCursor.Using == PadCursor.Pointer.Touch ? 0.3f : 0.12f;
+            var target = hover != null && hover.Compact && hoverTime > delay && selected == null ? hover : null;
             string id = target != null ? (target.IsIncident ? "incident" : target.Id) : null;
             if (id == inspectingId)
             {
@@ -769,6 +773,9 @@ namespace AlibiCo
         }
 
         public CardView Selected => selected;
+
+        /// <summary>The card whose full text is showing beside the pointer, if any (for the touch test).</summary>
+        public string InspectingId => inspectingId;
 
         /// <summary>A link is armed: the dragged card will be linked to this one if it's dropped now.</summary>
         public CardView LinkTarget => dragging != null ? linkTarget : null;
@@ -1173,13 +1180,15 @@ namespace AlibiCo
         {
             if (Solved || Board == null) return null;
             var using_ = PadCursor.Using;
-            bool pad = using_ == PadCursor.Pointer.Pad, keys = using_ == PadCursor.Pointer.Keys;
+            bool pad = using_ == PadCursor.Pointer.Pad, keys = using_ == PadCursor.Pointer.Keys, touch = using_ == PadCursor.Pointer.Touch;
             if (!SaveData.Learned("pin") && Board.TrayCards.Any())
-                return pad ? "<b>[A]</b> on a card pins it   ·   hold <b>[A]</b> and steer to drag   ·   <b>[LB] [RB]</b> jump between cards"
+                return touch ? "<b>Drag</b> a card onto the board, or <b>tap</b> it   ·   <b>press and hold</b> any card to read it in full"
+                     : pad ? "<b>[A]</b> on a card pins it   ·   hold <b>[A]</b> and steer to drag   ·   <b>[LB] [RB]</b> jump between cards"
                      : keys ? "<b>Enter</b> on a card pins it   ·   hold <b>Enter</b> and use the <b>arrows</b> to drag   ·   <b>Q</b> / <b>E</b> jump between cards"
                            : "<b>Drag</b> a card onto the board, or <b>click</b> it   ·   <b>hover</b> any card to read it in full";
             if (!SaveData.Learned("confront") && Board.EstablishedConflicts.Any(k => k.A.Card.IsTestimony || k.B.Card.IsTestimony))
-                return pad ? "Point at a statement in the red, <b>[A]</b>, then <b>Confront</b> the witness"
+                return touch ? "<b>Tap</b> a statement in the red, then <b>Confront</b> the witness"
+                     : pad ? "Point at a statement in the red, <b>[A]</b>, then <b>Confront</b> the witness"
                      : keys ? "Move onto a statement in the red, <b>Enter</b>, then <b>Confront</b> the witness"
                            : "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
             if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))

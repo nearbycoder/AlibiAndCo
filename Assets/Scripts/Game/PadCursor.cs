@@ -15,22 +15,38 @@ namespace AlibiCo
     /// Backspace sends a card back on the board and means "back" elsewhere, X asks for a hint, Y
     /// opens the notebook and Start pauses (the keyboard keeps H, Tab and Esc for those). Touching
     /// the real mouse hands control back.
+    /// A touchscreen drives the same virtual mouse: the finger is the pointer and the left button,
+    /// so a tap clicks and a drag drags. A press held still reads a card (the hover card) without
+    /// clicking it, and nothing is hovered once the finger lifts. No cursor is drawn for touch.
     /// </summary>
     public sealed class PadCursor : MonoBehaviour
     {
-        public enum Pointer { Mouse, Pad, Keys }
+        public enum Pointer { Mouse, Pad, Keys, Touch }
 
         public static PadCursor I { get; private set; }
         /// <summary>The pad or the keyboard is the active pointer (the cursor is drawn).</summary>
         public static bool Active => I != null && I.active;
         /// <summary>What's steering right now, for the prompts.</summary>
-        public static Pointer Using => !Active ? Pointer.Mouse : I.keys ? Pointer.Keys : Pointer.Pad;
+        public static Pointer Using => !Active ? Pointer.Mouse : I.touch ? Pointer.Touch : I.keys ? Pointer.Keys : Pointer.Pad;
+        /// <summary>
+        /// Touch is driving and no finger is down: nothing should count as hovered. It follows the
+        /// virtual mouse's button, not the finger, because the board sees the button a frame later.
+        /// </summary>
+        public static bool FingerUp => Active && I.touch && !I.touchDown && I.tapPhase == 0 && I.virtualMouse != null
+                                       && !I.virtualMouse.leftButton.isPressed && !I.virtualMouse.leftButton.wasReleasedThisFrame;
+        /// <summary>A press held this long without moving reads the card instead of clicking it.</summary>
+        public const float HoldToRead = 0.5f;
         /// <summary>Automation only: the shared desktop's real pointer mustn't take over mid-test.</summary>
         public static bool IgnoreRealMouse;
 
         Mouse virtualMouse, realMouse;
         Vector2 pos;
-        bool active, keys;
+        bool active, keys, touch;
+        bool touchDown, touchMoved, heldToRead;
+        float touchHeld, touchQuiet;
+        int touchFrames;
+        Vector2 touchStart;
+        int tapPhase;   // a tap that began and ended between two frames, replayed: 1 move there, 2 press, then release
         bool rightPulse;
         Vector2 arrowsHeld;
         float arrowsTime;
@@ -59,8 +75,16 @@ namespace AlibiCo
         {
             if (realMouse == null || !realMouse.added) realMouse = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m != virtualMouse);
 
-            // The real mouse moved or clicked: it's in charge again.
-            if (active && !IgnoreRealMouse && realMouse != null && (realMouse.delta.ReadValue().sqrMagnitude > 4f || realMouse.leftButton.wasPressedThisFrame || realMouse.rightButton.wasPressedThisFrame))
+            // A finger on any touchscreen: the touch pointer takes over (see UpdateTouch).
+            UnityEngine.InputSystem.Controls.TouchControl finger = null;
+            foreach (var d in InputSystem.devices)
+                if (d is Touchscreen ts && (ts.primaryTouch.press.isPressed || ts.primaryTouch.press.wasReleasedThisFrame)) { finger = ts.primaryTouch; break; }
+            if (finger != null && !touch) { touch = true; keys = false; touchDown = false; SetActive(true); }
+            if (touchQuiet > 0) touchQuiet -= Clock.Dt;
+
+            // The real mouse moved or clicked: it's in charge again. (Not while a finger is on the
+            // glass or has just lifted: a browser may follow a tap with mouse events of its own.)
+            if (active && !IgnoreRealMouse && !(touch && (touchDown || touchQuiet > 0 || tapPhase != 0)) && realMouse != null && (realMouse.delta.ReadValue().sqrMagnitude > 4f || realMouse.leftButton.wasPressedThisFrame || realMouse.rightButton.wasPressedThisFrame))
                 SetActive(false);
 
             // Any connected pad will do: the one being used this frame, else the current one.
@@ -75,13 +99,14 @@ namespace AlibiCo
             bool padTouched = pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame));
             bool keysTouched = kb != null && (arrows != Vector2.zero || kb.qKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
                                               kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame);
-            if (padTouched) { keys = false; SetActive(true); }
-            else if (keysTouched) { keys = true; SetActive(true); }
+            if (padTouched) { keys = false; touch = false; SetActive(true); }
+            else if (keysTouched) { keys = true; touch = false; SetActive(true); }
             if (!active) { UpdateCursor(); return; }
 
             float dt = Clock.Dt;
             var root = GameRoot.I;
             bool left = false;
+            if (touch) left = UpdateTouch(finger, dt);
             if (pad != null)
             {
                 var stick = pad.leftStick.ReadValue();
@@ -128,6 +153,71 @@ namespace AlibiCo
             UpdateCursor();
         }
 
+        /// <summary>The finger's position and press, a frame late on the way down so the game sees it arrive first.</summary>
+        bool UpdateTouch(UnityEngine.InputSystem.Controls.TouchControl finger, float dt)
+        {
+            bool down = finger != null && finger.press.isPressed;
+            // Replaying a tap that came and went between two frames: press now, release next frame.
+            if (tapPhase == 1) { tapPhase = 2; return true; }
+            if (tapPhase == 2) { tapPhase = 0; return false; }
+            if (down && !touchDown)
+            {
+                touchDown = true;
+                touchMoved = false;
+                heldToRead = false;
+                touchHeld = 0;
+                touchFrames = 0;
+                pos = touchStart = finger.position.ReadValue();
+                return false;
+            }
+            if (down)
+            {
+                pos = finger.position.ReadValue();
+                touchHeld += dt;
+                touchFrames++;
+                if ((pos - touchStart).magnitude > TouchSlop) touchMoved = true;
+                return true;
+            }
+            if (touchDown)
+            {
+                // Lifted. A long, still press was for reading: it doesn't click what's under it. It
+                // has to have been seen down for a few frames too, so at a crawling frame rate a
+                // quick tap that spans two slow frames is still a tap.
+                touchDown = false;
+                touchQuiet = 0.6f;
+                if (finger != null) pos = finger.position.ReadValue();
+                if (!touchMoved && touchHeld >= HoldToRead && touchFrames >= 4)
+                {
+                    heldToRead = true;
+                    Debug.Log($"[Touch] held still {touchHeld:0.00}s ({touchFrames} frames): read, not clicked");
+                }
+                return false;
+            }
+            if (finger != null && finger.press.wasReleasedThisFrame)
+            {
+                // Down and up since the last frame: replay it as move, press, release.
+                pos = finger.position.ReadValue();
+                tapPhase = 1;
+                heldToRead = false;
+                touchQuiet = 0.6f;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The press just released was a finger held still to read a card, so it mustn't click.
+        /// Asked once, by the board, when it sees the release.
+        /// </summary>
+        public static bool TakeHeldToRead()
+        {
+            if (I == null || !I.heldToRead) return false;
+            I.heldToRead = false;
+            return true;
+        }
+
+        /// <summary>How far a finger may wander before a press becomes a drag (screen pixels).</summary>
+        public static float TouchSlop => Mathf.Max(12f, UnityEngine.Screen.height * 0.012f);
+
         void SetActive(bool on)
         {
             if (on == active) return;
@@ -137,12 +227,15 @@ namespace AlibiCo
                 if (virtualMouse == null || !virtualMouse.added) virtualMouse = InputSystem.AddDevice<Mouse>("PadCursor");
                 // Start where the real pointer was, so nothing jumps.
                 pos = realMouse != null ? realMouse.position.ReadValue() : new Vector2(Screen.width / 2f, Screen.height / 2f);
+                tapPhase = 0;
                 virtualMouse.MakeCurrent();
                 Cursor.visible = false;
             }
             else
             {
                 if (virtualMouse != null && virtualMouse.added) Send(false, false);
+                touch = touchDown = heldToRead = false;
+                tapPhase = 0;
                 realMouse?.MakeCurrent();
                 Cursor.visible = true;
             }
@@ -214,7 +307,7 @@ namespace AlibiCo
         void UpdateCursor()
         {
             if (cursor == null) BuildCursor();
-            bool show = active;
+            bool show = active && !touch;
             if (cursor.gameObject.activeSelf != show) cursor.gameObject.SetActive(show);
             if (!show) return;
             cursor.SetAsLastSibling();

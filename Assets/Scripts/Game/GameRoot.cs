@@ -109,7 +109,8 @@ namespace AlibiCo
             int shareArg = Array.IndexOf(args, "-alibiShareCheck");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
             int focusArg = Array.IndexOf(args, "-alibiFocusTest");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0;
+            int touchArg = Array.IndexOf(args, "-alibiTouchTest");
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0;
             TimerIgnoresFocus = automated && focusArg < 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
@@ -153,6 +154,12 @@ namespace AlibiCo
             {
                 string dir = keysArg + 1 < args.Length && !args[keysArg + 1].StartsWith("-") ? args[keysArg + 1] : "Captures/keys-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, false, true);
+                yield break;
+            }
+            if (touchArg >= 0)
+            {
+                string dir = touchArg + 1 < args.Length && !args[touchArg + 1].StartsWith("-") ? args[touchArg + 1] : "Captures/touch-test";
+                gameObject.AddComponent<AutoPilot>().RunTouch(dir, args.Contains("-alibiTouchReal"));
                 yield break;
             }
             if (focusArg >= 0)

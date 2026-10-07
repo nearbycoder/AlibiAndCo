@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
@@ -84,6 +85,29 @@ namespace AlibiCo
                 module.move = null;
                 module.submit = null;
                 module.cancel = null;
+                // Touches reach the UI through the same virtual mouse (PadCursor), so the module only
+                // listens to mice and pens; with its default touch bindings a tap would press twice.
+                var map = new UnityEngine.InputSystem.InputActionMap("UI");
+                var point = map.AddAction("Point", UnityEngine.InputSystem.InputActionType.PassThrough, "<Mouse>/position");
+                point.AddBinding("<Pen>/position");
+                var click = map.AddAction("Click", UnityEngine.InputSystem.InputActionType.PassThrough, "<Mouse>/leftButton");
+                click.AddBinding("<Pen>/tip");
+                var right = map.AddAction("RightClick", UnityEngine.InputSystem.InputActionType.PassThrough, "<Mouse>/rightButton");
+                var middle = map.AddAction("MiddleClick", UnityEngine.InputSystem.InputActionType.PassThrough, "<Mouse>/middleButton");
+                var scroll = map.AddAction("ScrollWheel", UnityEngine.InputSystem.InputActionType.PassThrough, "<Mouse>/scroll");
+                var asset = ScriptableObject.CreateInstance<UnityEngine.InputSystem.InputActionAsset>();
+                asset.AddActionMap(map);
+                module.actionsAsset = asset;
+                module.point = UnityEngine.InputSystem.InputActionReference.Create(point);
+                module.leftClick = UnityEngine.InputSystem.InputActionReference.Create(click);
+                module.rightClick = UnityEngine.InputSystem.InputActionReference.Create(right);
+                module.middleClick = UnityEngine.InputSystem.InputActionReference.Create(middle);
+                module.scrollWheel = UnityEngine.InputSystem.InputActionReference.Create(scroll);
+                module.move = null;
+                module.submit = null;
+                module.cancel = null;
+                module.trackedDevicePosition = null;
+                module.trackedDeviceOrientation = null;
             }
             rounded = MakeRounded(64, 18);
             roundedSmall = MakeRounded(32, 8);
