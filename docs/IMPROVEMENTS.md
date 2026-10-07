@@ -1107,3 +1107,69 @@ macOS or Windows), a real click on Copy result on the Linux desktop, and the own
 (the background frame rate, pausing on focus loss, the link hold, advertising touch, how many
 boards to keep). A docket streak was considered and left for later: the drawer already shows the
 week.
+
+## Round 8 results (7 Oct 2026)
+
+Every item landed on `improvements-8`. Screenshots are in `docs/media/improvements/round8/` (`r8-1-*` pad
+prompts, `r8-2-*` hint tags, `r8-3-*` the docket announced). `Tools/nested.sh` (R8-4) was built
+first, so every input-driven test this round ran inside it.
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R8-1 | Pad prompts that match the pad | 0457abb | `-alibiPadTest` with `-alibiPadLayout ps` (a simulated `DualShockGamepad`, found by its layout) and `nintendo` (a plain pad described as Nintendo's "Pro Controller", found by its name, as a browser reports one), and the default pad, at 1920×1080, plus PlayStation at 1280×800: each plays case 1 to CASE CLOSED and on to a docket, and checks the controls strip, Connie's how-to tip, the pause menu's controls and the notebook footer against labels written out by hand in the test. 22 new EditMode cases (browser id strings from Chromium and Firefox for DualSense, DualShock 4, Switch Pro and Xbox pads; the one-pass A/B swap) | Met. The PlayStation shapes render through the DejaVu Sans fallback (screenshots). **No physical PlayStation or Switch pad was tried**, so which family a real pad reads as on Linux (its HID layout or the name its driver gives it) is untested |
+| R8-2 | Hints point at the cards they name | e663dde | New `-alibiHintTour`: case 4 and the 7 October docket, two hints before every move. The tags matched the named cards at every one of 26 checks and cleared after every move, and the first E after a hint landed on a tagged card, at 1920×1080 and at 1280×720 with Large text. The keys test still passes | Met. At 720p the hover card can cover the top of a tag on the lane below it |
+| R8-3 | The docket announces itself | 9cf94ec | Autoplay checks case 2's closing line and case 5's, measures each against the epilogue at its full length (it may still be typing) and the buttons, and presses *Today's docket*, which opened today's file; 9/9 at 1920×1080 and at 1280×720 with Large text | Met. That the line stays off a *replayed* case 2 is in code (`firstClear`) but no run replayed case 2 to its close |
+| R8-4 | Self-tests on a private desktop | cefded1, a711869 | The input, pad, keys, touch, focus and boards tests through `Tools/nested.sh` at 1920×1080: 52–56 fps against 11.0–11.5 for the same tests on the shared desktop in round 7, and the focus test on the shared desktop today gave 11.8 fps at a load average of 2.9, so the cap there is the compositor, not the load. No KWin or game process outlived a run (checked after each) | Met. One keys-test run in four failed ("Backspace didn't send the card back"); see below |
+| R8-5 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs --engine chromium,firefox`, every run (autoplay, pad, keys, share, reload, focus, touch, touchreal) on a fresh build with R8-1 to R8-3 | Met. Every run PASS in both engines with 0 console errors; 26.6 MB. Chromium autoplay 59–60 fps, Firefox 54–59; loads 1.4–4.8 s, at a load average of about 4–17 |
+
+EditMode tests: 65/65 (43 before the round; the 22 new cases are PadLabels'). The validator proves
+cases 1–5 airtight with 60 pin orders each, and `--docket 365` from 7 October 2026 is all airtight
+(worst day 5 of 40 variations); no case changed. The final build was then run through the whole
+suite inside `Tools/nested.sh`, at a load average of 2–5: the input, pad (Xbox, PlayStation,
+Nintendo), keys, touch, focus and boards tests and the hint tour at 1920×1080, the input, keys, touch
+and PlayStation pad tests at 1280×800, and autoplay (9/9, 5 cases and 4 dockets): all PASS, 0 errors,
+54.6–56.4 fps. Autoplay also passed at 1280×720 with Large text on the R8-3 build. The real
+`alibi_save.json` and `prefs` were byte-identical before and after the round (Unity's test runner
+rewrote its own `TestResults.xml` next to them, as in earlier rounds).
+
+Found along the way:
+
+- **The ~11 fps every earlier round measured was the shared desktop.** The same build ran at 51–57 fps
+  with focus in a nested KWin at any load, and at 11.8 fps on the shared desktop at a load average of
+  2.9. So round 7's background cap does save CPU where the window is visible: on a board the game's
+  own threads went from 25% of a core to 10% at a load of 3, and from 52–68% to 11–16% at loads of
+  10–30. That's CPU time; battery wasn't measured.
+- **`HIDInput` isn't the 8BitDo receiver.** Sandboxed (`bwrap`, a fresh `/dev` with only the GPU,
+  sound and shared memory) so it couldn't open any input device, the player's `HIDInput` thread still
+  used 51–56% of a core at a load of 19. Its share moves with the machine's load (29% at a load of 3,
+  35–43% at 12, 51–59% at 14–30), and sampling shows it running or in `epoll_wait`. The project uses
+  the Input System only, so the game has no switch left for it.
+- **A test-side flake, not chased to its cause.** One keys-test run in four (load about 17) reported
+  "Backspace didn't send the card back"; the three reruns and both final runs passed. That step doesn't
+  touch anything this round changed. The test now logs the cursor, the card's position and the hover
+  state if it happens again.
+- **A hint tag's jump check needed the pad test's tolerance.** The cursor lands on the chip, the chip
+  lifts as it's hovered, and the cursor is then about 20 px from its centre; the check uses the
+  40 px the pad test already allows.
+
+Not done, and why:
+
+- **A physical PlayStation or Switch pad, a Steam Deck**: no hardware here. Which family a real pad
+  reads as depends on the layout or name its driver or browser gives it; anything unrecognised gets
+  Xbox letters, as before.
+- **A replayed case 2 to its close** (the docket line should stay off): in code, not run.
+- **A docket streak**: considered and left out; the drawer already shows the week.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  tablet, focus on macOS or Windows, a real click on Copy result on Linux, the sound by ear,
+  colour-blind players): unchanged.
+
+Owner decisions this round adds:
+
+- **Nintendo pads name the bottom button B.** Pinning is on the bottom face button for every pad, so
+  on a Switch controller the prompts say "[B] pins" and "[A] sends a card back", the reverse of
+  Nintendo's own habit. Swapping confirm and back for Nintendo pads is a small change if you'd rather.
+- **Hints tag cards.** The second hint already named the cards; the tags only show where they are. The
+  vague first hint about a statement tags nothing, and the first hint about a clock tags every card on
+  that clock. Hints still withhold the Unaided seal.
+- **`Tools/nested.sh` needs KDE's KWin.** It's a test tool, not part of the game; on another desktop it
+  refuses to run, and the tests still work through `Tools/play.sh`.

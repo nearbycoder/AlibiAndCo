@@ -408,14 +408,15 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 7). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 8). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
   the browser (a tap, a finger drag, a held finger and a tap on a HUD button) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
   the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
-  and progress survives a page reload. It's 26.6 MB. In round 7 it loaded from localhost in 3.2–4.8
-  seconds and ran at 58–60 fps in both, at a load average of about 7–17 from other sessions (under 2
+  and progress survives a page reload. It's 26.6 MB. In round 8 it loaded from localhost in 1.4–4.8
+  seconds, and autoplay ran at 59–60 fps in Chromium and 54–59 in Firefox, at a load average of about
+  4–17 from other sessions (under 2
   seconds at 60 fps on a quiet machine in round 4). It hasn't been tried in Safari: Playwright's
   WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
