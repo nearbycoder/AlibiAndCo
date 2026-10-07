@@ -10,6 +10,8 @@
 /[Rr]ecordings/
 /Screenshots/
 *.csproj
+# ...except the standalone case validator's, which Tools/validate.sh needs on a fresh clone
+!Tools/CaseValidator/CaseValidator.csproj
 *.sln
 *.slnx
 *.pidb
