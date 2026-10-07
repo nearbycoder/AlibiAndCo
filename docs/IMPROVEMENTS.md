@@ -997,3 +997,113 @@ Owner decisions this round adds:
   (`GameRoot.AwayFrameRate`).
 - **How many boards to keep.** Every case and every docket still in the drawer keeps its board, so a
   save holds at most 12. Nothing asks before a board is shelved, because nothing is lost.
+
+## Round 8 scope (7 Oct 2026, branch `improvements-8`)
+
+Baseline on `a1644ff` (main = origin/main): the validator proves cases 1–5 airtight with 60 pin
+orders each, and the Linux build is clean (134 MB). Two quick measurements before planning changed
+round 7's open questions:
+
+- **The ~11 fps on this machine is the shared desktop, not the game.** Run inside a private nested
+  KWin (`kwin_wayland --virtual`, its own D-Bus session and config folder), where the window is
+  certainly on screen, `-alibiFocusTest` measured 52 fps on the title and 53 on a case-1 board
+  with focus (load average 14). Away, at 10 fps, the game's own threads dropped from 49% to 14% of
+  a core on the title and from 64% to 16% on the board. So round 7's background cap does save CPU;
+  on the shared desktop the compositor was already throttling the window.
+- **The 8BitDo receiver isn't what keeps `HIDInput` busy.** With the player sandboxed so it can't
+  open a single input device (`bwrap` with a fresh `/dev` holding only the GPU, sound and shared
+  memory), the thread still used 51–56% of a core. Sampling it shows it running or in
+  `epoll_wait`, about 115 ticks in 2 s: the engine's own loop. The project already uses the Input
+  System only (`activeInputHandler: 1`), so the game has no switch left for it.
+
+The ranked list is used up apart from owner and hardware items, so this round reads the game as a
+player meets it. Four things stood out:
+
+- **The pad prompts are Xbox letters for every pad.** The game shows `[A]`, `[B]`, `[LB]`,
+  `[Start]` whatever is plugged in. On a PlayStation pad there's no A; on a Switch Pro controller the
+  button labelled A is the *east* one, so "press [A]" makes a Switch player press the button that
+  sends a card back. The Input System already knows both layouts on Linux, macOS, Windows and (by
+  name) in the browser.
+- **A hint names cards and leaves you to find them.** Connie's second hint says "“Darts slate” and
+  “Exchange log” are the same moment" or "Clem's statement doesn't hold up"; on a four-suspect board
+  at 720p that's a hunt across twenty chips, worse with a pad or keyboard cursor.
+- **The Daily Docket opens without a word.** Closing case 2 unlocks it, but the closed panel only
+  offers the next case; the docket button appears at the foot of the case files the next time
+  they're opened. After case 5 the panel says "Five for five" and offers only the case files.
+- **Input tests run on a throttled window.** On the shared desktop the player runs at about 11 fps,
+  which has stalled or skewed input-driven tests in earlier rounds, and two round 7 test windows
+  briefly went fullscreen on the shared desktop.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round8/`.
+
+### R8-1. Pad prompts that match the pad
+
+Every pad prompt (the controls strip, the pause menu's controls list, the notebook's footer,
+Connie's how-to lines) names the buttons of the pad in use: Xbox-style **A B X Y, LB RB, Start**
+by default, PlayStation **✕ ○ □ △, L1 R1, Options**, and Nintendo **B A Y X, L R, +** (the Switch
+Pro layout reads the bottom button as B, so the prompt names the button the player actually
+presses). The family comes from the Input System's layout (DualShock/DualSense, Switch Pro HID)
+or, failing that, the device's name (browser gamepads report the vendor and product in a string).
+
+**Acceptance:** `-alibiPadTest` gains `-alibiPadLayout DualShock4GamepadHID` and
+`SwitchProControllerHID`: with each, it plays case 1 to CASE CLOSED through that simulated device
+and checks the strip, the pause menu and the notebook footer show that family's labels and no Xbox
+letters; the default run still shows Xbox letters. An EditMode test covers the name-based detection
+(browser strings for DualSense, DualShock 4, a Switch Pro controller, an Xbox pad, unknown).
+Screenshots show the PlayStation shapes rendering (not missing-glyph boxes).
+**Verify:** the pad test three ways at 1920×1080 and once at 1280×800, EditMode tests, screenshots.
+**Not verifiable here:** a physical PlayStation or Switch pad.
+
+### R8-2. Hints point at the cards they name
+
+When Connie's hint names cards, those cards wear a small gold **CONNIE** tag (and the pad and
+keyboard jumps, LB/RB and Q/E, start from the first of them) until the board changes or the
+next hint. The first hint for a clock marks the cards on the clock it names; the second marks
+the two cards to link; a confront hint marks the statement; the incident hint marks the incident
+card. It doesn't give away more than the words already did.
+
+**Acceptance:** autoplay asks for a hint at each step of one case and one docket (in a separate
+run, since hints withhold Unaided) and checks the tagged cards equal the cards each hint names,
+and that the tags clear after the move. Screenshots at 1920×1080 and 1280×720 (Large text).
+The input, pad, keys and touch tests still pass.
+**Verify:** autoplay with `-alibiHintTour`, the input suites, screenshots.
+
+### R8-3. The docket announces itself
+
+When case 2's closed panel is the one that opens the Daily Docket, it says so in a line above the
+buttons ("The Daily Docket is open: a short new case every day, in the case files"). After the
+last case, the panel offers **Today's docket** next to *Back to the case files*, and it opens
+today's docket file (or its board, if one is in progress).
+
+**Acceptance:** autoplay checks the line on case 2's first close (and not on a replay), and that
+case 5's panel has a *Today's docket* button that opens today's docket intro. Screenshots at
+1920×1080 and 1280×720 (Large text) with no overlap.
+**Verify:** autoplay at both sizes, the boards test, screenshots.
+
+### R8-4. Self-tests on a private desktop
+
+`Tools/nested.sh` runs any `Tools/play.sh` self-test inside a private nested KWin (its own D-Bus
+session, config folder and Wayland socket, closed afterwards), so the window is on screen, runs at
+its real frame rate, can't go fullscreen on the shared desktop and can't be disturbed by the real
+pointer. It refuses to run if `kwin_wayland` is missing, and kills only the PIDs it started.
+
+**Acceptance:** the input, pad, keys, touch and focus tests pass through it at 1920×1080, with
+their frame rate and time logged next to the same test on the shared desktop and the load average.
+No process it started outlives it (checked by PID after each run). The README's tests table and
+the round 7 notes on the frame rate and `HIDInput` are corrected with the measurements above.
+**Verify:** each test through `Tools/nested.sh`, a process check after each, the README.
+
+### R8-5. The browser build, checked again
+
+Rebuild the web build and run every `webtest.mjs` check in Chromium and Firefox, with the load
+average noted (R8-1 changes how browser pads are named, R8-2 and R8-3 add UI).
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases,
+WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind players, focus on
+macOS or Windows), a real click on Copy result on the Linux desktop, and the owner's open calls
+(the background frame rate, pausing on focus loss, the link hold, advertising touch, how many
+boards to keep). A docket streak was considered and left for later: the drawer already shows the
+week.
