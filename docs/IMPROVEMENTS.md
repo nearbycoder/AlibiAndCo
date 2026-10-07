@@ -704,3 +704,84 @@ Owner decisions this round adds:
   the notebook. Rebinding isn't offered.
 - **What the share line says.** It gives the date, the crime's title, stars, time and seals, and
   nothing else. Whether to add a link (to a hosted web build, once there is one) is your call.
+
+## Round 6 scope (7 Oct 2026, branch `improvements-6`)
+
+Baseline on `956cedc` (main = origin/main). Most of the ranked list is done or waiting on the owner,
+so this round went back to the board itself and read the input code for ways a real player loses
+something they didn't mean to. Three stood out:
+
+- **A slip of the hand costs a badge.** Dropping a dragged card onto *any* other card is a link
+  ("these are the same moment"), and a link between two different moments costs a badge. A card
+  pins at its printed time wherever it's dropped on its lane, so the natural move is to drop it
+  anywhere on the lane, and in the busier cases the lanes are full of chips. Dropping a card back
+  on the desk on top of another tray card is a link too. Nothing but a blue glow says a link is
+  coming; there's no label. One stray drop also loses the Clean seal.
+- **The case timer runs while you're away.** The player is set to keep running in the background
+  (`runInBackground`, so automated runs work unfocused), and the timer only stops in the pause
+  menu. On the desktop, alt-tabbing to answer a message, or leaving the window minimised, still
+  counts towards the Swift seal and the time in the docket's share line.
+- **The browser build can't be played on a tablet.** Nothing reads the touchscreen, and a touch
+  drag never reaches the mouse code. That matters as soon as the web build is hosted.
+
+I'll build these in this order; touch is the biggest and goes last, so the others land regardless.
+Screenshots go to `docs/media/improvements/round6/`.
+
+### R6-1. No badge for a slip of the hand
+
+A dragged card only becomes a link once it has been held over the same card for a moment (about
+half a second). Until then a drop does what it would do with no card underneath: pin to the lane
+on the board, or go back to the tray on the desk. Once the link is armed, the card shows full size
+as now, the target glows as now, and a **LINK · same moment?** tag appears by the cursor, so it's
+never a surprise. The rules don't change: a deliberate wrong link still costs a badge.
+
+**Acceptance:** the mouse input test goes on to case 2 and checks, with a moving cursor: a tray card
+dropped in one movement onto a pinned chip of a different moment pins to its own lane with no
+badge lost and no "NOT THE SAME MOMENT" memo; a tray card dropped quickly onto another tray card
+goes back to the tray with no badge lost; and a deliberate link, held over the target, shows the tag
+(screenshot) and corrects the clock. The pad and keyboard tests and autoplay still pass.
+**Verify:** `-alibiInputTest` at 1920×1080 and 1280×800, the pad and keys tests, autoplay.
+
+### R6-2. The clock stops when you look away
+
+The case timer only runs while the game has focus (desktop) or while its page is visible and
+focused (browser). Automated runs keep their timing as now. Nothing else pauses: memos still type
+and music still plays, and the pause menu doesn't pop up uninvited.
+
+**Acceptance:** in the browser, with real focus changes (a second page brought to the front, then
+back), the case timer doesn't advance while the game's page is in the background, and does once
+it's back. A Linux-build self-test (`-alibiFocusTest`) checks the same through the handler Unity
+calls on a focus change. The real OS focus signal on the Linux desktop isn't driven (moving focus on
+the shared desktop would disturb other sessions); if it can't be checked, that's written down.
+**Verify:** `-alibiFocusTest`, a `focus` run in `Tools/webtest.mjs` in Chromium and Firefox.
+
+### R6-3. Touch in the browser (gated: it ships only if it holds up)
+
+A touchscreen drives the same mouse code the pad and keyboard already use: a tap is a click, a
+finger drag is a drag (pin, link, the incident), and a press held still on a chip shows the hover
+card without clicking. Sending a card back goes through its panel's *Back to the tray*, and the
+HUD's Hint, Notes and Menu buttons cover the keys. Touching the mouse, pad or keyboard hands control
+back. Phones aren't a target: the board is built for a landscape screen of tablet size or larger.
+
+**Acceptance:** a new `-alibiTouchTest` (a simulated touchscreen, like the pad test) plays case 1
+from the dealt tray to CASE CLOSED with touches only: pins by tap and by drag, a press-and-hold
+inspector, a confront through the panel, Back to the tray, the HUD buttons and the incident drag,
+with PASS and 0 errors, at 1920×1080 and 1280×800. In Chromium, with **real** touch events from the
+browser (CDP), taps and a drag reach the game. The mouse, pad and keyboard tests still pass. **If the
+browser's touches don't reach the game by the end of the round, it doesn't ship.**
+**Verify:** `-alibiTouchTest`, a `touch` run in `Tools/webtest.mjs`, screenshots.
+
+### R6-4. The browser build, checked again (and Firefox on a quieter machine)
+
+Rebuild the web build with this round's changes and run `Tools/webtest.mjs` in Chromium and
+Firefox. Round 5 measured Firefox at 29–57 fps under a load of 14–16; measure again at the lowest
+load I can find this round and write down the load next to the figures.
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed, Firefox frame rate
+and load time recorded with the load average.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the hardware and owner items listed under round 3 (Windows, signing, hosting,
+the licence, releases, WebKit, a real controller or Steam Deck, the sound by ear, colour-blind
+players), a real click on Copy result on the Linux desktop (it needs real input on the shared
+desktop), and phones.
