@@ -87,10 +87,13 @@ namespace AlibiCo
             int padArg = Array.IndexOf(args, "-alibiPadTest");
             int midnightArg = Array.IndexOf(args, "-alibiMidnightTest");
             int keysArg = Array.IndexOf(args, "-alibiKeysTest");
+            int shareArg = Array.IndexOf(args, "-alibiShareCheck");
             int recordArg = Array.IndexOf(args, "-alibiRecord");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0;
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
+            // Automated runs don't overwrite the desktop's clipboard (a browser's belongs to the test).
+            Clipboard.Private = automated && Application.platform != RuntimePlatform.WebGLPlayer && !args.Contains("-alibiClipboardCheck");
             if (automated) SaveData.UseVolatile();
             // A saved resolution choice; automated runs keep the size they were launched with.
             else if (PlayerPrefs.HasKey("resolution") && Application.platform != RuntimePlatform.WebGLPlayer) Settings.ApplyResolution();
@@ -117,6 +120,12 @@ namespace AlibiCo
             {
                 string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
+                yield break;
+            }
+            if (shareArg >= 0)
+            {
+                string dir = shareArg + 1 < args.Length && !args[shareArg + 1].StartsWith("-") ? args[shareArg + 1] : "Captures/share-check";
+                gameObject.AddComponent<AutoPilot>().RunShareCheck(dir);
                 yield break;
             }
             if (keysArg >= 0)

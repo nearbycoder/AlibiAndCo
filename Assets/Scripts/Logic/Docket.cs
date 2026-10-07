@@ -70,6 +70,23 @@ namespace AlibiCo.Logic
         /// <summary>The last day a docket can be opened from the drawer.</summary>
         public static DateTime OnFileUntil(DateTime day) => day.Date.AddDays(DaysOnFile - 1);
 
+        /// <summary>
+        /// A line to share a docket's result: the day, the crime, the stars, the time and the seals
+        /// earned. It names no suspect and no move, so it spoils nothing.
+        /// </summary>
+        public static string ShareLine(DateTime day, int badges, float seconds, bool clean, bool unaided, bool swift)
+        {
+            badges = Math.Max(0, Math.Min(3, badges));
+            int s = Math.Max(0, (int)Math.Round(seconds));
+            var seals = new List<string>();
+            if (clean) seals.Add("Clean");
+            if (unaided) seals.Add("Unaided");
+            if (swift) seals.Add("Swift");
+            var line = $"Alibi & Co. Daily Docket, {day.ToString("ddd d MMM yyyy", CultureInfo.InvariantCulture)}: {TitleFor(day)} " +
+                       $"{new string('★', badges)}{new string('☆', 3 - badges)} {s / 60}:{s % 60:00}";
+            return seals.Count > 0 ? line + " (" + string.Join(" · ", seals) + ")" : line;
+        }
+
         /// <summary>A day's crime title without generating the docket (the same as its case title).</summary>
         public static string TitleFor(DateTime date) => CrimeFor(date).Title;
 

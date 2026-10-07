@@ -96,6 +96,66 @@ namespace AlibiCo
             yield return Shot(how + "_docket_board");
         }
 
+        // ------------------------------------------------------------------ share check
+
+        public void RunShareCheck(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(ShareCheck());
+        }
+
+        /// <summary>
+        /// -alibiShareCheck -alibiClipboardCheck: solve today's docket, click Copy result with the
+        /// mouse and leave the line on the system clipboard for a few seconds, so a script can read it
+        /// from outside the game.
+        /// </summary>
+        IEnumerator ShareCheck()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            SaveData.UnlockAll = true;
+            SaveData.Current.inProgress = null;
+            var c = Cases.TodaysDocket;
+            root.StartCase(c, false);
+            yield return Wait(2.6f);
+            var s = root.Session;
+            for (int step = 0; step < 20; step++)
+            {
+                foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                yield return Wait(1f);
+                var path = Solver.ShortestSolution(Solver.Shadow(s.Board));
+                if (path == null) { Debug.LogError("[AutoPilot] FAIL share: no solution"); ok = false; break; }
+                if (path.Count == 0) break;
+                var m = path[0];
+                if (m.Kind == "link") s.AutoLink(m.A, m.B); else s.Confront(s.ViewOf(m.A));
+                yield return Wait(2.5f);
+            }
+            s.AutoAccuse(c.Incident.Culprit);
+            float t = 0;
+            while (root.Flow != Flow.Closed && t < 90) { t += Clock.Dt; yield return null; }
+            yield return Wait(3f);
+            var btn = root.Screens.ButtonScreen("btn_copy_result");
+            if (btn == null) { Debug.LogError("[AutoPilot] FAIL share: no Copy result button"); ok = false; }
+            else yield return Click(btn.Value);
+            yield return Wait(0.6f);
+            yield return Shot("share_copied");
+            Docket.TryParseId(c.Id, out var day);
+            var want = Docket.ShareLine(day, s.Badges, s.Elapsed, s.SealClean, s.SealUnaided, s.SealSwift);
+            var sys = GUIUtility.systemCopyBuffer;
+            Debug.Log($"[Share] expected: {want}");
+            Debug.Log($"[Share] Unity's clipboard reads back: {sys}");
+            if (sys != want) { Debug.LogError("[AutoPilot] FAIL share: the clipboard doesn't hold the line"); ok = false; }
+            Debug.Log("[Share] holding the clipboard for 8 s");
+            yield return new WaitForSecondsRealtime(8f);
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} share check");
+            Debug.Log($"[AutoPilot] done: share check, {errors} errors");
+            Application.Quit(ok ? 0 : 1);
+        }
+
         // ------------------------------------------------------------------ midnight test
 
         public void RunMidnight(string outDir)
@@ -742,6 +802,18 @@ namespace AlibiCo
             while (s > 0) { s -= Clock.Dt; yield return null; }
         }
 
+        /// <summary>A docket's Copy result button copies its share line, which names nobody.</summary>
+        bool CheckShare(CaseSession s)
+        {
+            Docket.TryParseId(s.Case.Id, out var day);
+            var want = Docket.ShareLine(day, s.Badges, s.Elapsed, s.SealClean, s.SealUnaided, s.SealSwift);
+            bool pressed = GameRoot.I.Screens.Press("btn_copy_result");
+            var got = Clipboard.Last ?? "";
+            bool ok = pressed && got == want && !s.Case.Suspects.Any(p => got.Contains(p.Name));
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {s.Case.Id} share line: {got}");
+            return ok;
+        }
+
         /// <summary>After a firm stand, Connie's next memo explains it and names the clock to blame.</summary>
         static bool CheckWhyFirm(CaseSession s, string caseId, string cardId, string clock)
         {
@@ -944,6 +1016,7 @@ namespace AlibiCo
                     if (root.Flow != Flow.Closed) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: never reached Case Closed"); }
                     yield return Wait(3.5f);
                     yield return Shot(c.Id + "_closed");
+                    if (Cases.IsDocket(c) && !CheckShare(s)) ok = false;
                 }
                 if (!drawerOk) ok = false;
                 if (errors > errorsBefore) { ok = false; Debug.LogError($"[AutoPilot] FAIL {c.Id}: {errors - errorsBefore} errors logged"); }

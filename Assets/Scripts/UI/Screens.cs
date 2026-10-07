@@ -320,10 +320,10 @@ namespace AlibiCo
             return null;
         }
 
-        /// <summary>Press a named button on the case files, the drawer or the title, as a click would (for the autopilot).</summary>
+        /// <summary>Press a named button on the case files, the drawer, the title or the closed panel, as a click would (for the autopilot).</summary>
         public bool Press(string name)
         {
-            foreach (var g in new[] { week, select, title })
+            foreach (var g in new[] { week, select, title, closed })
             {
                 if (g == null || !g.gameObject.activeSelf) continue;
                 var b = g.GetComponentsInChildren<Button>().FirstOrDefault(x => x.name == name);
@@ -1061,9 +1061,22 @@ namespace AlibiCo
             if (docket)
             {
                 Docket.TryParseId(c.Id, out var day);
+                // A line to send a friend: the day, the crime, the stars, the time and the seals, no names.
+                string line = Docket.ShareLine(day, s.Badges, s.Elapsed, s.SealClean, s.SealUnaided, s.SealSwift);
+                Button copy = null;
+                copy = UiKit.Button(btns, "Copy result", () =>
+                {
+                    Clipboard.Copy(line);
+                    Sfx.Play("paper_touch", 0.6f);
+                    var label = copy.GetComponentInChildren<TextMeshProUGUI>();
+                    label.text = "Copied ✔";
+                    Tween.Delay(2.5f, () => { if (label) label.text = "Copy result"; });
+                }, Pal.Hex("2B3540"), Cream, 24, null, "btn_copy_result");
+                ((RectTransform)copy.transform).sizeDelta = new Vector2(240, 70);
                 var fin = UiKit.Text(p, day >= Cases.Today ? "A new docket comes in tomorrow." : $"Seven days on file. {Docket.Week(Cases.Today).Count(d => Cases.DocketRecord(d)?.solved == true)} of this week's closed.",
                     Art.SerifItalic, 24, Pal.Oxblood, TextAlignmentOptions.MidlineRight);
-                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 46), new Vector2(-840, 70));
+                // Above the buttons, which need the whole row for the Copy button.
+                fin.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 124), new Vector2(-120, 40));
             }
             else if (last)
             {

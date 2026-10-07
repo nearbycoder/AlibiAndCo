@@ -125,5 +125,30 @@ namespace AlibiCo.Tests
             Assert.AreEqual("nine o'clock", Docket.Say(21 * 60));
             Assert.AreEqual("twenty-five to eight", Docket.Say(19 * 60 + 35));
         }
+
+        [Test]
+        public void TheShareLineSpoilsNothing()
+        {
+            var day = new DateTime(2026, 10, 7);
+            Assert.AreEqual("Alibi & Co. Daily Docket, Wed 7 Oct 2026: " + Docket.TitleFor(day) + " ★★★ 2:41 (Clean · Unaided · Swift)",
+                Docket.ShareLine(day, 3, 161.4f, true, true, true));
+            Assert.AreEqual("Alibi & Co. Daily Docket, Wed 7 Oct 2026: " + Docket.TitleFor(day) + " ★★☆ 12:05 (Swift)",
+                Docket.ShareLine(day, 2, 725f, false, false, true));
+            StringAssert.EndsWith("☆☆☆ 0:00", Docket.ShareLine(day, -1, -3f, false, false, false));
+            // No suspect's name, no card and no clock: only the day, the crime and how it went.
+            var map = Map();
+            for (int i = 0; i < 15; i++)
+            {
+                var d = day.AddDays(i);
+                var c = Docket.Generate(d, map).Case;
+                var line = Docket.ShareLine(d, 3, 100, true, true, true);
+                foreach (var p in c.People)
+                {
+                    StringAssert.DoesNotContain(p.Name, line, $"{d:yyyy-MM-dd} names {p.Name}");
+                    StringAssert.DoesNotContain(p.Name.Split(' ')[0], line.Replace(c.Title, ""), $"{d:yyyy-MM-dd} names {p.Name}");
+                }
+                foreach (var k in c.Clocks) StringAssert.DoesNotContain(k.Name, line);
+            }
+        }
     }
 }
