@@ -57,7 +57,7 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Click** a pinned statement | Open its panel: **Confront** the witness, or send it back |
 | **Right-click** a pinned card | Send it back to the tray |
 | **Drag the incident card** | Preview where the crime fits; drop it on a line to accuse |
-| **Tab** (or *Notes*) | The notebook: where the case stands, what each clock does, every memo and reply |
+| **Tab** (or *Notes*) | The notebook: where the case stands, what each clock does, every memo and reply (scroll for older notes) |
 | **H** or **F1** | Ask Connie for a hint (the case is marked "with Connie's help") |
 | **Space** or click | Skip a memo or the reconstruction |
 | **Esc** | Pause: resume, restart, case files, settings, quit |
@@ -72,7 +72,7 @@ touchscreen:
 | **LB / RB** | Jump to the previous / next card (or button, in menus) |
 | **A** | Click: pin a card, open a statement, press a button. **Hold A and steer** to drag |
 | **B** | Send a pinned card back to the tray; back or close in menus |
-| **X** / **Y** | Ask Connie for a hint / the notebook |
+| **X** / **Y** | Ask Connie for a hint / the notebook (the **right stick** or **D-pad** scrolls its notes) |
 | **Start** | Pause and resume |
 
 Or with the keyboard alone:
@@ -84,6 +84,7 @@ Or with the keyboard alone:
 | **Enter** | Click: pin a card, open a statement, press a button. **Hold Enter and steer** with the arrows to drag |
 | **Backspace** | Send a pinned card back to the tray; back or close in menus |
 | **Tab**, **H**, **Space**, **Esc** | The notebook, a hint, skip a memo, pause (as above) |
+| **Up / Down**, **Page Up / Page Down** | Scroll the notebook's notes while it's open |
 
 Or with a touchscreen, in the browser build:
 
@@ -92,7 +93,7 @@ Or with a touchscreen, in the browser build:
 | **Tap** a card | Pin it; on a pinned card, open its panel (**Confront**, **Back to the tray**) |
 | **Drag** a card | Pin it, link it (hold it on the other card until it says **LINK**), or drag the incident card to accuse |
 | **Press and hold** a card | Read it in full (lift your finger and nothing is clicked) |
-| **Hint**, **Notes**, **Menu** | The buttons at the top right |
+| **Hint**, **Notes**, **Menu** | The buttons at the top right (drag the notebook's notes to scroll them) |
 | **Tap** an empty spot | Skip a memo |
 
 Touching the mouse hands control straight back. The board is laid out for a landscape screen the
@@ -118,8 +119,9 @@ size of a tablet or larger; phones aren't a target.
   impossible by construction.
 - Each case is rated with three badges (one lost per wrong confrontation or link) and a timer,
   which only runs while the game has focus (alt-tab away and it waits), and awards up to three seals: **Clean** (no badge lost), **Unaided** (no hint) and **Swift**
-  (under the case's par time). The case files keep the best of each, so a solved case still has
-  something to replay for.
+  (under the case's par time). Each case file lists the three with its par time and ticks the ones
+  already earned, and the case files keep the best of each, so a solved case still has something to
+  replay for.
 
 ## Features
 
@@ -172,13 +174,17 @@ seals).
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
 the board's labels and the memo slips (windows under 900 pixels tall start at Large); fullscreen;
-reduced motion; and an optional case timer. Progress and settings save automatically.
+reduced motion; and an optional case timer. Progress and settings save automatically, and every
+case and docket keeps its own board: leave case 4 half-solved, play today's docket, and case 4 is
+still there, pins, badges and timer, when you open its file again (*Continue* on the title picks up
+the board you played last).
 
 **Controls when you need them.** A single line on the board's frame shows the gesture that matters
 right now (pin, confront, link, accuse), and each tip retires once you've used it. The full
 controls list is in the pause menu. A link only happens when you mean it: a dragged card has to
 rest on the other card until a **LINK** tag appears, so a card that just lands on another on its
-way to a lane never costs a badge. And the case timer waits while the game is in the background.
+way to a lane never costs a badge. And the case timer waits while the game is in the background,
+where the game also drops to 10 frames a second.
 
 ## Content
 
@@ -264,10 +270,11 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and five Daily Dockets (today's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame. It checks every contradiction carries its marker, saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
-| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. The mouse input test also goes on to the drawer. |
-| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc). |
-| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap) and the incident drag. |
-| `Tools/play.sh -alibiFocusTest [outdir] [-alibiFocusReal]` | Opens case 1 and checks the case timer stands still while the game is out of focus and runs again when it's back: through Unity's focus handler, or with `-alibiFocusReal`, by waiting for a real focus change from outside. |
+| `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
+| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag. |
+| `Tools/play.sh -alibiFocusTest [outdir] [-alibiFocusReal]` | Opens case 1 and checks the case timer stands still while the game is out of focus and runs again when it's back, and that the game drops to about 10 frames a second while away (it logs frames a second and the CPU time of the game's threads, attended and away, at the title and on a board): through Unity's focus handler, or with `-alibiFocusReal`, by waiting for a real focus change from outside. |
+| `Tools/play.sh -alibiBoardsTest [outdir]` | Leaves three boards part-way (case 1, case 2 with a badge lost, today's docket) and checks every one is kept: the folders and the drawer say IN PROGRESS, *Continue* resumes the last, each case reopens with its own pins, badges and timer, *Start over* asks first, and solving one drops only its own board. |
 | `Tools/play.sh [-alibiClockAt yyyy-MM-ddTHH:mm:ss] -alibiMidnightTest [outdir]` | Leaves today's docket in progress, opens the docket drawer and waits for midnight (within 20 minutes; `-alibiClockAt` starts the game's clock at a chosen moment), then checks the drawer redrew itself for the new day and that Continue resumes yesterday's docket. |
 | `Tools/play.sh -alibiClipboardCheck -alibiShareCheck [outdir]` | Solves today's docket, clicks Copy result and holds the line on the system clipboard for 8 seconds, so a script can read it from outside. Without `-alibiClipboardCheck`, automated runs never touch the system clipboard. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
@@ -279,7 +286,9 @@ Automated runs use a blank in-memory save, so they never touch your progress.
 Saves are crash-safe: each one is written to a temporary file and renamed into place, and the
 previous save is kept as `alibi_save.json.bak`. If the save can't be read (say, after a crash or a
 full disk), the game loads the backup and moves the broken file aside as
-`alibi_save.unreadable-<date>.json` rather than overwriting it.
+`alibi_save.unreadable-<date>.json` rather than overwriting it. The save keeps one board per case
+and docket that's been left part-way (a docket's goes once its day leaves the drawer); saves from
+before that, which held a single board, load as they were.
 
 ### Rebuilding the generated assets
 
@@ -392,16 +401,16 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 6). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 7). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
   the browser (a tap, a finger drag, a held finger and a tap on a HUD button) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
-  the page is in the background; and progress survives a page reload. It's 26.5 MB. In round 6 it
-  loaded from localhost in 3.3–4.7 seconds and ran at 58–60 fps in Chromium and 53–60 fps in
-  Firefox, at a load average of about 8–17 from other sessions (under 2 seconds at 60 fps on a quiet
-  machine in round 4). It hasn't been tried in Safari: Playwright's WebKit build needs Ubuntu
-  libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
+  the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
+  and progress survives a page reload. It's 26.6 MB. In round 7 it loaded from localhost in 3.2–4.8
+  seconds and ran at 58–60 fps in both, at a load average of about 7–17 from other sessions (under 2
+  seconds at 60 fps on a quiet machine in round 4). It hasn't been tried in Safari: Playwright's
+  WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
   browser, where the page sets the size.
 - **The macOS build is untested on a Mac.** It builds on Linux as a Universal app with the bundle id
@@ -445,6 +454,19 @@ changes since then aren't released yet.
   opened in a private nested KWin session: away 5.8 s, the timer moved 0.08 s), and with the page's
   blur and focus events in headless browsers. It hasn't been tried on macOS or Windows. Memos keep
   typing and the music keeps playing; nothing pauses on its own.
+- **In the background the game draws at most 10 frames a second**, meant to spare a laptop's
+  battery while the window is unfocused (or the browser page is in the background).
+  `-alibiFocusTest` measures 10.0 fps while away and full speed again on return; in Chromium the page
+  went from 60 fps to 10 and back. The saving itself wasn't measured in the desktop build: on the
+  development machine, which about fifteen other games share, the game only reached about 11 fps even
+  with focus, so there was little left to save (on a board its own threads used 15–18% of a core
+  with focus and 11–14% away, in three runs). Someone watching the game on a second screen while typing
+  elsewhere will see it at 10 frames a second.
+- **Unity's input thread is busy on the development machine.** Every Unity 6.6 player on it, this
+  one included, spends about 58% of one core in the engine's `HIDInput` thread, attended or not, and
+  the game can't switch that thread off. The only input device the user account can read directly is
+  an 8BitDo Pro 3 receiver; whether that receiver is the cause hasn't been tested (it can't be
+  unplugged from here), and other machines may not show it.
 - **The link guard was checked by simulated input.** The mouse test drops cards onto other cards in
   one quick movement (a quarter of a second) and checks they pin or go back without linking, then
   holds one until the LINK tag shows and checks it links. The half-second hold was chosen by hand,

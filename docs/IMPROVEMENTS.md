@@ -938,3 +938,62 @@ Not in this round: the hardware and owner items (Windows, signing, hosting, the 
 WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind players, focus on
 macOS or Windows), a real click on Copy result on the Linux desktop, and the owner's open calls from
 round 6 (pausing on focus loss, the link hold, advertising touch).
+
+## Round 7 results (7 Oct 2026)
+
+All five items landed on `improvements-7`. Screenshots are in `docs/media/improvements/round7/`
+(`r7-1-*` boards kept, `r7-3-*` the notebook scrolled by pad, keys and touch, `r7-4-*` the seals
+line). Unlike round 6, each item's commit was built on its own (the later items stashed) before the
+next was staged, and R7-1 to R7-3 were tested on their own builds.
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R7-1 | Every case keeps its board | 104dee6 | New `-alibiBoardsTest`: case 1 left with 2 pins, case 2 with 1 pin and a badge lost, today's docket with 1 pin; both folders and the drawer row say IN PROGRESS, *Continue* resumes the docket, case 1 reopens with its 2 pins at 4.1 s on its timer, case 2 with its pin and 2 badges, *Start over* asks and "No" keeps the board, "Yes" starts afresh without touching the others, and solving case 2 drops only its board (*Continue* moves to case 1). `-alibiSaveCheck` twice each, in throwaway `XDG_CONFIG_HOME` folders, on a save in the old one-board format and one with three boards: every board came back, and again after the game rewrote the file. | Met. The browser's reload check passes too, but its save holds no boards, so the shelf's round trip was only checked on the desktop |
+| R7-2 | Rest when you look away | 7248307, 9f406a9 | `-alibiFocusTest` (Unity's focus handler) now measures frames a second and the CPU time of the game's threads, read from `/proc`: away, 10.0 fps at the title and on a board, and full speed again on return; the case timer still stands still. The browser's focus run: in Chromium (the page's blur and focus events) 60 fps with focus, 10 away, 60 back; in Firefox (another tab in front) 58 fps with focus and about 1 in the background tab | The cap is met. **The CPU saving isn't shown on the desktop build**: on this shared machine the Linux build only reaches about 11 fps even with focus, at load averages from 11 to 30 alike (rounds 5 and 6 logged the same rate, so it's likely the shared desktop's compositor or GPU, not the game), so on a board the game's threads went from 15–18% of a core to 11–14%. The browser shows the drop from 60 to 10 fps; its CPU use can't be read from inside the page. The browser run also showed the timer counting 0.10 s while away, the length of one 10 fps frame, against 0.02 s in round 6; the follow-up commit leaves the frame after focus returns out of the timer, and the rerun measured 0.00 s in both browsers and on Linux |
+| R7-3 | The notebook without a mouse | 17e2936 | The pad, keys and touch tests open the notebook after case 1's confrontations (when the notes run past the page) and scroll to the oldest note and back (1.00 → 0.00 → 1.00) with the right stick and D-pad, Down and Page Up, and finger drags, at 1920×1080 and 1280×800; the footer screenshots name each pointer's controls | Met |
+| R7-4 | Seals on the case file | 7974fa3 | Autoplay checks the line on every case and docket intro (9 files), with the par time from the case data, clear of the buttons, the press cutting, the suspects and the paper's edge, at 1920×1080 and at 1280×720 with Large text; the boards test checks the widest button rows (a case and a docket in progress) | Met, after a fix: the first placement, under the stamp, ran into case 4's long date line, so the line moved to the foot of the file |
+| R7-5 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs --engine chromium,firefox`, every run (autoplay, pad, keys, share, reload, focus, touch, touchreal) on the R7-4 build, then focus, reload and autoplay again on the final build after the timer fix | Met. Every run PASS in both engines with 0 console errors; 26.6 MB. Final build: Chromium autoplay 59–60 fps, loads 3.2–4.0 s; Firefox autoplay 58–60 fps, loads 4.2–4.8 s, at a load average of about 7–17. On the R7-4 build, at about 9–24, Chromium's autoplay dipped to 26–60 fps and Firefox's to 39–46 |
+
+EditMode tests: 43/43 (unchanged: this round's code lives in the Unity side, which the player
+self-tests cover). The validator proves cases 1–5 airtight with 60 pin orders each, and
+`--docket 365` from 7 October 2026 is all airtight (worst day 5 of 40 variations); no case or logic
+file changed. Autoplay: 9/9 (5 cases, 4 dockets), 0 errors, at 1920×1080 and at 1280×720 with Large
+text. Mouse input test at 1920×1080 and 1280×800; pad, keys and touch tests at both sizes; the
+focus, boards and midnight tests (the clock started at 23:59:30: the drawer redrew 0.9 s after
+midnight and *Continue* resumed yesterday's docket with its pins). Every input-driven run waited for
+a load average under 24 before it started (it rose to 47–59 during two of them, from other
+sessions). The real `alibi_save.json` and `prefs` were byte-identical before and after the round
+(Unity's test runner rewrote its own `TestResults.xml` next to them, as in earlier rounds).
+
+Found along the way:
+
+- **Unity's `HIDInput` thread uses about 58% of a core** in every Unity 6.6 player on this machine,
+  this game's and the other sessions' alike, attended or not. It's the engine's own input-polling
+  thread and the game has no switch for it. The only input device the user account can read directly
+  is an 8BitDo Pro 3 receiver, but whether that's the cause is untested (it can't be unplugged from
+  here). The focus test now reports it apart from the game's own threads. Noted in the README.
+- **Splitting a commit by `-U0` hunks misplaced lines.** The first attempt to stage R7-1 alone put
+  two identical-looking lines in each other's place and one insertion in the wrong block. The build
+  caught it (it didn't compile), and the hunk tool now renumbers each hunk for the subset it stages.
+  The commits that landed were each built on their own.
+- **A solved case can still have a board on the shelf.** Replaying a closed case and leaving it
+  part-way keeps that replay's board; the folder shows the closed record (as before), and the file
+  offers *Continue the board*.
+
+Not done, and why:
+
+- **A measured CPU or battery saving from R7-2**: needs a machine where the game runs well above
+  10 fps with focus. The 10 fps background rate was chosen by hand.
+- **A real click on Copy result on the Linux desktop, touch on the desktop builds, a real tablet or
+  phone, focus on macOS or Windows**: unchanged from round 6 (they need real input on the shared
+  desktop, or hardware this machine doesn't have).
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  controller or Steam Deck, the sound by ear, colour-blind players): unchanged from round 3.
+
+Owner decisions this round adds:
+
+- **The background frame rate.** 10 frames a second while unfocused is my choice; someone watching
+  the game on a second screen will see it step. 30, or off, is a one-line change
+  (`GameRoot.AwayFrameRate`).
+- **How many boards to keep.** Every case and every docket still in the drawer keeps its board, so a
+  save holds at most 12. Nothing asks before a board is shelved, because nothing is lost.

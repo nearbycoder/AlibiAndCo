@@ -137,7 +137,9 @@ accusation is impossible by construction, which is what the validator proves.
 
 ### 5.10 Rating
 Three badges per case, minus one per wrong confrontation or wrong link (minimum one). Also
-recorded: time and first-try clears. The case select shows the best result.
+recorded: time and first-try clears. The case select shows the best result. (Improvement round 2
+added three seals, Clean, Unaided and Swift; since round 7 the case intro lists them with the par
+time and ticks the ones already earned.)
 
 ## 6. Cases (all on one shared town map)
 
@@ -315,13 +317,14 @@ All synthesized with Python and numpy (no samples). It should be **restrained de
 | Drag the incident card | preview fit per lane; drop to accuse |
 | Esc | pause (resume, settings, case select, quit) |
 | Touch (browser, round 6) | tap = click, finger drag = drag, press and hold = read a card; the HUD's Hint / Notes / Menu buttons |
-| Tab | notebook (questions, objectives, the clocks you know) |
+| Tab | notebook (questions, objectives, the clocks you know); its notes scroll with the wheel, the right stick or D-pad, Up/Down and Page Up/Down, or a finger (round 7) |
 | F1 / ? | Connie's hint for the next step (marks the case "with help", no badge loss) |
 
 Screens: title (lamp flickers on, logo stamped), case select (three folders, badges, best
 time), case intro (typewritten case file), board, pause, settings (master/music/SFX volume,
 fullscreen, resolution, text size, reduced motion), and case closed (reconstruction, stamp,
-rating, epilogue, next case). There's no tutorial wall: Connie's one-line memos trigger from board
+rating, epilogue, next case). Every case and docket keeps its own board in the save, so leaving one
+for another never loses it (round 7). There's no tutorial wall: Connie's one-line memos trigger from board
 state the first time something happens (first pin, first red, first confront, first "everyone's
 covered", first link, first unknown card).
 
