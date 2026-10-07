@@ -849,3 +849,92 @@ Owner decisions this round adds:
   you prefer it.
 - **The link hold.** A link now needs the card held on the other one for about half a second. A
   deliberate wrong link still costs a badge.
+
+## Round 7 scope (7 Oct 2026, branch `improvements-7`)
+
+Baseline on `898e380` (main = origin/main): the Linux build is clean (134 MB), the validator proves
+cases 1–5 airtight with 60 pin orders each, and autoplay passes. The ranked list is used up apart
+from owner and hardware items, so this round read the save, focus and menu code for things a player
+would trip over, and found three:
+
+- **Opening one case throws away another's board.** The save holds a single in-progress board.
+  Leave case 4 half-solved (15–20 minutes of pins, links and confrontations), open today's docket
+  from the case files, pin one card, and case 4's board is silently gone: its folder says OPEN
+  again, and *Continue* offers the docket. The case intro's *Start over* also wipes a board with no
+  question asked (the pause menu's *Restart* does ask).
+- **The game works as hard in the background as in front of you.** The desktop build keeps running
+  when it loses focus (it has to, for the music and the automated runs) and keeps drawing up to 120
+  frames a second of a desk nobody is looking at. That's battery and fan on a laptop or a Deck.
+- **The notebook's older pages need a mouse.** The notebook's memo log (every reply and Connie's
+  explanations, newest first) only scrolls with a mouse wheel or a drag. Its footer says "scroll for
+  older notes" to pad and keyboard players too, who have no wheel.
+
+Plus one smaller thing for replays: the case file never says what the seals ask for. The Swift seal's
+par time first appears on the case-closed panel, after the run it applies to.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round7/`.
+
+### R7-1. Every case keeps its board
+
+Each case and each docket keeps its own board in the save. Leaving one board for another shelves
+it; its folder (or drawer row) still says IN PROGRESS, and opening it offers *Continue the board*.
+The title's *Continue* resumes the board played most recently. A docket's board is dropped once the
+day leaves the drawer. Older saves (one board) load as before. *Start over* on the case intro asks
+first, like *Restart this case*.
+
+**Acceptance:** a new `-alibiBoardsTest` self-test leaves case 1 with two pins, case 2 with one, and
+today's docket with one, then checks: both folders and the drawer row say IN PROGRESS; *Continue*
+resumes the docket; each case reopens with its own pins, badges and timer; *Start over* asks, and
+"No" keeps the board. A save in the old format (one board) and one with three boards, in a throwaway
+`XDG_CONFIG_HOME`, load with every board after a relaunch (`-alibiSaveCheck`). The real save is
+untouched. Autoplay and the input tests still pass.
+**Verify:** `-alibiBoardsTest` at 1920×1080, `-alibiSaveCheck` twice in a scratch config folder,
+autoplay, the browser's reload check (`webtest.mjs --only reload`).
+
+### R7-2. Rest when you look away
+
+While the game doesn't have focus (desktop) or its page is hidden or unfocused (browser), it draws at
+most 10 frames a second instead of up to 120; it goes back to full speed the moment focus returns.
+Sound, memos and the (already stopped) case timer are unaffected. Automated runs keep full speed.
+
+**Acceptance:** `-alibiFocusTest` also checks the frame rate drops to about 10 fps while away and
+recovers once back. The game process's CPU time, read from `/proc` over 10 s at the title and on a
+case-1 board, is measured attended and away, and drops by at least half. Load average noted with
+each measurement.
+**Verify:** `-alibiFocusTest`, a CPU-time script in `Logs/`, the `focus` run in `webtest.mjs`.
+
+### R7-3. The notebook without a mouse
+
+With the notebook open, the right stick or D-pad (pad), the Up/Down arrows and Page Up/Page Down
+(keyboard) scroll the memo log; a finger drag already does. The footer names the controls for
+whatever is steering (pad, keys, touch or mouse), and the title screen's footer stops saying "Mouse
+or gamepad" only.
+
+**Acceptance:** the pad and keyboard tests open the notebook in case 1 once its log is longer than
+the page, scroll to the oldest note and back with only the pad or keys, and check the scroll position
+moved both ways; the touch test drags the log. Screenshots of each footer.
+**Verify:** `-alibiPadTest`, `-alibiKeysTest`, `-alibiTouchTest`, at 1920×1080 and 1280×800.
+
+### R7-4. Seals on the case file
+
+The case intro lists the three seals, what each asks for (no badge lost, no hint, under the par
+time) and which ones the case files already hold, so a replay has a stated goal. Dockets show theirs
+too.
+
+**Acceptance:** the intro shows the line for every case and a docket, with par times matching the
+case data, at 1920×1080 and 1280×720 (Large text), without overlapping the suspects column in the
+four-suspect cases. Autoplay checks the line's text.
+**Verify:** autoplay at both sizes, screenshots.
+
+### R7-5. The browser build, checked again
+
+Rebuild the web build with this round's changes and run every `webtest.mjs` check in Chromium and
+Firefox, with the load average noted. The save format changed in R7-1, so the reload check matters.
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases,
+WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind players, focus on
+macOS or Windows), a real click on Copy result on the Linux desktop, and the owner's open calls from
+round 6 (pausing on focus loss, the link hold, advertising touch).
