@@ -48,7 +48,8 @@ namespace AlibiCo.Logic
             for (int attempt = 0; attempt < MaxAttempts; attempt++)
             {
                 var rng = new Rng(Seed(date, attempt));
-                var json = Build(rng, date, map, out bool clockDay);
+                // The words come from a generator of their own, so rewording never changes the puzzle.
+                var json = Build(rng, new Rng(Seed(date, attempt) ^ 0x5EEDF00DUL), date, map, out bool clockDay);
                 if (json == null) continue;
                 var c = CaseDef.FromJson(json);
                 var report = CaseValidator.Validate(c, map);
@@ -60,8 +61,11 @@ namespace AlibiCo.Logic
             return null;
         }
 
+        /// <summary>A day's crime title without generating the docket (the same as its case title).</summary>
+        public static string TitleFor(DateTime date) => CrimeFor(date).Title;
+
         /// <summary>The crimes come round on a fixed rota, so a crime never returns sooner than
-        /// thirteen days later; the people, places and times around it change every day.</summary>
+        /// fifteen days later; the people, places and times around it change every day.</summary>
         static Crime CrimeFor(DateTime date)
         {
             var order = new Rng(0xC0FFEEUL).Shuffle(Crimes);
@@ -130,84 +134,102 @@ namespace AlibiCo.Logic
         };
 
         /// <summary>What each place can say about a person: what they'd be doing there, the paper it
-        /// leaves, who'd vouch for them, and (for a few) a clock that could be wrong.</summary>
+        /// leaves, who'd vouch for them, and (for a few) a clock that could be wrong, with the scrap
+        /// of paper someone there would jot the time on.</summary>
         sealed class Place
         {
-            public string Id, At, Noun, Doing;
+            public string Id, At, Noun;
+            public string[] Doings;        // "from eight till ten I was …"
             public string RecordKind, RecordTitle, RecordSource;
             public string[] RecordLines;   // {name} is the person as written on paper
             public string Witness, WitnessRole, WitnessSaw;
             public string ClockName;       // null: this place's paper is timed by a reliable clock
+            public string NoteTitle, NoteWhere;   // the clock-day note: "Order pad note", "Written on the back of the order pad."
         }
 
         static readonly Place[] Places =
         {
-            new Place { Id = "boathouse", At = "at the Yacht Club boathouse", Noun = "the boathouse", Doing = "varnishing a dinghy in the Yacht Club boathouse",
+            new Place { Id = "boathouse", At = "at the Yacht Club boathouse", Noun = "the boathouse",
+                Doings = new[] { "varnishing a dinghy in the Yacht Club boathouse", "mending a jib in the Yacht Club boathouse" },
                 RecordKind = "ledger", RecordTitle = "Slipway log", RecordSource = "Yacht Club Boathouse · steward's log",
                 RecordLines = new[] { "Launch key signed out: {name}.", "Locker 9 opened, signed {name}." },
                 Witness = "Kit Nancarrow", WitnessRole = "Barman at the Yacht Club", WitnessSaw = "Sanding the same dinghy all evening. I lent the sandpaper." },
-            new Place { Id = "cafe", At = "at the Harbour Café", Noun = "the café", Doing = "over a pot of tea at the Harbour Café",
+            new Place { Id = "cafe", At = "at the Harbour Café", Noun = "the café",
+                Doings = new[] { "over a pot of tea at the Harbour Café", "doing the crossword in the window of the Harbour Café" },
                 RecordKind = "receipt", RecordTitle = "Till receipt", RecordSource = "Harbour Café",
                 RecordLines = new[] { "1 × pot of tea\n1 × slice of parkin\nON THE SLATE: {name}", "2 × toasted teacake\nON THE SLATE: {name}" },
                 Witness = "Morwenna Tregear", WitnessRole = "Behind the counter at the Harbour Café", WitnessSaw = "Window table. Three pots of tea and the crossword.",
-                ClockName = "Harbour Café till clock" },
-            new Place { Id = "pier", At = "on the pier", Noun = "the pier", Doing = "fishing off the end of the pier",
+                ClockName = "Harbour Café till clock", NoteTitle = "Order pad note", NoteWhere = "Written on the back of the order pad." },
+            new Place { Id = "pier", At = "on the pier", Noun = "the pier",
+                Doings = new[] { "fishing off the end of the pier", "watching the boats come in from the end of the pier" },
                 RecordKind = "ticket", RecordTitle = "Turnstile ticket", RecordSource = "The Pier · evening turnstile",
-                RecordLines = new[] { "Admit one, angler. Season card No. 31, {name}." },
+                RecordLines = new[] { "Admit one, angler. Season card No. 31, {name}.", "Admit one, evening rate. Paid by {name}, who asked for a receipt." },
                 Witness = "Wilf Couch", WitnessRole = "Night watchman on the pier", WitnessSaw = "Sat on the end bench with a rod and caught nothing. As usual.",
-                ClockName = "pier turnstile clock" },
-            new Place { Id = "lantern", At = "in the Lantern", Noun = "the Lantern", Doing = "having a quiet half by the fire in the Lantern",
+                ClockName = "pier turnstile clock", NoteTitle = "Turnstile tally card", NoteWhere = "Pencilled on the back of the turnstile tally card." },
+            new Place { Id = "lantern", At = "in the Lantern", Noun = "the Lantern",
+                Doings = new[] { "having a quiet half by the fire in the Lantern", "playing dominoes in the Lantern" },
                 RecordKind = "receipt", RecordTitle = "Bar tab", RecordSource = "The Lantern",
                 RecordLines = new[] { "{name}\n2 × bitter\nSettled at the bar.", "{name}\n1 × sweet sherry, 1 × crisps\nSettled at the bar." },
                 Witness = "Sid Barrow", WitnessRole = "Landlord of the Lantern", WitnessSaw = "Sat at the end of the bar and never shifted." },
-            new Place { Id = "bandstand", At = "at the bandstand", Noun = "the bandstand", Doing = "listening to the brass band rehearse at the bandstand",
+            new Place { Id = "bandstand", At = "at the bandstand", Noun = "the bandstand",
+                Doings = new[] { "listening to the brass band rehearse at the bandstand", "in a deckchair by the bandstand while the band rehearsed" },
                 RecordKind = "call", RecordTitle = "Exchange log", RecordSource = "Wrenhaven Telephone Exchange",
-                RecordLines = new[] { "Kiosk by the bandstand → Polgarth 214.\nCaller gave the name {name}." },
+                RecordLines = new[] { "Kiosk by the bandstand → Polgarth 214.\nCaller gave the name {name}.", "Kiosk by the bandstand → reverse charges to Truro.\nCaller gave the name {name}." },
                 Witness = "Percy Hambly", WitnessRole = "Bandmaster, Wrenhaven Silver Band", WitnessSaw = "Front row of the deckchairs, tapping along. Every number." },
-            new Place { Id = "hotel", At = "at the Grand", Noun = "the Grand", Doing = "at the bar of the Grand",
+            new Place { Id = "hotel", At = "at the Grand", Noun = "the Grand",
+                Doings = new[] { "at the bar of the Grand", "taking a sherry in the Grand's lounge" },
                 RecordKind = "ledger", RecordTitle = "Night porter's ledger", RecordSource = "The Grand Hotel",
                 RecordLines = new[] { "Cloakroom ticket 14 collected: {name}.", "Bar bill signed: {name}." },
                 Witness = "Arthur Vosper", WitnessRole = "Night porter at the Grand", WitnessSaw = "In the corner of the bar with the evening paper. Didn't stir.",
-                ClockName = "Grand's lobby clock" },
-            new Place { Id = "cliff", At = "on the cliff path", Noun = "the cliff path", Doing = "walking the cliff path",
+                ClockName = "Grand's lobby clock", NoteTitle = "Porter's message pad", NoteWhere = "Noted on the night porter's message pad." },
+            new Place { Id = "cliff", At = "on the cliff path", Noun = "the cliff path",
+                Doings = new[] { "walking the cliff path", "owl-spotting on the cliff path with a torch" },
                 RecordKind = "ledger", RecordTitle = "Coastguard log", RecordSource = "Coastguard hut, Wren Point road",
-                RecordLines = new[] { "Walker passed the hut heading for the Point. Gave the name {name}." },
+                RecordLines = new[] { "Walker passed the hut heading for the Point. Gave the name {name}.", "Walker stopped at the hut to ask the time. Gave the name {name}." },
                 Witness = "Len Tonkin", WitnessRole = "Coastguard on watch", WitnessSaw = "Up and down past my hut like a sentry. Waved every time." },
-            new Place { Id = "hardware", At = "at Fenwick's", Noun = "Fenwick's", Doing = "at Fenwick's late counter",
+            new Place { Id = "hardware", At = "at Fenwick's", Noun = "Fenwick's",
+                Doings = new[] { "at Fenwick's late counter", "choosing paint at Fenwick's late counter" },
                 RecordKind = "receipt", RecordTitle = "Till receipt", RecordSource = "Fenwick's Hardware · night counter",
                 RecordLines = new[] { "1 × box of tacks\n1 × tin of putty\nON ACCOUNT: {name}", "1 × paraffin, 1 pint\nON ACCOUNT: {name}" },
                 Witness = "Gerald Fenwick", WitnessRole = "Runs the night counter at Fenwick's", WitnessSaw = "Talked my ear off about drill bits the whole time.",
-                ClockName = "Fenwick's till clock" },
-            new Place { Id = "bakery", At = "at Penhallow's", Noun = "Penhallow's", Doing = "helping with tomorrow's bread at Penhallow's",
+                ClockName = "Fenwick's till clock", NoteTitle = "Counter daybook", NoteWhere = "Jotted in the counter daybook." },
+            new Place { Id = "bakery", At = "at Penhallow's", Noun = "Penhallow's",
+                Doings = new[] { "helping with tomorrow's bread at Penhallow's", "giving Maud a hand with the ovens at Penhallow's" },
                 RecordKind = "receipt", RecordTitle = "Bakery till receipt", RecordSource = "Penhallow's Bakery",
                 RecordLines = new[] { "6 × day-old rolls\nON ACCOUNT: {name}", "1 × Cornish pasty\nPAID: {name}" },
                 Witness = "Maud Penhallow", WitnessRole = "Penhallow's Bakery", WitnessSaw = "Floured to the elbows the whole time. I'd know.",
-                ClockName = "bakery wall clock" },
-            new Place { Id = "townhall", At = "at the Town Hall", Noun = "the Town Hall", Doing = "at the Parish Council meeting in the Town Hall",
+                ClockName = "bakery wall clock", NoteTitle = "Bake sheet", NoteWhere = "Scribbled in the margin of the bake sheet." },
+            new Place { Id = "townhall", At = "at the Town Hall", Noun = "the Town Hall",
+                Doings = new[] { "at the Parish Council meeting in the Town Hall", "in the public gallery of the Parish Council at the Town Hall" },
                 RecordKind = "ledger", RecordTitle = "Door book", RecordSource = "Town Hall · caretaker's door book",
                 RecordLines = new[] { "Signed in at the front desk: {name}.", "Key to the committee room returned: {name}." },
                 Witness = "Mr Hosking", WitnessRole = "Town Hall caretaker", WitnessSaw = "Second row, objecting to the car park. Twice." },
-            new Place { Id = "depot", At = "at the bus depot", Noun = "the depot", Doing = "waiting for the Polgarth bus at the depot",
+            new Place { Id = "depot", At = "at the bus depot", Noun = "the depot",
+                Doings = new[] { "waiting for the Polgarth bus at the depot", "waiting at the depot for a parcel off the last bus" },
                 RecordKind = "ticket", RecordTitle = "Bus ticket", RecordSource = "Route 4 · Wrenhaven depot",
-                RecordLines = new[] { "Season ticket in the name of {name}, clipped by the conductor." },
+                RecordLines = new[] { "Season ticket in the name of {name}, clipped by the conductor.", "Single to Polgarth, bought at the window by {name}." },
                 Witness = "Reg Bolitho", WitnessRole = "Inspector at the bus depot", WitnessSaw = "On the bench under the timetable, grumbling about the Polgarth bus.",
-                ClockName = "depot clock" },
-            new Place { Id = "cinema", At = "at the Odeon", Noun = "the Odeon", Doing = "watching the picture at the Odeon",
+                ClockName = "depot clock", NoteTitle = "Inspector's notebook", NoteWhere = "Written up in the inspector's notebook." },
+            new Place { Id = "cinema", At = "at the Odeon", Noun = "the Odeon",
+                Doings = new[] { "watching the picture at the Odeon", "at the Odeon for the double bill" },
                 RecordKind = "ticket", RecordTitle = "Ticket stub", RecordSource = "The Odeon · Screen 1",
-                RecordLines = new[] { "Admit one, stalls. Booked in the name of {name}." },
+                RecordLines = new[] { "Admit one, stalls. Booked in the name of {name}.", "Admit one, circle. Collected at the box office by {name}." },
                 Witness = "Joan Pascoe", WitnessRole = "Usherette at the Odeon", WitnessSaw = "Row F, on the aisle. I showed them in myself.",
-                ClockName = "Odeon box-office clock" },
-            new Place { Id = "church", At = "at St Brigid's", Noun = "St Brigid's", Doing = "at bell practice at St Brigid's",
+                ClockName = "Odeon box-office clock", NoteTitle = "Box-office float slip", NoteWhere = "On the back of the box-office float slip." },
+            new Place { Id = "church", At = "at St Brigid's", Noun = "St Brigid's",
+                Doings = new[] { "at bell practice at St Brigid's", "polishing the brasses at St Brigid's" },
                 RecordKind = "ledger", RecordTitle = "Vestry book", RecordSource = "St Brigid's Church",
                 RecordLines = new[] { "Tower key signed for: {name}.", "Hymn books returned: {name}." },
                 Witness = "Edna Rowe", WitnessRole = "Verger at St Brigid's", WitnessSaw = "On the tenor bell all practice, and not one rope dropped." },
-            new Place { Id = "station", At = "at the station", Noun = "the station", Doing = "meeting the last train at the station",
+            new Place { Id = "station", At = "at the station", Noun = "the station",
+                Doings = new[] { "meeting the last train at the station", "waiting at the station for the down train" },
                 RecordKind = "ticket", RecordTitle = "Platform ticket", RecordSource = "Wrenhaven Station · booking office",
-                RecordLines = new[] { "Platform ticket, 5p. Bought by {name}." },
+                RecordLines = new[] { "Platform ticket, 5p. Bought by {name}.", "Left-luggage ticket No. 112, handed in by {name}." },
                 Witness = "Stan Curnow", WitnessRole = "Booking clerk at Wrenhaven Station", WitnessSaw = "On the platform the whole time. The train was late, as ever." },
-            new Place { Id = "glasshouse", At = "at the Park Glasshouse", Noun = "the glasshouse", Doing = "among the palms at the Park Glasshouse",
+            new Place { Id = "glasshouse", At = "at the Park Glasshouse", Noun = "the glasshouse",
+                Doings = new[] { "among the palms at the Park Glasshouse", "helping with the watering at the Park Glasshouse" },
                 RecordKind = "ledger", RecordTitle = "Gate book", RecordSource = "Park Glasshouse · night gate",
-                RecordLines = new[] { "Late entry signed: {name}." },
+                RecordLines = new[] { "Late entry signed: {name}.", "Watering can borrowed, signed {name}." },
                 Witness = "Old Penrose", WitnessRole = "Winds the glasshouse clock", WitnessSaw = "Pottering about the palms the whole time. Asked about the bananas." },
         };
 
@@ -271,13 +293,29 @@ namespace AlibiCo.Logic
                 Text = "The silver band's music for the Armistice parade went from the bandstand locker between {from} and {to}. It took {d} minutes.",
                 Found = "Percy Hambly locked the band parts away at {from}. At {to} the locker was open and empty.",
                 Act = "the band parts go under an arm", Ending = "{F} wanted the band to play something else for once. They played the march, from memory." },
+            new Crime { Place = "depot", Title = "The Fares Bag", Short = "Fares taken", Tagline = "The Polgarth bus, running at a loss.",
+                Text = "The conductor's fares bag went from its hook in the depot office between {from} and {to}. Getting it off the hook and away took {d} minutes.",
+                Found = "Reg Bolitho hung the fares bag in the depot office at {from}. At {to} the hook was bare.",
+                Act = "the fares bag goes under a coat", Ending = "{F} said the bus company owed them a season ticket's worth of late buses. Reg didn't see it that way. The bag came back, a little lighter." },
+            new Crime { Place = "cliff", Title = "The Coastguard's Glasses", Short = "Glasses taken", Tagline = "Somebody wanted a better view.",
+                Text = "The coastguard's binoculars went from the lookout hut on the cliff path between {from} and {to}. It took {d} minutes.",
+                Found = "Len Tonkin left his binoculars on the hut's sill at {from} and went to put the kettle on. At {to} the sill was empty.",
+                Act = "the binoculars go into a pocket", Ending = "{F} wanted a closer look at somebody's yacht, and won't say whose. Len has his glasses back, and a padlock on the hut." },
         };
 
-        static readonly string[] Flourishes = { "Never left.", "Ask anyone.", "Didn't stir all evening.", "You can check.", "Where else would I be?" };
+        static readonly string[] Flourishes =
+        {
+            "Never left.", "Ask anyone.", "Didn't stir all evening.", "You can check.", "Where else would I be?",
+            "Plenty of people saw me.", "Same as most evenings.", "Not that it's anyone's business.", "I was there the whole time.",
+            "I don't know what more you want.", "Ask around.", "Half the town will tell you.", "I'm hardly going to forget.",
+            "Didn't move an inch.", "Not a foot outside.", "Look it up if you like.", "I've nothing to hide.",
+        };
         static readonly string[] Excuses =
         {
             "I didn't want it getting about.", "It's nobody's business where I spend my evenings.",
             "I'd promised I'd stop going.", "I owe money and I'd rather it stayed quiet.", "I didn't want a fuss, that's all.",
+            "I'd told someone I'd be elsewhere, and I didn't want to be caught out.", "It's embarrassing, that's all.",
+            "There's someone I'd rather didn't know.", "I thought it would look bad.",
         };
         static readonly string[] Notes =
         {
@@ -285,14 +323,46 @@ namespace AlibiCo.Logic
             "Connie's note on the docket: “Another one for the drawer, partner.”",
             "Connie's note on the docket: “Short and sweet. Same time tomorrow?”",
             "Connie's note on the docket: “The paper had it all along. It usually does.”",
+            "Connie's note on the docket: “Nobody walks anywhere in this town without somebody writing it down.”",
+            "Connie's note on the docket: “A lie about where you were isn't the same as a crime. Remember that one.”",
+            "Connie's note on the docket: “Tidy work. Put the kettle on.”",
+            "Connie's note on the docket: “Wrenhaven keeps us honest, partner, even when it isn't.”",
         };
+
+        /// <summary>A clock day's moment seen on two clocks: a log on a reliable clock and a note at the
+        /// suspect clock's place. {clock} is the wrong clock, {t} the time it showed.</summary>
+        sealed class Moment
+        {
+            public string Title, Source, Text, Location, Noticed;
+        }
+
+        static readonly Moment[] Moments =
+        {
+            new Moment { Title = "Electricity Board log", Source = "South Western Electricity Board · Wrenhaven substation", Location = "townhall",
+                Text = "Supply to the harbour district dipped for twenty seconds. Logged at the substation.", Noticed = "Lights flickered" },
+            new Moment { Title = "Lifeboat station log", Source = "RNLI · Wrenhaven lifeboat station", Location = "pier",
+                Text = "Two maroons fired to call out the lifeboat. Logged at the station.", Noticed = "The lifeboat maroons went up" },
+            new Moment { Title = "Exchange fault log", Source = "Wrenhaven Telephone Exchange", Location = "townhall",
+                Text = "Every line on the harbour board went dead for a minute. Logged by the night supervisor.", Noticed = "The telephone went dead" },
+            new Moment { Title = "Harbour master's log", Source = "Wrenhaven Harbour Office", Location = "pier",
+                Text = "The Polgarth ferry sounded her horn clearing the harbour mouth. Logged by the harbour master.", Noticed = "Heard the ferry's horn" },
+        };
+
         static readonly string[] Weather = { "Drizzle · 9°C", "Clear and cold · 4°C", "Sea fret · 7°C", "Blustery · 10°C", "Still and mild · 12°C", "Hard frost · −2°C" };
 
         // ------------------------------------------------------------------ generation
 
         /// <summary>One variation of a day's docket as case JSON, or null if this draw doesn't fit.</summary>
-        static string Build(Rng rng, DateTime date, TownMap map, out bool clockDay)
+        static string Build(Rng rng, Rng words, DateTime date, TownMap map, out bool clockDay)
         {
+            string One(params string[] options) => words.Pick(options);
+            // "I was at bell practice at St Brigid's from half seven till nine. Ask anyone."
+            string Opening(string doing, int from, int to) =>
+                (words.Chance(40) ? One("Where was I?", "That evening?", "Easy.", "I'll tell you where I was.", "You want to know where I was?",
+                                        "Same as I told the constable.", "Last night?", "Let me think.") + " " : "") +
+                One($"I was {doing} from {Say(from)} till {Say(to)}.",
+                    $"From {Say(from)} till {Say(to)} I was {doing}.",
+                    $"{Cap(doing)}, {Say(from)} till {Say(to)}.") + " " + words.Pick(Flourishes);
             clockDay = rng.Chance(45);
             int W(string a, string b) => map.Minutes(a, b);
 
@@ -329,14 +399,41 @@ namespace AlibiCo.Logic
             if (r > cTo - 3) return null;
             truth[culprit.Id] = Stops((A.Id, cFrom, leave), (scene, ts, te), (P2.Id, r - 1, r + 12));
             var cRec = Record("c_rec", P2, culprit, r, rng);
-            cards.Add(Statement("c_claim", culprit, culprit.Name, culprit.First + ", in their own words",
-                $"“I was {A.Doing} from {Say(cFrom)} till {Say(cTo)}. {rng.Pick(Flourishes)}”", A.Id, cFrom, cTo, true,
-                lie: $"“Fine. I left {A.Noun} at {Say(leave)}. I went for a walk. Needed some air. That's not a crime.”", unlocks: "c_true"));
+            string aDo = words.Pick(A.Doings), lv = Say(leave), cr = Lower((string)cRec["title"]), cf = culprit.First;
+            cards.Add(Statement("c_claim", culprit, culprit.Name, cf + ", in their own words",
+                $"“{Opening(aDo, cFrom, cTo)}”", A.Id, cFrom, cTo, true,
+                lie: "“" + One(
+                    $"Fine. I left {A.Noun} at {lv}. I went for a walk. Needed some air. That's not a crime.",
+                    $"All right, I came away from {A.Noun} at {lv}. Just to stretch my legs. Is that against the law now?",
+                    $"I may have left {A.Noun} around {lv}. A breath of air, that's all.",
+                    $"{Cap(lv)}. That's when I left {A.Noun}, if you must know. I went for a stroll on my own.",
+                    $"Oh, very clever. I left {A.Noun} at {lv} and took the long way round. I wanted some quiet.",
+                    $"I never said I didn't go out. I left {A.Noun} at {lv} for a smoke and a wander, and that's all.") + "”",
+                unlocks: "c_true"));
             cards.Add(cRec);
-            cards.Add(Statement("c_true", culprit, culprit.Name + " (again)", culprit.First + ", second statement",
-                $"“I was {A.Doing} from {Say(cFrom)} till {Say(leave)}. Then I walked about a bit. That's the truth.”", A.Id, cFrom, leave, false,
-                firm: $"“That's the truth this time. {Cap(Say(leave))}, give or take.”"));
-            triggers.Add(Conflict("c_claim", "c_rec", $"{culprit.First} swears to {A.Noun} until {F(cTo)}, but the {Lower((string)cRec["title"])} puts {culprit.First} {P2.At} at {F(r)}. Which is it?"));
+            cards.Add(Statement("c_true", culprit, culprit.Name + " (again)", cf + ", second statement",
+                "“" + One(
+                    $"I was {aDo} from {Say(cFrom)} till {lv}. Then I walked about a bit. That's the truth.",
+                    $"{Cap(aDo)} from {Say(cFrom)} till {lv}. After that I was out walking, on my own.",
+                    $"From {Say(cFrom)} till {lv} I was {aDo}. Then a walk. Nobody saw me, I expect.",
+                    $"{Cap(Say(cFrom))} till {lv}, {aDo}. Then I went out for some air. That's all of it.",
+                    $"I was {aDo} from {Say(cFrom)}, but only till {lv}. I left then and walked. Alone, more's the pity.",
+                    $"All right: {aDo} from {Say(cFrom)}, but only till {lv}. Then out for a walk.") + "”",
+                A.Id, cFrom, leave, false,
+                firm: "“" + One(
+                    $"That's the truth this time. {Cap(lv)}, give or take.",
+                    $"I've told you everything now. I left at {lv}.",
+                    $"Ask whoever you like. I walked out at {lv}, and that's all there is to it.",
+                    $"I'm not changing it again. {Cap(lv)}, I left.",
+                    $"Believe what you like. {Cap(lv)} I was out the door, and I didn't go near the place.",
+                    $"That's the whole of it now. Out at {lv}, home after.") + "”"));
+            triggers.Add(Conflict("c_claim", "c_rec", One(
+                $"{cf} swears to {A.Noun} until {F(cTo)}, but the {cr} puts {cf} {P2.At} at {F(r)}. Which is it?",
+                $"The {cr} has {cf} {P2.At} at {F(r)}. So how was {cf} {A.At} until {F(cTo)}?",
+                $"{cf} says {A.Noun} till {F(cTo)}, but the {cr} {P2.At} has {cf}'s name on it at {F(r)}. Both can't be right.",
+                $"{F(r)}, {P2.At}: that's {cf} on the {cr}. And {cf}'s story says {A.Noun} until {F(cTo)}.",
+                $"How does {cf} manage {A.Noun} until {F(cTo)} and the {cr} {P2.At} at {F(r)}?",
+                $"The {cr} and {cf}'s story don't agree. {P2.At.Substring(0, 1).ToUpperInvariant() + P2.At.Substring(1)} at {F(r)}, or {A.Noun} till {F(cTo)}?")));
 
             // ---- the liar: claims B, was really at Q (a record shows it), and a witness there covers the whole window.
             // Every story gets its own places, so two people's paper never turns up at the same spot.
@@ -347,21 +444,41 @@ namespace AlibiCo.Logic
             int q = Math.Max(lFrom, wa) + 3 + rng.Next(Math.Max(1, Math.Min(lTo, wb) - Math.Max(lFrom, wa) - 6));
             truth[liar.Id] = Stops((Q.Id, wa - 5, wb + 5));
             var lRec = Record("l_rec", Q, liar, q, rng);
-            cards.Add(Statement("l_claim", liar, liar.Name, liar.First + ", in their own words",
-                $"“I was {B.Doing} from {Say(lFrom)} till {Say(lTo)}. {rng.Pick(Flourishes)}”", B.Id, lFrom, lTo, true,
-                lie: $"“…All right. I wasn't {B.At}. I was {Q.At}. {rng.Pick(Excuses)} Ask {Q.Witness}.”", unlocks: "l_wit"));
+            string ex = words.Pick(Excuses), lr = Lower((string)lRec["title"]), lf = liar.First;
+            cards.Add(Statement("l_claim", liar, liar.Name, lf + ", in their own words",
+                $"“{Opening(words.Pick(B.Doings), lFrom, lTo)}”", B.Id, lFrom, lTo, true,
+                lie: "“" + One(
+                    $"…All right. I wasn't {B.At}. I was {Q.At}. {ex} Ask {Q.Witness}.",
+                    $"I wasn't {B.At}, no. I was {Q.At}. {ex} {Q.Witness} will tell you.",
+                    $"Oh, for heaven's sake. {Cap(Q.At)}, then, not {B.Noun}. {ex} Ask {Q.Witness} if you don't believe me.",
+                    $"You've got me. I was never {B.At}. I was {Q.At} all evening. {ex} {Q.Witness} saw me there.",
+                    $"All right, all right. Not {B.Noun}. {Cap(Q.At)}. {ex} {Q.Witness} can vouch for me.",
+                    $"I suppose you'd find out. I was {Q.At}, not {B.At}. {ex} Go and ask {Q.Witness}.") + "”",
+                unlocks: "l_wit"));
             cards.Add(lRec);
-            cards.Add(Witness("l_wit", liar, Q, wa, wb));
-            triggers.Add(Conflict("l_claim", "l_rec", $"{liar.First} says {B.Noun} all evening, so why has the {Lower((string)lRec["title"])} got {liar.First} {Q.At} at {F(q)}?"));
+            cards.Add(Witness("l_wit", liar, Q, wa, wb, words));
+            triggers.Add(Conflict("l_claim", "l_rec", One(
+                $"{lf} says {B.Noun} all evening, so why has the {lr} got {lf} {Q.At} at {F(q)}?",
+                $"The {lr} has {lf} {Q.At} at {F(q)}, in the middle of an evening {lf} says was spent {B.At}.",
+                $"If {lf} was {B.At} all evening, whose name is on the {lr} {Q.At} at {F(q)}?",
+                $"{lf}'s story puts {lf} {B.At}. The {lr} puts {lf} {Q.At} at {F(q)}. One of them is wrong.",
+                $"The {lr}, {F(q)}: {lf}, {Q.At}. Not {B.At}, then?")));
 
             // ---- the honest one, with paper to match; on a clock day that paper is on a wrong clock.
             var used = new HashSet<string> { A.Id, P2.Id, Q.Id, B.Id };
             var C = rng.Pick(others.Where(p => !used.Contains(p.Id)).ToList());
             used.Add(C.Id);
             int hFrom = Floor5(w0 - 15 - 5 * rng.Next(3)), hTo = Ceil5(w1 + 10 + 5 * rng.Next(3));
-            cards.Add(Statement("h_claim", honest, honest.Name, honest.First + ", in their own words",
-                $"“I was {C.Doing} from {Say(hFrom)} till {Say(hTo)}. {rng.Pick(Flourishes)}”", C.Id, hFrom, hTo, true,
-                firm: $"“I've told you. {Cap(C.Noun)}, {Say(hFrom)} till {Say(hTo)}. I don't know what else to say.”"));
+            string hf = honest.First;
+            cards.Add(Statement("h_claim", honest, honest.Name, hf + ", in their own words",
+                $"“{Opening(words.Pick(C.Doings), hFrom, hTo)}”", C.Id, hFrom, hTo, true,
+                firm: "“" + One(
+                    $"I've told you. {Cap(C.Noun)}, {Say(hFrom)} till {Say(hTo)}. I don't know what else to say.",
+                    $"I was {C.At} from {Say(hFrom)} till {Say(hTo)}, and I'll say it as often as you like.",
+                    $"Same answer as before. {Cap(C.Noun)}, {Say(hFrom)} till {Say(hTo)}. Check again.",
+                    $"I don't know what your paper says, but I was {C.At}, {Say(hFrom)} till {Say(hTo)}.",
+                    $"No. {Cap(Say(hFrom))} till {Say(hTo)}, {C.At}. You can ask me all night.",
+                    $"I'm not budging, because it's true. {Cap(C.Noun)}, {Say(hFrom)} till {Say(hTo)}.") + "”"));
             int par = 300;
             if (!clockDay)
             {
@@ -397,26 +514,37 @@ namespace AlibiCo.Logic
                 var hRec = Record("h_rec", K, honest, trueAt + offset, rng);
                 hRec["clock"] = "k";
                 cards.Add(hRec);
+                // One moment seen on two clocks: a log on a reliable clock, and a note jotted at K.
+                var moment = words.Pick(Moments);
                 cards.Add(new Dictionary<string, object>
                 {
-                    ["id"] = "t_board", ["kind"] = "ledger", ["start"] = true, ["town"] = true, ["title"] = "Electricity Board log",
-                    ["source"] = "record", ["sourceName"] = "South Western Electricity Board · Wrenhaven substation",
-                    ["text"] = "Supply to the harbour district dipped for twenty seconds. Logged at the substation.",
-                    ["location"] = "townhall", ["at"] = F(dip), ["event"] = "dip",
+                    ["id"] = "t_board", ["kind"] = "ledger", ["start"] = true, ["town"] = true, ["title"] = moment.Title,
+                    ["source"] = "record", ["sourceName"] = moment.Source, ["text"] = moment.Text,
+                    ["location"] = moment.Location, ["at"] = F(dip), ["event"] = "dip",
                 });
                 cards.Add(new Dictionary<string, object>
                 {
-                    ["id"] = "t_clock", ["kind"] = "note", ["start"] = true, ["town"] = true, ["title"] = "Order pad note",
+                    ["id"] = "t_clock", ["kind"] = "note", ["start"] = true, ["town"] = true, ["title"] = K.NoteTitle,
                     ["source"] = "record", ["sourceName"] = Cap(K.Noun),
-                    ["text"] = $"“Lights flickered, the {K.ClockName} said {F(dip + offset)}.” Written on the back of the order pad.",
+                    ["text"] = $"“{moment.Noticed}, the {K.ClockName} said {F(dip + offset)}.” {K.NoteWhere}",
                     ["location"] = K.Id, ["at"] = F(dip + offset), ["clock"] = "k", ["event"] = "dip",
                 });
-                string side = before ? $"says {C.Noun} from {F(hFrom)}" : $"says {C.Noun} until {F(hTo)}";
-                triggers.Add(Conflict("h_claim", "h_rec", $"The {Lower((string)hRec["title"])} from {K.Noun} has {honest.First} there at {F(trueAt + offset)}, but {honest.First} {side}. Is {honest.First} lying, or is that clock?"));
+                string hr = Lower((string)hRec["title"]), shown = F(trueAt + offset);
+                string side = before ? $"says they were {C.At} from {F(hFrom)}" : $"says they were {C.At} until {F(hTo)}";
+                triggers.Add(Conflict("h_claim", "h_rec", One(
+                    $"The {hr} from {K.Noun} has {hf} there at {shown}, but {hf} {side}. Is {hf} lying, or is that clock?",
+                    $"{hf} {side}, yet the {hr} from {K.Noun} says {shown}. Who's wrong: {hf}, or the {K.ClockName}?",
+                    $"{shown} on the {hr} from {K.Noun}, and {hf} {side}. A liar, or a clock that's off?")));
+                string fast = offset > 0 ? "fast" : "slow";
+                int by = Math.Abs(offset);
                 triggers.Add(new Dictionary<string, object>
                 {
                     ["on"] = "calibrate", ["a"] = "k",
-                    ["memo"] = $"The {K.ClockName} runs {Math.Abs(offset)} min {(offset > 0 ? "fast" : "slow")}. Once it's put right, {honest.First}'s story holds.",
+                    ["memo"] = One(
+                        $"The {K.ClockName} runs {by} min {fast}. Once it's put right, {hf}'s story holds.",
+                        $"So the {K.ClockName} is {by} minutes {fast}. Put right, it clears {hf}.",
+                        $"{Cap(K.ClockName)}: {by} min {fast}. {hf} was telling the truth all along.",
+                        $"There it is: the {K.ClockName}, {by} minutes {fast}. {hf}'s story stands."),
                 });
                 par = 420;
             }
@@ -424,16 +552,37 @@ namespace AlibiCo.Logic
             // ---- the case file around it.
             var d86 = new DateTime(1986, date.Month, date.Month == 2 && date.Day == 29 ? 28 : date.Day);
             string Fill(string t) => t.Replace("{from}", F(w0)).Replace("{to}", F(w1)).Replace("{d}", d.ToString(CultureInfo.InvariantCulture)).Replace("{F}", culprit.First);
-            var people = rng.Shuffle(cast).Select(p => (object)new Dictionary<string, object> { ["id"] = p.Id, ["name"] = p.Name, ["role"] = "suspect", ["blurb"] = p.Blurb }).ToList();
+            // The suspects in a shuffled order everywhere they're listed, so the culprit isn't always named first.
+            var order = rng.Shuffle(cast);
+            var people = order.Select(p => (object)new Dictionary<string, object> { ["id"] = p.Id, ["name"] = p.Name, ["role"] = "suspect", ["blurb"] = p.Blurb }).ToList();
+            string x = order[0].First, y = order[1].First, z = order[2].First;
             var memos = new List<object>
             {
                 Memo("start", clockDay
-                    ? "Today's docket, partner. Three stories, one false where it matters, and a clock somewhere that isn't. Not everything red is a lie."
-                    : "Today's docket, partner. A small one: three stories, and one of them is false where it matters."),
+                    ? One("Today's docket, partner. Three stories, one false where it matters, and a clock somewhere that isn't. Not everything red is a lie.",
+                          "Today's, partner. Mind the clocks on this one: not everything red is a lie.",
+                          "Three stories today, and a clock in town that's telling its own. Check the clocks before the people.",
+                          "Morning, partner. Somebody's clock has wandered off today. Don't hang an honest story on it.",
+                          "Today's has a wrong clock in it. Paper never lies, partner, but clocks do.")
+                    : One("Today's docket, partner. A small one: three stories, and one of them is false where it matters.",
+                          "Here's today's, partner. Three stories. One's a lie that matters, and one's a lie that doesn't.",
+                          "Today's docket. Three people, three stories, and only one of them had the time.",
+                          "A small one for today, partner. Pin the paper and see whose story gives.",
+                          "Morning, partner. One crime, three alibis, and only one of them has a hole in it.")),
                 Memo("firstConflict", clockDay
-                    ? "Red means something's wrong, not someone. Check whose clock timed it before you confront anybody."
-                    : "Red: two things can't both be true, and paper doesn't lie. Click the statement and confront them."),
-                Memo("firstStrike", "A lie isn't a confession. Who still had the time to do it?"),
+                    ? One("Red means something's wrong, not someone. Check whose clock timed it before you confront anybody.",
+                          "Before you confront anyone, look at what timed that card. A wrong clock makes honest people look like liars.",
+                          "Red, but whose fault? Check the clock on every card in it first.",
+                          "Careful. Somebody's clock is wrong today, and it can make an honest story go red.")
+                    : One("Red: two things can't both be true, and paper doesn't lie. Click the statement and confront them.",
+                          "There's your red. Paper doesn't lie, so the statement must. Click it and confront them.",
+                          "Two things that can't both be true. Records don't lie; people do. Confront the statement.",
+                          "That's a story the paper won't stand for. Click it and put it to them.")),
+                Memo("firstStrike", One("A lie isn't a confession. Who still had the time to do it?",
+                                        "One lie down. Lying isn't the crime, though. Who had the time?",
+                                        "That's a lie struck off. Now, whose story has a hole big enough?",
+                                        "Struck. But people lie for all sorts of reasons. Look at the locks.",
+                                        "Good. Mind, a liar's not a thief till the times say so.")),
             };
             var root = new Dictionary<string, object>
             {
@@ -442,14 +591,21 @@ namespace AlibiCo.Logic
                 ["tagline"] = crime.Tagline,
                 ["date"] = d86.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture),
                 ["weather"] = rng.Pick(Weather),
-                ["lesson"] = clockDay ? "Today's docket: mind the clocks." : "Today's docket: three stories.",
+                ["lesson"] = clockDay ? One("Today's docket: mind the clocks.", "Today's docket: a clock that's wrong.", "Today's docket: not everything red is a lie.", "Today's docket: check the clocks first.")
+                                      : One("Today's docket: three stories.", "Today's docket: one lie that matters.", "Today's docket: follow the paper.", "Today's docket: who had the time?", "Today's docket: a small one."),
                 ["spanFrom"] = F(S),
                 ["spanTo"] = F(spanTo),
                 ["par"] = $"{par / 60}:{par % 60:00}",
                 ["intro"] = new List<object>
                 {
-                    Fill(crime.Found) + $" Whoever did it needed {d} minutes there.",
-                    $"Three regulars were out and about that evening: {cast[0].First}, {cast[1].First} and {cast[2].First}. Each of them has a story.",
+                    Fill(crime.Found) + " " + One($"Whoever did it needed {d} minutes there.", $"It was a {d}-minute job.", $"Whoever it was needed {d} minutes at it.",
+                                                  $"That's {d} minutes' work, by Connie's reckoning.", $"Nobody does that in under {d} minutes."),
+                    One($"Three regulars were out and about that evening: {x}, {y} and {z}. Each of them has a story.",
+                        $"{x}, {y} and {z} were all out that evening, and each has a story about where.",
+                        $"Three of the usual faces were about that night: {x}, {y} and {z}. All three say they were nowhere near.",
+                        $"The regulars were out in force: {x}, {y} and {z}, and each has a story ready.",
+                        $"{x}, {y} and {z} all had reason to be about. Each says they were somewhere else.",
+                        $"Out that evening: {x}, {y} and {z}. Ask any of them and you'll get a story."),
                 },
                 ["people"] = people,
                 ["clocks"] = clocks.Cast<object>().ToList(),
@@ -466,9 +622,10 @@ namespace AlibiCo.Logic
                 {
                     $"{F(leave)}. {culprit.First} leaves {A.Noun}.",
                     $"{F(ts)}. {culprit.First} reaches the scene. {Cap(crime.Act)}.",
-                    $"{F(r)}. {culprit.First} turns up {P2.At}, and the {Lower((string)cRec["title"])} says so. Not quite an alibi.",
+                    $"{F(r)}. {culprit.First} turns up {P2.At}, and the {cr} says so. " + One("Not quite an alibi.", "Too late to be an alibi.", "Close enough to look innocent, and not close enough to be.",
+                                                                                             "An alibi with a hole in it.", "Late, and on the wrong side of town.", "The paper was right."),
                 },
-                ["epilogue"] = new List<object> { Fill(crime.Ending), rng.Pick(Notes) },
+                ["epilogue"] = new List<object> { Fill(crime.Ending), words.Pick(Notes) },
             };
             return Json(root);
         }
@@ -490,12 +647,19 @@ namespace AlibiCo.Logic
             return c;
         }
 
-        static Dictionary<string, object> Witness(string id, Regular about, Place at, int from, int to) => new Dictionary<string, object>
+        static Dictionary<string, object> Witness(string id, Regular about, Place at, int from, int to, Rng words) => new Dictionary<string, object>
         {
             ["id"] = id, ["kind"] = "statement", ["title"] = at.Witness, ["source"] = "witness", ["sourceName"] = at.WitnessRole,
-            ["text"] = $"“{about.First} was here from {Say(from)} till {Say(to)}. {at.WitnessSaw}”",
+            ["text"] = "“" + words.Pick(new[]
+            {
+                $"{about.First} was here from {Say(from)} till {Say(to)}.",
+                $"{about.First}? Here from {Say(from)} till {Say(to)}.",
+                $"From {Say(from)} till {Say(to)}, {about.First} was here.",
+                $"{about.First} turned up at {Say(from)} and was still here at {Say(to)}.",
+                $"I had {about.First} in front of me from {Say(from)} till {Say(to)}.",
+            }) + " " + at.WitnessSaw + "”",
             ["subjects"] = new List<object> { about.Id }, ["location"] = at.Id, ["from"] = F(from), ["to"] = F(to),
-            ["firm"] = $"“I'd swear to it. {Cap(Say(from))} till {Say(to)}.”",
+            ["firm"] = "“" + words.Pick(new[] { "I'd swear to it.", "I know what I saw.", "I'll say it in court if I have to.", "Write it down if you like.", "I'm sure of it.", "I've no reason to lie." }) + $" {Cap(Say(from))} till {Say(to)}.”",
         };
 
         static Dictionary<string, object> Record(string id, Place at, Regular who, int time, Rng rng) => new Dictionary<string, object>

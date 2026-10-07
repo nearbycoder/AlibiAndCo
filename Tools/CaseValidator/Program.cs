@@ -6,6 +6,7 @@ using AlibiCo.Logic;
 // Usage: dotnet run --project Tools/CaseValidator [-- [--verbose] [caseId...]]
 //        ... -- --docket N [yyyy-MM-dd]     generate and prove N consecutive Daily Dockets
 //        ... -- --docket-show yyyy-MM-dd    print one docket's text and walk through its solution
+//        ... -- --docket-phrases N [yyyy-MM-dd]  sentences that recur on more than a quarter of N days
 // Exit code 0 when every case is airtight.
 static class Program
 {
@@ -19,6 +20,9 @@ static class Program
         int di = Array.IndexOf(args, "--docket");
         if (di >= 0) return DocketSweep(map, di + 1 < args.Length ? int.Parse(args[di + 1]) : 365,
                                         di + 2 < args.Length && !args[di + 2].StartsWith("--") ? DateTime.Parse(args[di + 2]) : DateTime.Today);
+        int dp = Array.IndexOf(args, "--docket-phrases");
+        if (dp >= 0) return DocketPhrases(map, dp + 1 < args.Length ? int.Parse(args[dp + 1]) : 28,
+                                          dp + 2 < args.Length && !args[dp + 2].StartsWith("--") ? DateTime.Parse(args[dp + 2]) : DateTime.Today);
         int ds = Array.IndexOf(args, "--docket-show");
         if (ds >= 0) return DocketShow(map, ds + 1 < args.Length ? DateTime.Parse(args[ds + 1]) : DateTime.Today);
         var only = args.Where(a => !a.StartsWith("--")).ToList();
@@ -71,6 +75,44 @@ static class Program
         Console.WriteLine($"  crimes: {string.Join(", ", titles.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} ×{kv.Value}"))}");
         Console.WriteLine($"  {sw.Elapsed.TotalSeconds:0.0}s in all, slowest day {slowest:0} ms");
         return failed == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// How samey the dockets read: every sentence a player can see (intro, cards, replies,
+    /// questions, memos, reconstruction, epilogue), counted by the number of days it turns up on.
+    /// Sentences with names, places and times in them vary by themselves; the ones that recur are
+    /// the template showing through.
+    /// </summary>
+    static int DocketPhrases(TownMap map, int days, DateTime from)
+    {
+        var seen = new System.Collections.Generic.Dictionary<string, int>();
+        int total = 0;
+        for (int i = 0; i < days; i++)
+        {
+            var d = Docket.Generate(from.AddDays(i), map);
+            if (d == null) continue;
+            var c = d.Case;
+            var texts = new System.Collections.Generic.List<string> { c.Lesson, c.Incident.Text };
+            texts.AddRange(c.Intro);
+            foreach (var x in c.Cards) texts.AddRange(new[] { x.Text, x.Reply, x.Firm });   // titles are labels, not prose
+            foreach (var t in c.Triggers) texts.AddRange(new[] { t.Question, t.Memo });
+            foreach (var m in c.Memos) texts.Add(m.Text);
+            texts.AddRange(c.ReconstructionLines);
+            texts.AddRange(c.Epilogue);
+            var today = new System.Collections.Generic.HashSet<string>();
+            foreach (var t in texts.Where(t => !string.IsNullOrWhiteSpace(t)))
+                foreach (var raw in System.Text.RegularExpressions.Regex.Split(t.Replace("“", "").Replace("”", ""), @"(?<!\b[A-Z]\.)(?<!\bCapt\.)(?<!\bCAPT\.)(?<!\bNo\.)(?<=[.!?])\s+|\n"))
+                {
+                    var sentence = raw.Trim();
+                    if (sentence.Length > 0) today.Add(sentence);
+                }
+            total += today.Count;
+            foreach (var sentence in today) { seen.TryGetValue(sentence, out int n); seen[sentence] = n + 1; }
+        }
+        var common = seen.Where(kv => kv.Value * 4 > days).OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).ToList();
+        Console.WriteLine($"== Docket phrases over {days} days from {from:yyyy-MM-dd}: {seen.Count} distinct sentences ({total / Math.Max(1, days)} a day); {common.Count} turn up on more than a quarter of the days");
+        foreach (var kv in common) Console.WriteLine($"  {kv.Value,3}/{days}  {kv.Key}");
+        return 0;
     }
 
     static int DocketShow(TownMap map, DateTime date)

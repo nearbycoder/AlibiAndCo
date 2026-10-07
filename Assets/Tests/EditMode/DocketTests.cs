@@ -51,14 +51,44 @@ namespace AlibiCo.Tests
         }
 
         [Test]
-        public void CrimesDontRepeatWithinThirteenDays()
+        public void CrimesDontRepeatWithinFifteenDays()
         {
             var map = Map();
             var start = new DateTime(2027, 3, 1);
-            var titles = Enumerable.Range(0, 26).Select(i => Docket.Generate(start.AddDays(i), map).Case.Title).ToList();
+            var titles = Enumerable.Range(0, 30).Select(i => Docket.Generate(start.AddDays(i), map).Case.Title).ToList();
+            Assert.AreEqual(15, titles.Distinct().Count());
             for (int i = 0; i < titles.Count; i++)
-                for (int j = i + 1; j < Math.Min(titles.Count, i + 13); j++)
+                for (int j = i + 1; j < Math.Min(titles.Count, i + 15); j++)
                     Assert.AreNotEqual(titles[i], titles[j], $"day {i} and day {j} have the same crime");
+            for (int i = 0; i < 30; i++)
+                Assert.AreEqual(Docket.TitleFor(start.AddDays(i)), titles[i], "the drawer's title for a day must match its docket");
+        }
+
+        /// <summary>
+        /// The words around the puzzle: the clock-day note is a prop from the wrong clock's own place
+        /// (not an order pad at the pier), and the intro doesn't always name the culprit first.
+        /// </summary>
+        [Test]
+        public void TheWordsFitTheDay()
+        {
+            var map = Map();
+            var start = new DateTime(2026, 10, 1);
+            int culpritFirst = 0, clockDays = 0;
+            var notes = new System.Collections.Generic.HashSet<string>();
+            for (int i = 0; i < 60; i++)
+            {
+                var c = Docket.Generate(start.AddDays(i), map).Case;
+                string First(string name) => name.StartsWith("Capt. ") ? "Captain " + name.Split(' ').Last() : name.Split(' ')[0];
+                var named = c.Suspects.OrderBy(p => c.Intro[1].IndexOf(First(p.Name), StringComparison.Ordinal)).First();
+                if (named.Id == c.Incident.Culprit) culpritFirst++;
+                if (!c.CardById.TryGetValue("t_clock", out var note)) continue;
+                clockDays++;
+                notes.Add(note.Title);
+                if (note.Title == "Order pad note") Assert.AreEqual("cafe", note.Location, "only the café writes on an order pad");
+                StringAssert.Contains(c.ClockById["k"].Phrase.Substring(4), note.Text);
+            }
+            Assert.Greater(notes.Count, 2, "every clock day's note is the same prop");
+            Assert.Less(culpritFirst, 40, "the intro names the culprit first too often");
         }
 
         [Test]
