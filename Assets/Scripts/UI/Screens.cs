@@ -123,7 +123,7 @@ namespace AlibiCo
             Size(UiKit.Button(btns, "Settings", () => ShowSettings(), Pal.Hex("232A31"), CreamDim, 28), 60);
             if (!Web) Size(UiKit.Button(btns, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 28), 60);
 
-            var foot = UiKit.Text(title.transform, "Mouse or gamepad  ·  Esc or Start pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
+            var foot = UiKit.Text(title.transform, (Web ? "Mouse, keyboard, gamepad or touch" : "Mouse, keyboard or gamepad") + "  ·  Esc or Start pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(150, 34), new Vector2(0, 30));
         }
 
@@ -687,6 +687,9 @@ namespace AlibiCo
 
         public bool NotebookOpen => notebook != null && notebook.Open;
 
+        /// <summary>The open notebook, or null (scrolling it from the pad or keys, and the tests).</summary>
+        public Notebook OpenNotebook => NotebookOpen ? notebook : null;
+
         void RefreshBadges(bool animate)
         {
             var s = hudSession;
@@ -703,6 +706,7 @@ namespace AlibiCo
         public void Tick()
         {
             if (helpGroup != null) TickHelp();
+            if (NotebookOpen) notebook.Tick();
             if (linkTag != null) TickLinkTag();
             if (hudSession != null && hudSession.View != null && hudSession.View.Timer != null)
             {

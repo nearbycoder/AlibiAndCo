@@ -96,7 +96,7 @@ namespace AlibiCo
             var arrows = Vector2.zero;
             if (kb != null)
                 arrows = new Vector2((kb.rightArrowKey.isPressed ? 1 : 0) - (kb.leftArrowKey.isPressed ? 1 : 0), (kb.upArrowKey.isPressed ? 1 : 0) - (kb.downArrowKey.isPressed ? 1 : 0));
-            bool padTouched = pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame));
+            bool padTouched = pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.04f || pad.rightStick.ReadValue().sqrMagnitude > 0.04f || pad.allControls.OfType<UnityEngine.InputSystem.Controls.ButtonControl>().Any(b => b.wasPressedThisFrame));
             bool keysTouched = kb != null && (arrows != Vector2.zero || kb.qKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame ||
                                               kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame);
             if (padTouched) { keys = false; touch = false; SetActive(true); }
@@ -106,6 +106,10 @@ namespace AlibiCo
             float dt = Clock.Dt;
             var root = GameRoot.I;
             bool left = false;
+            // With the notebook open there's nothing to point at but the page: the right stick, the
+            // D-pad and the Up/Down arrows scroll its notes instead of moving the cursor.
+            var notebook = root != null && root.Screens != null ? root.Screens.OpenNotebook : null;
+            float scroll = 0;
             if (touch) left = UpdateTouch(finger, dt);
             if (pad != null)
             {
@@ -118,7 +122,12 @@ namespace AlibiCo
                     pos += stick.normalized * speed * dt;
                 }
                 var dpad = pad.dpad.ReadValue();
-                if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * dt;
+                if (notebook != null)
+                {
+                    float y = Mathf.Abs(pad.rightStick.ReadValue().y) > 0.15f ? pad.rightStick.ReadValue().y : dpad.y;
+                    scroll -= y;
+                }
+                else if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * dt;
 
                 if (pad.rightShoulder.wasPressedThisFrame) Jump(+1);
                 if (pad.leftShoulder.wasPressedThisFrame) Jump(-1);
@@ -135,6 +144,11 @@ namespace AlibiCo
             {
                 // The arrows start slow for fine steps and speed up the longer they're held; turning resets that.
                 if (arrows != arrowsHeld) { arrowsHeld = arrows; arrowsTime = 0; }
+                if (notebook != null && arrows.y != 0)
+                {
+                    scroll -= arrows.y;
+                    arrows.y = 0;
+                }
                 if (arrows != Vector2.zero)
                 {
                     arrowsTime += dt;
@@ -147,6 +161,7 @@ namespace AlibiCo
                 left |= kb.enterKey.isPressed || kb.numpadEnterKey.isPressed;
             }
             pos = new Vector2(Mathf.Clamp(pos.x, 1, Screen.width - 2), Mathf.Clamp(pos.y, 1, Screen.height - 2));
+            if (notebook != null && scroll != 0) notebook.Scroll(Mathf.Clamp(scroll, -1, 1) * 900f * dt);   // canvas units a second at full tilt
 
             Send(left, rightPulse);
             rightPulse = false;

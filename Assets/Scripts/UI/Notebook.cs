@@ -15,8 +15,9 @@ namespace AlibiCo
     public sealed class Notebook
     {
         readonly CanvasGroup group;
-        readonly TextMeshProUGUI caseTitle, status, log;
+        readonly TextMeshProUGUI caseTitle, status, log, foot;
         readonly ScrollRect scroll;
+        PadCursor.Pointer footFor = (PadCursor.Pointer)(-1);
 
         static readonly Color Ink = Pal.Ink;
         // Rich-text <font> tags don't resolve here (fonts live in Resources/Fonts), so headings are bold Sans.
@@ -84,8 +85,48 @@ namespace AlibiCo
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 36;
 
-            var foot = UiKit.Text(panel, "<b>Tab</b> or <b>Esc</b> to close  ·  scroll for older notes", Art.Sans, 18, Pal.InkFaint, TextAlignmentOptions.BottomRight);
-            foot.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-48, 26), new Vector2(700, 30));
+            foot = UiKit.Text(panel, "", Art.Sans, 18, Pal.InkFaint, TextAlignmentOptions.BottomRight);
+            foot.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-48, 26), new Vector2(900, 30));
+            Tick();
+        }
+
+        /// <summary>The footer names the controls of whatever is steering: wheel, keys, stick or finger.</summary>
+        public void Tick()
+        {
+            var p = PadCursor.Using;
+            if (p == footFor) return;
+            footFor = p;
+            foot.text = p == PadCursor.Pointer.Pad ? "<b>[Y]</b> or <b>[B]</b> to close  ·  <b>right stick</b> or <b>D-pad</b> for older notes"
+                      : p == PadCursor.Pointer.Keys ? "<b>Tab</b> or <b>Esc</b> to close  ·  <b>Up</b> / <b>Down</b> or <b>Page Up</b> / <b>Page Down</b> for older notes"
+                      : p == PadCursor.Pointer.Touch ? "<b>Tap</b> outside the page to close  ·  <b>drag</b> the notes for older ones"
+                      : "<b>Tab</b> or <b>Esc</b> to close  ·  scroll for older notes";
+        }
+
+        /// <summary>0 at the oldest note, 1 at the newest (the top).</summary>
+        public float ScrollPosition => scroll.verticalNormalizedPosition;
+
+        /// <summary>The notes' window on screen (pixels), for the touch test's finger.</summary>
+        public Rect LogScreenRect
+        {
+            get
+            {
+                var c = new Vector3[4];
+                scroll.viewport.GetWorldCorners(c);
+                return Rect.MinMaxRect(c[0].x, c[0].y, c[2].x, c[2].y);
+            }
+        }
+
+        /// <summary>The notes run past the bottom of the page.</summary>
+        public bool Scrollable => log.rectTransform.rect.height > scroll.viewport.rect.height + 1;
+
+        /// <summary>Scroll by this many canvas units (positive: down, to older notes), or by pages.</summary>
+        public void Scroll(float units, float pages = 0)
+        {
+            float overflow = log.rectTransform.rect.height - scroll.viewport.rect.height;
+            if (overflow <= 1) return;
+            units += pages * scroll.viewport.rect.height * 0.85f;
+            scroll.StopMovement();
+            scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition - units / overflow);
         }
 
         public void Show(CaseSession s)

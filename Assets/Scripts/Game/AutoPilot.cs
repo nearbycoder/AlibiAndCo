@@ -587,9 +587,11 @@ namespace AlibiCo
 
         Gamepad pad;
 
-        void PadState(Vector2 stick, params GamepadButton[] held)
+        void PadState(Vector2 stick, params GamepadButton[] held) => PadState(stick, Vector2.zero, held);
+
+        void PadState(Vector2 stick, Vector2 right, params GamepadButton[] held)
         {
-            var st = new GamepadState { leftStick = stick };
+            var st = new GamepadState { leftStick = stick, rightStick = right };
             foreach (var b in held) st = st.WithButton(b, true);
             InputSystem.QueueStateEvent(pad, st);
         }
@@ -741,6 +743,21 @@ namespace AlibiCo
                 }
             }
             yield return Wait(1f);
+
+            // 6b. With a page of replies in it, Y opens the notebook: the right stick scrolls down to
+            //     the oldest notes, the D-pad brings them back up, and B closes it.
+            IEnumerator PadHold(Vector2 right, GamepadButton[] held, float seconds)
+            {
+                for (float t = 0; t < seconds; t += Clock.Dt) { PadState(Vector2.zero, right, held); yield return null; }
+                PadState(Vector2.zero);
+                yield return Wait(0.2f);
+            }
+            yield return PadTap(GamepadButton.North);
+            yield return Wait(0.6f);
+            yield return CheckNotebookScroll("pad", PadHold(new Vector2(0, -1), new GamepadButton[0], 2f), PadHold(Vector2.zero, new[] { GamepadButton.DpadUp }, 2f), Fail);
+            yield return PadTap(GamepadButton.East);
+            yield return Wait(0.4f);
+            if (root.Screens.NotebookOpen) Fail("B didn't close the notebook after scrolling");
 
             // 7. Hold A on the incident card and drop it in the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
@@ -939,6 +956,25 @@ namespace AlibiCo
                 }
             }
             yield return Wait(1f);
+
+            // 7b. With a page of replies in it, a tap on Notes opens the notebook: a finger drags the
+            //     notes up to read older ones and back down, and a tap outside the page closes it.
+            yield return TouchTap(Button("btn_Notes"));
+            yield return Wait(0.6f);
+            if (!root.Screens.NotebookOpen) Fail("a tap on Notes didn't open the notebook");
+            else
+            {
+                var r = root.Screens.OpenNotebook.LogScreenRect;
+                IEnumerator Swipes(float dir)
+                {
+                    for (int i = 0; i < 3; i++) yield return TouchDrag(new Vector2(r.center.x, r.center.y - dir * r.height * 0.4f), new Vector2(r.center.x, r.center.y + dir * r.height * 0.4f));
+                }
+                yield return CheckNotebookScroll("touch", Swipes(1), Swipes(-1), Fail);
+                if (!root.Screens.NotebookOpen) Fail("dragging the notes closed the notebook");
+                yield return TouchTap(new Vector2(UnityEngine.Screen.width * 0.03f, UnityEngine.Screen.height * 0.5f));
+                yield return Wait(0.5f);
+                if (root.Screens.NotebookOpen) Fail("a tap on the shade didn't close the notebook after scrolling");
+            }
 
             // 8. Drag the incident into the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
@@ -1189,6 +1225,25 @@ namespace AlibiCo
                 }
             }
             yield return Wait(1f);
+
+            // 6b. With a page of replies in it, Tab opens the notebook: Down scrolls to the oldest
+            //     notes, Page Up pages back to the newest, and Tab closes it.
+            IEnumerator KeyHold(Key k, float seconds)
+            {
+                for (float t = 0; t < seconds; t += Clock.Dt) { Keys(k); yield return null; }
+                Keys();
+                yield return Wait(0.2f);
+            }
+            IEnumerator PageUps()
+            {
+                for (int i = 0; i < 6; i++) yield return KeyTap(Key.PageUp);
+            }
+            yield return KeyTap(Key.Tab);
+            yield return Wait(0.6f);
+            yield return CheckNotebookScroll("keys", KeyHold(Key.DownArrow, 2f), PageUps(), Fail);
+            yield return KeyTap(Key.Tab);
+            yield return Wait(0.4f);
+            if (root.Screens.NotebookOpen) Fail("Tab didn't close the notebook after scrolling");
 
             // 7. Hold Enter on the incident card and steer it into the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
@@ -1499,6 +1554,26 @@ namespace AlibiCo
         static IEnumerator Wait(float s)
         {
             while (s > 0) { s -= Clock.Dt; yield return null; }
+        }
+
+        /// <summary>
+        /// The notebook is open on a page of notes longer than it shows: run <paramref name="toOldest"/>
+        /// and <paramref name="toNewest"/> (a pointer's scrolling) and check the notes moved both ways.
+        /// </summary>
+        IEnumerator CheckNotebookScroll(string how, IEnumerator toOldest, IEnumerator toNewest, System.Action<string> fail)
+        {
+            var nb = GameRoot.I.Screens.OpenNotebook;
+            if (nb == null) { fail($"{how}: the notebook isn't open"); yield break; }
+            if (!nb.Scrollable) { fail($"{how}: the notes fit on one page, so there's nothing to scroll"); yield break; }
+            float top = nb.ScrollPosition;
+            yield return toOldest;
+            float bottom = nb.ScrollPosition;
+            yield return Shot(how + "_notebook_scrolled");
+            yield return toNewest;
+            float again = nb.ScrollPosition;
+            Debug.Log($"[AutoPilot] {how}: notebook scrolled {top:0.00} -> {bottom:0.00} -> {again:0.00} (1 is the newest note, 0 the oldest)");
+            if (bottom > top - 0.5f) fail($"{how}: scrolling down only moved the notes from {top:0.00} to {bottom:0.00}");
+            if (again < bottom + 0.5f) fail($"{how}: scrolling back up only moved the notes from {bottom:0.00} to {again:0.00}");
         }
 
         /// <summary>A docket's Copy result button copies its share line, which names nobody.</summary>

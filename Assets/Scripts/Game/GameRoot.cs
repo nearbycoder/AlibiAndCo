@@ -326,6 +326,10 @@ namespace AlibiCo
             {
                 if (kb.f1Key.wasPressedThisFrame || kb.hKey.wasPressedThisFrame) Session.Hint();
                 if (kb.tabKey.wasPressedThisFrame) Screens.ToggleNotebook();
+                // Page Up / Page Down page through the notebook, whatever is steering.
+                var nb = Screens.OpenNotebook;
+                if (nb != null && kb.pageDownKey.wasPressedThisFrame) nb.Scroll(0, 1);
+                if (nb != null && kb.pageUpKey.wasPressedThisFrame) nb.Scroll(0, -1);
             }
             if (kb.f11Key.wasPressedThisFrame) Settings.Fullscreen = !Settings.Fullscreen;
             if (kb.f12Key.wasPressedThisFrame) Capture(null);
