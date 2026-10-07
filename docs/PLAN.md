@@ -422,7 +422,7 @@ moments get the polish budget first.
 - ~~"Daily Docket": procedurally generated mini-cases, built from random itineraries and checked
   by the same validator.~~ Built in improvement round 3 (`Assets/Scripts/Logic/Docket.cs`).
   Each calendar day gets a three-suspect case from the cast of ten and the town's places, on a
-  fixed rota of thirteen small crimes:
+  fixed rota of fifteen small crimes (thirteen in round 3; round 4 added the bus depot and the cliff path):
   - the **culprit** claims one place all evening, slipped out to the scene, and a record somewhere
     else after the crime breaks the claim; confronting it brings a second, true statement that
     leaves the hole;
@@ -430,9 +430,14 @@ moments get the polish budget first.
     lie brings a witness there whose statement covers the whole window;
   - an **honest** suspect's story is true, with paper to match. On about a third of days that
     paper is timed by a wrong clock (a café till, the Grand's lobby clock…) and sits in the red
-    until it's linked through an Electricity Board power dip. Confronting it costs a badge.
+    until it's linked through one moment seen on two clocks (a power dip, the lifeboat maroons, an
+    exchange fault or the ferry's horn, noted on a prop from the wrong clock's own place).
+    Confronting it costs a badge, and Connie then names the clock to blame.
   The generator writes ordinary case JSON and only offers it once `CaseValidator` proves it
   airtight (pin orders included); otherwise it tries the next of 40 seeded variations. It uses its
   own SplitMix64 generator, so a date produces the same docket in Unity, the browser and .NET. The
-  validator console sweeps dates (`--docket N`) and prints one in full (`--docket-show`).
+  validator console sweeps dates (`--docket N`) and prints one in full (`--docket-show`). The
+  words come from a second generator seeded the same way, with several hand-written variants per
+  line, so rewording never changes a puzzle (`--docket-phrases N` counts what still recurs). The
+  case files keep the last seven days in a drawer, so a missed day stays playable for a week.
 - A case editor menu in the Unity Editor.

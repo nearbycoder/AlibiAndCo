@@ -518,3 +518,57 @@ libraries, owner's call).
 Not in this round: keyboard-only play (useful, but not something the current audience is
 missing), a share-your-result line (the browser clipboard needs a JavaScript plugin and can't be
 checked headless), and the owner and hardware items listed under round 3.
+
+## Round 4 results (6 Oct 2026)
+
+All four items landed on `improvements-4`. Screenshots are in `docs/media/improvements/round4/`
+(`r4-1-*` Connie on a firm stand, `r4-2-*` a clock day's new prop, `r4-3-*` the docket drawer at
+1080p and 720p).
+
+| # | Item | Commits | Verified by | Result |
+|---|---|---|---|---|
+| R4-1 | Connie explains a firm stand | 5eb6af0 | 5 new EditMode tests (the traps of cases 2, 4 and 5, every clock day in October 2026, clock names in a sentence). Autoplay checks that the memo after both deliberate traps names the right clock ("the Town Hall clock", "the pier turnstile clock") and that Unaided is still earned | Met |
+| R4-2 | The docket in other words | 2c584d5 | `Tools/validate.sh --docket-phrases 28`, before and after, both measured with the final tool: **41 → 14** sentences on more than a quarter of the days (from 7 Oct 2026) and **31 → 11** (from 1 Mar 2027). Before, 15 sentences appeared on every one of the 28 days; now none appears on more than 10. `--docket 3653`: all airtight, worst day 6 of 40 variations. EditMode test for the clock-day props and the intro order. Two read-throughs of 3 and 7 days | Met. The read-throughs fixed five clumsy lines |
+| R4-3 | The docket week | 1590c62 | Autoplay opens the drawer through its button, opens the day three days back from its row, plays it to CASE CLOSED and checks the row then shows ★★★ and the time, at 1920×1080, 1280×800 and 1280×720 (Large text). EditMode test for the week across a month, a year and a leap day | Met. Rollover at midnight is in code (the day is re-read whenever the case files open) but wasn't run past a real midnight |
+| R4-4 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs` on a fresh build: Chromium (Playwright 1.62, ANGLE on the Radeon) and the system Firefox (puppeteer-core) | Met. Both: autoplay 10/10 with the drawer, pad test and reload check PASS, 0 console errors, 26.5 MB, 60 fps, loads in 1.3–1.7 s |
+
+EditMode tests: 42/42 (35 before the round). Autoplay at 1080p: 10/10 (5 cases, 5 dockets), 0
+errors. The input test passed at a load average of about 17 and the pad test at about 25. The real
+`alibi_save.json` and `prefs` were byte-identical before and after the round.
+
+Found along the way:
+
+- **The intro always named the culprit first.** "Three regulars were out and about that evening:
+  X, Y and Z": X was the culprit every single day. The names now follow the shuffled suspect order.
+- **"the The Lantern's bar clock".** Connie's clock hint put "the" in front of a clock name that
+  already starts with "The" (case 2), and case 4's incident label could do the same. Clocks now
+  have a sentence form (`ClockDef.InSentence`, with an optional `phrase` in the case JSON for case 3's
+  "press camera's date-back").
+- **`Tools/validate.sh` didn't work on a fresh clone** (5cf28a8). The repo-wide `*.csproj` ignore,
+  meant for Unity's generated projects, also caught the validator's own project file. It's tracked
+  now.
+- **Autoplay screenshots silently failed with a relative output folder**, because the player resolves
+  paths from its own folder. `Tools/autoplay.sh` now makes the path absolute and defaults to the
+  repo's `Captures/` instead of the shared /tmp (1225c44).
+- **Firefox's first run measured 28–49 fps and a 4.8 s cold load** at a load average of 20–35 (other
+  sessions on the machine). A rerun at a load average of 5 gave 60 fps and 1.7 s, so that was the
+  machine, not the build. Chromium needed the Playwright copy that matches its installed browser
+  (1.62 for chromium 1234; 1.63 looks for 1243, which isn't installed).
+
+Not done, and why:
+
+- **Keyboard-only play and a share-your-result line**: left out of scope (see above).
+- **The drawer with a real pad or mouse**: autoplay presses its buttons in code; the mouse and pad
+  tests still cover case 1 only.
+- **The docket's words with players**: two read-throughs during development, not a playtest.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  controller or Steam Deck, the sound by ear, colour-blind players): unchanged from round 3.
+
+Owner decisions this round adds:
+
+- **Seven days on file** is my choice of window for the drawer. A longer archive (or every day since
+  the docket opened) is a one-line change (`Docket.DaysOnFile`) if you'd rather.
+- **The docket's day changed for every date.** Two new crimes and the new wording mean that, for
+  example, 7 October's docket is now "The Coastguard's Glasses", not "The Night Till". No release
+  has the docket yet, so no player loses anything, but dates that appear in earlier notes or
+  screenshots now show different cases.

@@ -123,7 +123,8 @@ candidate faces live as the records rule people out.
 
 **Connie, the notebook and hints.** Short typed memos from your mentor teach each idea the first
 time it comes up. The notebook (Tab) keeps every question, witness reply, clock and alibi status.
-Hints point at the next step, never the answer.
+Hints point at the next step, never the answer. When an honest witness stands firm and costs you a
+badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name).
 
 **The accusation and the reconstruction.** Drag the incident across the board: it refuses the
 covered lines and drops into the one with a hole in it. A brass pawn then walks the culprit's
@@ -138,7 +139,8 @@ breaks. All of it is synthesized from code.
 Docket*: a short generated case for the day, with three of the town's regulars, a small crime and
 three stories. It's built from the town map and its people, and the same validator that checks the
 handwritten cases proves each one airtight before it's offered. On some days a wrong clock puts an
-honest story in the red. The case files keep each day's best result.
+honest story in the red. The last seven days stay in the docket drawer, so a missed day can still be
+played for a week, and the case files keep each day's best result.
 
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
@@ -166,8 +168,9 @@ answer, and no way to accuse the wrong person).
 Cases unlock in order, and the case files keep your best rating, time and seals for each.
 
 **The Daily Docket** is a sixth, endless file: a three-suspect case generated for each calendar day
-(about 3 minutes, case 1's size), on a rota of thirteen small crimes around Wrenhaven. About a third
-of days add a wrong clock and an honest witness in the red. It opens when case 2 is closed.
+(about 3 minutes, case 1's size), on a rota of fifteen small crimes around Wrenhaven. About a third
+of days add a wrong clock and an honest witness in the red. It opens when case 2 is closed, and the
+last seven days' dockets stay in the drawer.
 
 ## Screenshots
 
@@ -228,8 +231,9 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 |---|---|
 | `Tools/validate.sh [--verbose]` | Compiles the game's own `Assets/Scripts/Logic/` into a console app and proves every case airtight. It uses a system `dotnet` or the .NET 8 SDK inside the Unity Editor. `--verbose` walks through each solution. |
 | `Tools/validate.sh --docket N [yyyy-MM-dd]` / `--docket-show yyyy-MM-dd` | Generates and proves N consecutive Daily Dockets (and reports how many variations the worst day needed), or prints one day's docket in full with its solution. |
+| `Tools/validate.sh --docket-phrases N [yyyy-MM-dd]` | Lists the sentences that turn up on more than a quarter of N consecutive dockets: the template showing through. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
-| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and four Daily Dockets (today's and three fixed days) through the real session code with the solver's moves, confronting an honest witness on purpose in case 4 and on a clock day to check they stand firm. It checks every contradiction carries its marker, saves a screenshot per step and prints PASS/FAIL. |
+| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and five Daily Dockets (today's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame. It checks every contradiction carries its marker, saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands. |
 | `Tools/play.sh -alibiPadTest [outdir]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start) and prints PASS/FAIL. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
@@ -308,7 +312,8 @@ docs/media/             README and trailer media
   date-seeded generator of its own (SplitMix64, so a date gives the same case in Unity, the browser
   and .NET), and the game runs the full validator on it before offering it, trying the next
   variation if it fails. Ten years of dates (3,653 days) all come out airtight; the worst day needs
-  7 of the 40 variations allowed, and the slowest takes under 40 ms in .NET (about 100 ms in the game).
+  6 of the 40 variations allowed, and the slowest takes about a tenth of a second. The words are
+  drawn from a second generator, so rewording a docket never changes its puzzle.
 - **Proven-airtight cases.** `CaseValidator` searches every reachable board state (cards
   unlocked, clocks corrected, statements struck) using only legal moves. It checks that each
   case has exactly one consistent solution, that the solved state is reachable from every state,
@@ -353,9 +358,10 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`). In both, autoplay plays all five cases and four Daily Dockets to
-  CASE CLOSED with no console errors at 60 fps, the simulated-gamepad test passes, and progress
-  survives a page reload. It loads from localhost in under 2 seconds (26.5 MB). It hasn't been tried
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 4). In both, autoplay plays all five
+  cases and five Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
+  errors at 60 fps, the simulated-gamepad test passes, and progress survives a page reload. It loads
+  from localhost in under 2 seconds (26.5 MB). It hasn't been tried
   in Safari: Playwright's WebKit build needs Ubuntu libraries this machine doesn't have. It also
   hasn't been tried on a phone (touch isn't supported) or with a person watching, and its sound
   wasn't checked. There's no Quit button or resolution picker in the browser, where the page sets
@@ -365,6 +371,9 @@ changes since then aren't released yet.
   layout were checked, but it has never been launched. It isn't notarized, so macOS will block the
   first launch: right-click the app and choose Open, or allow it under System Settings → Privacy &
   Security.
+- **The docket drawer was checked by autoplay**, which presses its buttons in code, at 1920×1080,
+  1280×800 and 1280×720 and in both browsers. No test moves the mouse or the pad cursor through it. Its rows are ordinary buttons
+  (LB/RB jump between them, B closes it), so it should work with a pad; that's untested.
 - **Gamepad support was tested with a simulated pad only.** A scripted test (`-alibiPadTest`)
   plays case 1 to the end with nothing but stick and button events, in the Linux build and in the
   browser. It hasn't been tried with a physical controller or on a Steam Deck, and there's no touch
@@ -372,9 +381,11 @@ changes since then aren't released yet.
 - **The Daily Docket is short and formulaic by design.** Each one is about case 1's size (two or
   three moves): one false alibi that hides the culprit, one lie that turns out innocent, one honest
   story, and on about a third of days a wrong clock. The text is assembled from hand-written
-  pieces, so a regular player will start to recognise phrases. Every docket is proven airtight
-  before it's offered, but the generated stories have had one read-through of ten days during
-  development, not a playtest. The day follows the computer's local date.
+  pieces with several variants each, so no sentence turns up on more than about a third of days,
+  but a regular player will still recognise the shape. Every docket is proven airtight before it's
+  offered. The generated stories have had two read-throughs of ten days each during development,
+  not a playtest. The day follows the computer's local date and moves on at midnight the next time
+  the case files open. A docket stays playable from the drawer for seven days.
 - **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
   triangle as well as the red glow, and the locks differ by icon and word. That was checked on
   protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.
