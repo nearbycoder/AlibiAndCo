@@ -1173,3 +1173,93 @@ Owner decisions this round adds:
   that clock. Hints still withhold the Unaided seal.
 - **`Tools/nested.sh` needs KDE's KWin.** It's a test tool, not part of the game; on another desktop it
   refuses to run, and the tests still work through `Tools/play.sh`.
+
+## Round 9 scope (7 Oct 2026, branch `improvements-9`)
+
+Baseline on `aa7837e` (main = origin/main): the Linux build is clean and the validator proves cases
+1–5 airtight with 60 pin orders each. The ranked list is still used up apart from owner and hardware
+items, so this round again reads the game as a player meets it. Three things stood out:
+
+- **Most of the reading is in decorative lettering.** Memos, the notebook's log, the case file and
+  the epilogue are set in a typewriter face (Special Elite, with its deliberately smudged strokes);
+  statements are handwriting (Caveat); records are Courier. It's the look of the game, but it's hard
+  going for players with dyslexia or low vision, and Text size only makes it bigger. There's no
+  plainer option.
+- **A wrong link teaches nothing.** Round 4 made Connie explain a firm stand (which clock made the
+  honest story red). A wrong link still gets one generic line, "Those two cards describe different
+  things", and the badge. Linking is the idea players find hardest (cases 2–5 hinge on it), and the
+  three ways to get it wrong (two clocks already right, the same clock twice, two different moments)
+  call for different advice.
+- **The docket has no reason to come back tomorrow beyond itself.** The drawer counts dockets closed
+  "in all". A run of days was left out in round 8; it's cheap and it's what daily puzzles use.
+
+Plus round 8's open check: no run replayed case 2 to its close to show the docket line stays off.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round9/`.
+
+### R9-1. Plain lettering
+
+A **Plain lettering** switch in Settings sets the reading text in DejaVu Sans (already shipped as the
+fallback font): the typewriter memos, notebook log, case file, epilogue and reconstruction captions;
+the handwritten statements, memos and names; the Courier text of records; and the italic lines on the
+panels. Titles, times, buttons and the HUD keep their faces, so the game still looks like itself. It
+takes effect at once on menus and, like Text size, on the board as soon as the menus close. It's off
+by default and saved with the other settings; `-alibiPlainText` turns it on for a run without saving.
+
+**Acceptance:** autoplay with `-alibiPlainText` plays 9/9 (5 cases, 4 dockets) at 1920×1080 and at
+1280×720 with Large text, checks that no reading text on the board, the memos, the case file or the
+closed panel is still in a decorative face, and logs `[Legibility]` figures no smaller than the
+default run's. Screenshots of a memo, the hover card, the notebook, a case file and an epilogue, with
+nothing cut off. The toggle flips the open settings panel's own text and the board on return
+(checked by the mouse test). The real `prefs` file is untouched.
+**Verify:** autoplay both ways at both sizes, the input test, screenshots, a hash of the real prefs.
+
+### R9-2. Connie explains a wrong link
+
+After a wrong link, Connie adds one line saying why, without naming the card that would have worked:
+both clocks already right (nothing to correct), the same clock on both cards (a clock can't check
+itself), neither clock checked yet, or one unchecked clock and two different moments (what a link needs:
+one thing both places saw, such as a bulletin, a bell or a power cut). The words come from shared logic
+(`Board.WhyNotLinked`), so the validator's build compiles them too.
+
+**Acceptance:** EditMode tests make each kind of wrong link on real cards (cases 2–5 and a clock-day
+docket) and check the line names the unchecked clock where there is one and never a card the player
+didn't touch. Autoplay makes one wrong link on purpose in case 3, checks the memo and still closes the
+case. Screenshot.
+**Verify:** `Tools/unity.sh test`, autoplay, the validator (unchanged results).
+
+### R9-3. The docket run
+
+The drawer's foot says how many days in a row you've closed a docket ("4 days running"), counting back
+from today, or from yesterday if today's isn't closed yet, so the run doesn't look broken before you've
+played. A day closed late from the drawer still counts (it's a cosy game; the drawer exists so a missed
+day can be made up). A docket's closed panel shows the run once it's two days or more.
+
+**Acceptance:** EditMode tests for the count (empty, today only, yesterday only, a gap, a late
+catch-up, the week across a month end). Autoplay solves dockets on consecutive days and checks the
+drawer and the closed panel. Screenshots at 1920×1080 and 1280×720 (Large text).
+**Verify:** `Tools/unity.sh test`, autoplay at both sizes, screenshots.
+
+### R9-4. A replayed case 2, closed
+
+Autoplay replays case 2 after solving it and checks the closed panel then carries no docket line.
+
+**Acceptance:** the line is on the first close and off the replay's, at 1920×1080.
+**Verify:** autoplay.
+
+### R9-5. The browser build, checked again
+
+Rebuild the web build and run every `webtest.mjs` check in Chromium and Firefox, with the load
+average noted (R9-1 adds a setting, R9-3 reads the save).
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Every input-driven test runs inside `Tools/nested.sh`, after checking the load average is under about
+24. The keys test runs several times, since one run in four failed in round 8.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases,
+WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind or dyslexic players
+themselves, focus on macOS or Windows), a real click on Copy result on the Linux desktop, and the
+owner's open calls (the background frame rate, pausing on focus loss, the link hold, advertising
+touch, how many boards to keep, Nintendo's confirm button, hints tagging cards).
