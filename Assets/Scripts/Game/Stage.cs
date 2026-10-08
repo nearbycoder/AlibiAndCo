@@ -388,13 +388,13 @@ namespace AlibiCo
                 Lamp.shadows = level == 0 ? LightShadows.Hard : LightShadows.Soft;
                 if (!Lamp.TryGetComponent<UniversalAdditionalLightData>(out var ld)) ld = Lamp.gameObject.AddComponent<UniversalAdditionalLightData>();
                 ld.additionalLightsShadowResolutionTier = level switch { 0 => 0, 1 => 1, _ => 2 };
-                ld.softShadowQuality = level switch { 1 => SoftShadowQuality.Low, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
+                ld.softShadowQuality = level switch { 1 => SoftShadowQuality.Medium, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
             }
             if (moon != null)
             {
                 moon.shadows = level == 0 ? LightShadows.None : LightShadows.Soft;
                 if (!moon.TryGetComponent<UniversalAdditionalLightData>(out var md)) md = moon.gameObject.AddComponent<UniversalAdditionalLightData>();
-                md.softShadowQuality = level switch { 1 => SoftShadowQuality.Low, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
+                md.softShadowQuality = level switch { 1 => SoftShadowQuality.Medium, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
             }
             if (bloom != null)
             {
@@ -412,7 +412,7 @@ namespace AlibiCo
                 var em = dust.emission;
                 em.rateOverTime = 14 * k;
             }
-            FidelityNote = $"AA {(level == 0 ? "FXAA" : level == 1 ? "SMAA medium" : "SMAA high")}, lamp shadows {(level == 0 ? "hard" : "soft")} tier {(level switch { 0 => "low", 1 => "medium", _ => "high" })}, " +
+            FidelityNote = $"AA {(level == 0 ? "FXAA" : level == 1 ? "SMAA medium" : "SMAA high")}, lamp shadows {(level == 0 ? "hard" : level == 1 ? "soft (medium filter)" : "soft")} tier {(level switch { 0 => "low", 1 => "medium", _ => "high" })}, " +
                            $"window shadows {(level == 0 ? "off" : "soft")}, bloom {(level == 0 ? "off" : level == 1 ? "quarter-res" : level == 3 ? "high quality" : "on")}, grain {(level == 0 ? "off" : "on")}, dust {Mathf.RoundToInt(160 * Fidelity.ParticleScale)}";
         }
 

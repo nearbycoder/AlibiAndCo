@@ -22,7 +22,7 @@ namespace AlibiCo
         public static readonly string[] Blurbs =
         {
             "For older or integrated graphics: hard lamp shadows, no ambient occlusion or bloom, light anti-aliasing.",
-            "Soft shadows, half-resolution ambient occlusion, bloom and 2× anti-aliasing. Light on laptops.",
+            "Softened shadows, half-resolution ambient occlusion, bloom and 2× anti-aliasing. Lighter on laptops.",
             "The full look: soft lamp shadows, ambient occlusion, bloom, film grain and 4× anti-aliasing.",
             "Supersampled for the crispest print, finer shadows and occlusion, richer bloom and denser dust. Needs a strong GPU.",
         };
