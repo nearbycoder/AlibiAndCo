@@ -310,6 +310,29 @@ namespace AlibiCo
         /// The screen centre of a named menu button a click would reach right now (not faded out or
         /// behind an overlay), or null. For the input tests, which then move a real cursor there.
         /// </summary>
+        RectTransform hudPill;
+        static readonly Vector2 HudPillSize = new Vector2(290, 58), HudPillMargin = new Vector2(18, 14);
+
+        /// <summary>
+        /// Where the HUD's Hint / Notes / Menu pill sits on screen (pixels), worked out from its layout and
+        /// the UI scale, so the board can keep clear of it before the HUD is built.
+        /// </summary>
+        public static Rect HudPillPlanned()
+        {
+            float scale = UiKit.Root != null ? UiKit.Root.localScale.x : 1f;
+            var size = HudPillSize * scale;
+            return new Rect(UnityEngine.Screen.width - HudPillMargin.x * scale - size.x, UnityEngine.Screen.height - HudPillMargin.y * scale - size.y, size.x, size.y);
+        }
+
+        /// <summary>The HUD's Hint / Notes / Menu pill on screen (pixels), while the board's HUD is showing.</summary>
+        public Rect? HudPillScreen()
+        {
+            if (hudPill == null || !hudPill.gameObject.activeInHierarchy) return null;
+            var corners = new Vector3[4];
+            hudPill.GetWorldCorners(corners);
+            return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+        }
+
         public Vector2? ButtonScreen(string name)
         {
             foreach (var b in UiKit.Root.GetComponentsInChildren<Button>())
@@ -689,8 +712,9 @@ namespace AlibiCo
         {
             hud = Group("HUD");
             var pill = UiKit.Panel(hud.transform, "pill", new Color(0.06f, 0.07f, 0.08f, 0.78f));
+            hudPill = pill.rectTransform;
             UiKit.DropShadow(pill.rectTransform, 16f, 0.45f, new Vector2(0, -6));
-            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -14), new Vector2(290, 58));
+            pill.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), -HudPillMargin, HudPillSize);
             var hint = UiKit.Button(pill.transform, "Hint", () => hudSession?.Hint(), Pal.Hex("2B3540"), Cream, 22);
             ((RectTransform)hint.transform).Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(86, 42));
             var notes = UiKit.Button(pill.transform, "Notes", ToggleNotebook, Pal.Hex("2B3540"), Cream, 22);

@@ -60,6 +60,7 @@ namespace AlibiCo
         Transform clockLegend;
         readonly Dictionary<string, TextMeshPro> clockRows = new Dictionary<string, TextMeshPro>();
         readonly List<TextMeshPro> rulerLabels = new List<TextMeshPro>();
+        MeshRenderer titleCard, legendCard;
         Material ribbonMat, slackMat, hatchMat, redMat, markerShadowMat, stringMat, leaderMat;
 
         const float ZStrip = -0.012f, ZGrid = -0.016f, ZRibbon = -0.022f, ZMarker = -0.028f, ZLabel = -0.034f;
@@ -111,7 +112,8 @@ namespace AlibiCo
             Txt.Make(root, "date", (c.Date + "   ·   " + c.Weather).ToUpperInvariant(), Art.SansBold, 0.15f, Pal.InkSoft, new Vector2(7.5f, 0.3f), TextAlignmentOptions.Left,
                 new Vector3(X0 + 3.75f - 0.1f, b.yMax - 0.84f, ZLabel), false);
             // Title paper label behind the text.
-            Shapes.Slab(root, "titleCard", new Vector2(6.4f, 1.0f), 0.02f, Art.Lit(Pal.Hex("EFE6D2"), "paper", 0.1f), new Vector3(X0 + 3.0f, b.yMax - 0.62f, 0f)).transform.localRotation = Quaternion.Euler(0, 0, 0.6f);
+            titleCard = Shapes.Slab(root, "titleCard", new Vector2(6.4f, 1.0f), 0.02f, Art.Lit(Pal.Hex("EFE6D2"), "paper", 0.1f), new Vector3(X0 + 3.0f, b.yMax - 0.62f, 0f));
+            titleCard.transform.localRotation = Quaternion.Euler(0, 0, 0.6f);
             Pin(root, new Vector3(X0 + 0.15f, b.yMax - 0.25f, -0.05f), Pal.Hex("B33A2E"));
             Badges = Txt.Make(root, "badges", "★★★", Art.Sans, 0.3f, Pal.Brass, new Vector2(1.4f, 0.4f), TextAlignmentOptions.Right,
                 new Vector3(X0 + 5.35f, b.yMax - 0.4f, ZLabel), false);
@@ -326,23 +328,35 @@ namespace AlibiCo
             float rulerTop = HeaderBottom + 0.36f, top = b.yMax - 0.3f;
             if (clocks.Count > 1) step = Mathf.Min(step, (top - (rulerTop + 0.38f)) / (clocks.Count - 1));
             float originY = Mathf.Min(top, rulerTop + 0.38f + (clocks.Count - 1) * step);
-            clockLegend.localPosition = new Vector3(b.xMax - 7.4f, originY, ZLabel);   // clear of the HUD pill at every text size
+            // Clear of the HUD pill at every text size, and on a narrow (4:3) board, right of the title card
+            // rather than on top of its stars and timer.
+            // The room runs from the title card's right edge to the HUD pill's left edge (or the board's).
+            float left = X0 + 6.35f, right = b.xMax - 0.3f;
+            var pill = ScreenToBoardX(Screens.HudPillPlanned().xMin);
+            if (pill.HasValue) right = Mathf.Min(right, pill.Value - 0.2f);
+            float w = Mathf.Min(4.6f, right - left);
+            clockLegend.localPosition = new Vector3(Mathf.Clamp(b.xMax - 7.4f, left + w / 2, right - w / 2), originY, ZLabel);
             float cardTop = 0.2f, cardBottom = -0.38f - (clocks.Count - 1) * step, h = cardTop - cardBottom;
-            Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, (cardTop + cardBottom) / 2, 0.03f))
-                .transform.localRotation = Quaternion.Euler(0, 0, -0.8f);
-            Txt.Make(clockLegend, "head", "CLOCKS IN THIS CASE", Art.SansBold, 0.12f * ts, Pal.InkSoft, new Vector2(4.2f, 0.2f), TextAlignmentOptions.Left, new Vector3(0, 0.06f, 0), false);
+            legendCard = Shapes.Slab(clockLegend, "card", new Vector2(w, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, (cardTop + cardBottom) / 2, 0.03f));
+            legendCard.transform.localRotation = Quaternion.Euler(0, 0, -0.8f);
+            Txt.Make(clockLegend, "head", "CLOCKS IN THIS CASE", Art.SansBold, 0.12f * ts, Pal.InkSoft, new Vector2(w - 0.4f, 0.2f), TextAlignmentOptions.Left, new Vector3(0, 0.06f, 0), false);
             for (int i = 0; i < clocks.Count; i++)
             {
-                var row = Txt.Make(clockLegend, "clock_" + clocks[i].Id, "", Art.Sans, 0.15f * ts, Pal.Ink, new Vector2(4.2f, 0.26f), TextAlignmentOptions.Left,
+                var row = Txt.Make(clockLegend, "clock_" + clocks[i].Id, "", Art.Sans, 0.15f * ts, Pal.Ink, new Vector2(w - 0.4f, 0.26f), TextAlignmentOptions.Left,
                     new Vector3(0, -0.22f - i * step, 0), false);
                 row.Fit(0.1f);
                 clockRows[clocks[i].Id] = row;
             }
         }
 
-        /// <summary>A clock row of the legend drawn over one of the ruler's times, or null (for the autopilot).</summary>
+        /// <summary>
+        /// The clock legend drawn over something else, or null (for the autopilot): a clock row over one of
+        /// the ruler's times, or the legend's card over the title card (and its stars and timer).
+        /// </summary>
         public string LegendCollision()
         {
+            if (legendCard != null && titleCard != null && CardView.Overlap(CardView.RendererRect(legendCard, root), CardView.RendererRect(titleCard, root)))
+                return "the clock legend lies over the title card";
             foreach (var row in clockRows.Values)
             {
                 var r = CardView.TextRect(row, root);
@@ -351,6 +365,32 @@ namespace AlibiCo
                         return $"clock row \"{row.text}\" lies over the ruler's {label.text}";
             }
             return null;
+        }
+
+        /// <summary>The board's x (in its own units) under a screen column, along the board's top edge.</summary>
+        float? ScreenToBoardX(float screenX)
+        {
+            var cam = stage.Cam;
+            var top = root.TransformPoint(new Vector3(0, stage.Board.yMax, 0));
+            float y = cam.WorldToScreenPoint(top).y;
+            var ray = cam.ScreenPointToRay(new Vector3(screenX, y, 0));
+            var plane = new Plane(Vector3.up, top);
+            if (!plane.Raycast(ray, out float d)) return null;
+            return root.InverseTransformPoint(ray.GetPoint(d)).x;
+        }
+
+        /// <summary>The clock legend's card on screen (pixels), or null if the case has no legend.</summary>
+        public Rect? LegendScreenRect(Camera cam)
+        {
+            if (legendCard == null) return null;
+            var b = legendCard.localBounds;
+            float x0 = float.MaxValue, y0 = float.MaxValue, x1 = float.MinValue, y1 = float.MinValue;
+            for (int i = 0; i < 4; i++)
+            {
+                var p = cam.WorldToScreenPoint(legendCard.transform.TransformPoint(new Vector3(i % 2 == 0 ? b.min.x : b.max.x, i < 2 ? b.min.y : b.max.y, b.center.z)));
+                x0 = Mathf.Min(x0, p.x); x1 = Mathf.Max(x1, p.x); y0 = Mathf.Min(y0, p.y); y1 = Mathf.Max(y1, p.y);
+            }
+            return Rect.MinMaxRect(x0, y0, x1, y1);
         }
 
         public void RefreshClocks(Board board)

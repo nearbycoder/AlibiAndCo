@@ -614,6 +614,9 @@ namespace AlibiCo
 
         static Rect IconRect(Renderer r, Transform frame) => RectIn(r.localBounds, r.transform, frame);
 
+        /// <summary>A flat renderer's outline in <paramref name="frame"/>'s plane.</summary>
+        public static Rect RendererRect(Renderer r, Transform frame) => RectIn(r.localBounds, r.transform, frame);
+
         static Rect RectIn(Bounds b, Transform owner, Transform frame)
         {
             float x0 = float.MaxValue, y0 = float.MaxValue, x1 = float.MinValue, y1 = float.MinValue;

@@ -519,6 +519,15 @@ changes since then aren't released yet.
   cases. Autoplay logs these figures as `[Legibility]`. That's readable but small. Hover a chip to
   read the full, scaled card, or open the notebook. Large panels shrink back to fit the screen at
   the larger sizes.
+- **Screen shapes were checked by autoplay, not by players on those screens.** Autoplay plays every case
+  and docket at 1920×1080, 2560×1440, 3440×1440 (21:9), 1366×768, 1280×720 (Large text) and 1024×768
+  (4:3, also with Larger text), and after every move checks that no text on the board runs into other
+  text or an icon (chip times, a card's clock line, the clock legend against the ruler, the title card
+  and the Hint / Notes / Menu buttons). Outside the shapes the desk is laid out for (wider than 2.4:1,
+  such as a 32:9 super-ultrawide, or narrower than 1.3:1, such as 5:4), the picture keeps its shape with
+  black bars instead of stretching; the mouse test passed at 5120×1440. On a 4:3 screen with Larger
+  text the clock legend is narrower and its type a little smaller, to fit between the title and the
+  buttons.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
   startup. Use `-force-wayland` (as `Tools/play.sh` and the packaged `AlibiAndCo.sh` do; set
   `ALIBI_X11=1` to make the launcher skip it). The native Wayland backend isn't perfect either:

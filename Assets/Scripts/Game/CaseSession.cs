@@ -1414,6 +1414,11 @@ namespace AlibiCo
             }
             var legend = View.LegendCollision();
             if (legend != null) found.Add(legend);
+            // The legend sits near the top right, where the HUD's Hint / Notes / Menu pill floats over the board.
+            var pill = GameRoot.I != null && GameRoot.I.Screens != null ? GameRoot.I.Screens.HudPillScreen() : null;
+            var card = View.LegendScreenRect(stage.Cam);
+            if (pill != null && card != null && pill.Value.Overlaps(card.Value))
+                found.Add($"the clock legend ({card.Value}) lies under the HUD's buttons ({pill.Value})");
             return found;
         }
 

@@ -427,6 +427,7 @@ namespace AlibiCo
         Vector2 parallaxNow;
         float lampDim = 1f;
         Camera bars;
+        bool pictureLogged;
 
         /// <summary>
         /// The desk is laid out for aspects from 1.3 to 2.4. A window outside that range (a 32:9
@@ -441,8 +442,9 @@ namespace AlibiCo
             var rect = new Rect(0, 0, 1, 1);
             if (real > want * 1.005f) rect = new Rect((1 - want / real) / 2, 0, want / real, 1);
             else if (real < want * 0.995f) rect = new Rect(0, (1 - real / want) / 2, 1, real / want);
-            if (Cam.rect != rect)
+            if (Cam.rect != rect || !pictureLogged)
             {
+                pictureLogged = true;
                 Cam.rect = rect;
                 Debug.Log($"[Stage] picture {Cam.pixelRect.width:0}x{Cam.pixelRect.height:0} at ({Cam.pixelRect.x:0}, {Cam.pixelRect.y:0}) in a {Screen.width}x{Screen.height} window, aspect {want:0.###}");
             }
