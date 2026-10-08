@@ -96,6 +96,7 @@ namespace AlibiCo
                 return ray.GetPoint(d);
             }
             Cam.aspect = LayoutAspect;
+            UpdateLetterbox();
             var bl = Hit(0, 0);
             var tr = Hit(1, 1);
             var tl = Hit(0, 1);
@@ -413,6 +414,7 @@ namespace AlibiCo
             }
             cam.SetPositionAndRotation(pos, camBaseRot);
             if (Application.isBatchMode && !Cam.targetTexture) Cam.aspect = LayoutAspect;
+            UpdateLetterbox();
 
             if (dof != null)
             {
@@ -424,6 +426,45 @@ namespace AlibiCo
 
         Vector2 parallaxNow;
         float lampDim = 1f;
+        Camera bars;
+
+        /// <summary>
+        /// The desk is laid out for aspects from 1.3 to 2.4. A window outside that range (a 32:9
+        /// super-ultrawide, a 5:4 monitor) gets black bars at the sides or top and bottom, so the picture
+        /// keeps its shape instead of being stretched to fill it. The bars come from a camera that only
+        /// clears the screen behind the main one.
+        /// </summary>
+        void UpdateLetterbox()
+        {
+            if (Application.isBatchMode || Cam.targetTexture != null) return;
+            float real = Screen.width / (float)Mathf.Max(1, Screen.height), want = Cam.aspect;
+            var rect = new Rect(0, 0, 1, 1);
+            if (real > want * 1.005f) rect = new Rect((1 - want / real) / 2, 0, want / real, 1);
+            else if (real < want * 0.995f) rect = new Rect(0, (1 - real / want) / 2, 1, real / want);
+            if (Cam.rect != rect)
+            {
+                Cam.rect = rect;
+                Debug.Log($"[Stage] picture {Cam.pixelRect.width:0}x{Cam.pixelRect.height:0} at ({Cam.pixelRect.x:0}, {Cam.pixelRect.y:0}) in a {Screen.width}x{Screen.height} window, aspect {want:0.###}");
+            }
+            bool boxed = rect.width < 1 || rect.height < 1;
+            if (boxed && bars == null)
+            {
+                var go = new GameObject("Bars");
+                go.transform.SetParent(transform, false);
+                bars = go.AddComponent<Camera>();
+                bars.depth = Cam.depth - 10;
+                bars.cullingMask = 0;
+                bars.clearFlags = CameraClearFlags.SolidColor;
+                bars.backgroundColor = Color.black;
+                var data = go.AddComponent<UniversalAdditionalCameraData>();
+                data.renderPostProcessing = false;
+                data.renderShadows = false;
+            }
+            if (bars != null && bars.enabled != boxed) bars.enabled = boxed;
+        }
+
+        /// <summary>Where the picture is on screen (all of it, unless the window's shape needs bars).</summary>
+        public Rect PictureRect => Cam.pixelRect;
 
         public void DimLamp(float to, float time)
         {

@@ -59,6 +59,7 @@ namespace AlibiCo
         public float ScaleFor(string laneId) => laneId == Board.TownLane ? TownChipScale : ChipScale;
         Transform clockLegend;
         readonly Dictionary<string, TextMeshPro> clockRows = new Dictionary<string, TextMeshPro>();
+        readonly List<TextMeshPro> rulerLabels = new List<TextMeshPro>();
         Material ribbonMat, slackMat, hatchMat, redMat, markerShadowMat, stringMat, leaderMat;
 
         const float ZStrip = -0.012f, ZGrid = -0.016f, ZRibbon = -0.022f, ZMarker = -0.028f, ZLabel = -0.034f;
@@ -250,8 +251,9 @@ namespace AlibiCo
             {
                 float x = TimeToX(m);
                 bool hour = m % 60 == 0;
-                Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, (hour ? 0.24f : 0.19f) * Mathf.Min(TextScale, 1.2f), hour ? Pal.Ink : Pal.InkSoft,
+                var label = Txt.Make(root, "t" + m, TimeFmt.Format(m), hour ? Art.MonoBold : Art.Mono, (hour ? 0.24f : 0.19f) * Mathf.Min(TextScale, 1.2f), hour ? Pal.Ink : Pal.InkSoft,
                     new Vector2(1.2f, 0.3f), TextAlignmentOptions.Center, new Vector3(x, y + 0.04f, ZLabel), false);
+                rulerLabels.Add(label);
                 Line(root, new Vector3(x, y - 0.18f, ZGrid), new Vector3(x, y - 0.06f, ZGrid), 0.02f, new Color(0.1f, 0.12f, 0.16f, 0.6f));
             }
         }
@@ -317,11 +319,16 @@ namespace AlibiCo
             var b = stage.Board;
             clockLegend = new GameObject("clocks").transform;
             clockLegend.SetParent(root, false);
-            clockLegend.localPosition = new Vector3(b.xMax - 7.4f, b.yMax - 0.5f, ZLabel);   // clear of the HUD pill at every text size
-            // The legend sits just above the ruler, so only its type grows with the text size.
+            // The legend sits just above the ruler, so only its type grows with the text size. Its last row
+            // ends above the ruler's times (it used to sit on them), and more clocks squeeze the rows
+            // rather than push the card off the top of the board.
             float ts = Mathf.Min(TextScale, 1.15f), step = 0.29f;
-            float h = 0.34f + clocks.Count * step;
-            Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, -h / 2 + 0.22f, 0.03f))
+            float rulerTop = HeaderBottom + 0.36f, top = b.yMax - 0.3f;
+            if (clocks.Count > 1) step = Mathf.Min(step, (top - (rulerTop + 0.38f)) / (clocks.Count - 1));
+            float originY = Mathf.Min(top, rulerTop + 0.38f + (clocks.Count - 1) * step);
+            clockLegend.localPosition = new Vector3(b.xMax - 7.4f, originY, ZLabel);   // clear of the HUD pill at every text size
+            float cardTop = 0.2f, cardBottom = -0.38f - (clocks.Count - 1) * step, h = cardTop - cardBottom;
+            Shapes.Slab(clockLegend, "card", new Vector2(4.6f, h), 0.015f, Art.Lit(Pal.Hex("E6E0D0"), "paper", 0.1f), new Vector3(0, (cardTop + cardBottom) / 2, 0.03f))
                 .transform.localRotation = Quaternion.Euler(0, 0, -0.8f);
             Txt.Make(clockLegend, "head", "CLOCKS IN THIS CASE", Art.SansBold, 0.12f * ts, Pal.InkSoft, new Vector2(4.2f, 0.2f), TextAlignmentOptions.Left, new Vector3(0, 0.06f, 0), false);
             for (int i = 0; i < clocks.Count; i++)
@@ -331,6 +338,19 @@ namespace AlibiCo
                 row.Fit(0.1f);
                 clockRows[clocks[i].Id] = row;
             }
+        }
+
+        /// <summary>A clock row of the legend drawn over one of the ruler's times, or null (for the autopilot).</summary>
+        public string LegendCollision()
+        {
+            foreach (var row in clockRows.Values)
+            {
+                var r = CardView.TextRect(row, root);
+                foreach (var label in rulerLabels)
+                    if (CardView.Overlap(r, CardView.TextRect(label, root)))
+                        return $"clock row \"{row.text}\" lies over the ruler's {label.text}";
+            }
+            return null;
         }
 
         public void RefreshClocks(Board board)

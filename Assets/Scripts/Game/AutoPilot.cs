@@ -38,6 +38,14 @@ namespace AlibiCo
             else Debug.LogError($"[AutoPilot] FAIL conflict markers {when}: {report}");
         }
 
+        /// <summary>No text on the board runs into another text or an icon (chips, tray cards, the clock legend).</summary>
+        void CheckCollisions(CaseSession s, string when)
+        {
+            var found = s.CollisionReport(out int n);
+            if (found.Count == 0) Debug.Log($"[Collide] {when}: none over {n} cards at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}");
+            else Debug.LogError($"[AutoPilot] FAIL text collides {when} at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}: {string.Join("; ", found)}");
+        }
+
         // ------------------------------------------------------------------ the docket drawer, by hand
 
         /// <summary>
@@ -2137,6 +2145,7 @@ namespace AlibiCo
                 yield return Wait(2.6f);
                 var s = root.Session;
                 yield return Shot(c.Id + "_dealt");
+                CheckCollisions(s, c.Id + " dealt");
                 foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList())
                 {
                     s.AutoPin(id);
@@ -2147,6 +2156,7 @@ namespace AlibiCo
                 Debug.Log($"[Legibility] {c.Id} pinned: {s.LegibilityReport()}");
                 CheckLettering(c.Id + " pinned");
                 CheckConflictMarks(s, c.Id + " pinned");
+                CheckCollisions(s, c.Id + " pinned");
                 // Hover a contradiction card so the inspector shows up in captures.
                 int step = 0;
                 bool ok = true;
@@ -2166,6 +2176,7 @@ namespace AlibiCo
                     yield return Wait(2.5f);
                     yield return Shot(c.Id + "_trap_stands_firm");
                     CheckConflictMarks(s, c.Id + " trap");
+                    CheckCollisions(s, c.Id + " trap");
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("a_maud")
                                 && s.Memos.History.Any(m => m.Kind == MemoKind.Firm);
                     if (!CheckWhyFirm(s, c.Id, "a_maud", c.ClockById["hall"].InSentence)) ok = false;
@@ -2210,6 +2221,7 @@ namespace AlibiCo
                     yield return Wait(2.5f);
                     yield return Shot(c.Id + "_trap_stands_firm");
                     CheckConflictMarks(s, c.Id + " trap");
+                    CheckCollisions(s, c.Id + " trap");
                     bool firm = canConfront && s.Board.Mistakes == before + 1 && !s.Board.Struck.Contains("h_claim");
                     if (!CheckWhyFirm(s, c.Id, "h_claim", c.ClockById["k"].InSentence)) ok = false;
                     yield return ShotWhyFirm(s, c.Id + "_why_firm");
@@ -2241,6 +2253,7 @@ namespace AlibiCo
                     yield return Wait(1.2f);
                     yield return Shot($"{c.Id}_step{++step}_{m.Kind}");
                     CheckConflictMarks(s, $"{c.Id} step {step}");
+                    CheckCollisions(s, $"{c.Id} step {step}");
                     if (step == 2)
                     {
                         GameRoot.I.Screens.ToggleNotebook();

@@ -46,6 +46,7 @@ namespace AlibiCo
             var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
             var oldTarget = cam.targetTexture;
             float oldAspect = cam.aspect;
+            var oldRect = cam.rect;
             try
             {
                 stage.SuppressDof = true;
@@ -54,6 +55,7 @@ namespace AlibiCo
                 canvas.worldCamera = cam;
                 canvas.planeDistance = cam.nearClipPlane + 0.05f;
                 cam.targetTexture = rt;
+                cam.rect = new Rect(0, 0, 1, 1);   // a capture is the whole picture, without the window's bars
                 cam.aspect = width / (float)height;
                 Canvas.ForceUpdateCanvases();
                 cam.Render();
@@ -74,6 +76,7 @@ namespace AlibiCo
                 stage.SuppressDof = false;
                 cam.targetTexture = oldTarget;
                 cam.aspect = oldAspect;
+                cam.rect = oldRect;
                 canvas.renderMode = oldMode;
                 canvas.worldCamera = oldCam;
                 rt.Release();

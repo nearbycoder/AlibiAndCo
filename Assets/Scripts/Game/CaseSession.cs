@@ -1397,6 +1397,26 @@ namespace AlibiCo
             return $"marked [{string.Join(",", marked)}] expected [{string.Join(",", expected)}]";
         }
 
+        /// <summary>
+        /// Text drawn over other text or icons on the board right now: chips, the cards in the tray and
+        /// the clock legend against the ruler. Empty when nothing collides; the autopilot checks this.
+        /// </summary>
+        public List<string> CollisionReport(out int checkedCards)
+        {
+            var found = new List<string>();
+            checkedCards = 0;
+            foreach (var v in AllViews().Concat(new[] { incident }))
+            {
+                if (v == null || !v.gameObject.activeInHierarchy) continue;
+                checkedCards++;
+                var c = v.Collisions();
+                if (c != null) found.Add(c);
+            }
+            var legend = View.LegendCollision();
+            if (legend != null) found.Add(legend);
+            return found;
+        }
+
         public CardView IncidentView => incident;
         public void AutoPin(string id) { var v = views[id]; if (!Board.Pinned.Contains(id)) PinCard(v, null); }
         public void AutoLink(string a, string b) => LinkCards(views[a], views[b]);

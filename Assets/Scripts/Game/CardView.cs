@@ -28,7 +28,8 @@ namespace AlibiCo
 
         Transform full, chip, faceRow;
         MeshRenderer glow, softShadow, chipPaper, fullPaper, newTag;
-        TextMeshPro chipTime, chipLine, chipWho, fullTime, stamp, chipStampMark, fullClock;
+        TextMeshPro chipTime, chipLine, chipWho, fullTime, stamp, chipStampMark, fullClock, fullBody;
+        bool rangeTime;   // the chip shows a range ("21:00–21:47"), which runs into the kind icon's corner
         MeshRenderer chipClockIcon, chipHypIcon, chipKindIcon;
         BoxCollider col;
         readonly List<(string who, Transform root, MeshRenderer cross)> faces = new List<(string, Transform, MeshRenderer)>();
@@ -216,10 +217,13 @@ namespace AlibiCo
             // Body text.
             bool hand = Def.IsTestimony && !IsIncident;
             if (hand) Shapes.Quad(full, "ruling", new Vector2(size.x - 0.1f, size.y - 0.95f), Art.Unlit(new Color(1, 1, 1, 0.75f), true, "ruled"), new Vector3(0, -0.2f, z + 0.002f));
-            float bodyTop = top - 0.98f, bodyBottom = -size.y / 2 + 0.62f;
+            // The body stops above the footer, and above the clock line when there is one.
+            bool clockLine = !Case.ClockById[Def.Clock].Reference;
+            float bodyTop = top - 0.98f, bodyBottom = -size.y / 2 + (clockLine ? 0.82f : 0.62f);
             var body = Txt(full, "text", Def.Text, hand ? AlibiCo.Art.Hand : AlibiCo.Art.Mono, hand ? 0.29f : 0.19f, Ink,
                 new Vector2(textWidth, bodyTop - bodyBottom), TextAlignmentOptions.TopLeft,
                 new Vector3(textLeft + textWidth / 2, (bodyTop + bodyBottom) / 2, z));
+            fullBody = body;
             body.Fit(hand ? 0.17f : 0.13f);   // the longest statements (case 3's Mrs Pengelly) cut off their last line at 0.2
             body.lineSpacing = hand && !Settings.PlainText ? -18 : 0;   // Caveat's tall loops; plain lettering needs the room
 
@@ -435,6 +439,10 @@ namespace AlibiCo
                 {
                     chipTime.SetSize(instant ? 0.27f : 0.19f);
                     chipTime.fontSizeMax = chipTime.fontSize;
+                    // A range fills the time line, so it takes the kind icon's corner (a statement's
+                    // quoted source already says what it is, and the hover card names the kind).
+                    rangeTime = !instant;
+                    UpdateKindIcon();
                 }
             }
             if (fullTime != null) fullTime.text = t;
@@ -570,7 +578,59 @@ namespace AlibiCo
             if (on && !inConflict && conflictBadge != null) conflictBadge.Punch(0.6f, 0.45f);
             inConflict = on;
             conflictMark.gameObject.SetActive(on);
-            if (chipKindIcon) chipKindIcon.gameObject.SetActive(!on);
+            UpdateKindIcon();
+        }
+
+        void UpdateKindIcon()
+        {
+            if (chipKindIcon) chipKindIcon.gameObject.SetActive(!inConflict && !rangeTime);
+        }
+
+        /// <summary>
+        /// Text that runs into something else on this card, as drawn, or null: a chip's time under its
+        /// kind icon, or a full card's body over its clock line. The autopilot checks every card with it.
+        /// </summary>
+        public string Collisions()
+        {
+            // Measured in the card's own plane: a tray card lies at a slight angle, and boxes taken in
+            // world space would grow with it and overlap where the glyphs don't.
+            if (chipTime != null && chip.gameObject.activeInHierarchy && chipKindIcon != null && chipKindIcon.gameObject.activeInHierarchy
+                && Overlap(TextRect(chipTime, chip), IconRect(chipKindIcon, chip)))
+                return $"{Id}: time \"{chipTime.text}\" runs under the kind icon";
+            if (fullBody != null && fullClock != null && full.gameObject.activeInHierarchy && Overlap(TextRect(fullBody, full), TextRect(fullClock, full)))
+                return $"{Id}: body text runs into the clock line \"{fullClock.text}\"";
+            return null;
+        }
+
+        /// <summary>A text's drawn glyphs in <paramref name="frame"/>'s plane (its local x and y), or an empty rect.</summary>
+        public static Rect TextRect(TextMeshPro t, Transform frame)
+        {
+            if (t == null || string.IsNullOrEmpty(t.text) || !t.gameObject.activeInHierarchy) return Rect.zero;
+            t.ForceMeshUpdate();
+            var b = t.textBounds;
+            if (b.size.x <= 0 || b.size.y <= 0) return Rect.zero;
+            return RectIn(b, t.transform, frame);
+        }
+
+        static Rect IconRect(Renderer r, Transform frame) => RectIn(r.localBounds, r.transform, frame);
+
+        static Rect RectIn(Bounds b, Transform owner, Transform frame)
+        {
+            float x0 = float.MaxValue, y0 = float.MaxValue, x1 = float.MinValue, y1 = float.MinValue;
+            for (int i = 0; i < 4; i++)
+            {
+                var corner = new Vector3(i % 2 == 0 ? b.min.x : b.max.x, i < 2 ? b.min.y : b.max.y, b.center.z);
+                var p = frame.InverseTransformPoint(owner.TransformPoint(corner));
+                x0 = Mathf.Min(x0, p.x); x1 = Mathf.Max(x1, p.x); y0 = Mathf.Min(y0, p.y); y1 = Mathf.Max(y1, p.y);
+            }
+            return Rect.MinMaxRect(x0, y0, x1, y1);
+        }
+
+        /// <summary>Overlap of two flat rects by more than a hair (touching edges don't count).</summary>
+        public static bool Overlap(Rect a, Rect b, float slack = 0.004f)
+        {
+            if (a.width <= 0 || b.width <= 0) return false;
+            return a.xMin < b.xMax - slack && b.xMin < a.xMax - slack && a.yMin < b.yMax - slack && b.yMin < a.yMax - slack;
         }
 
         /// <summary>True while the chip shows the contradiction marker (border and warning triangle).</summary>
