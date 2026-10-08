@@ -1322,3 +1322,87 @@ Owner decisions this round adds:
   docket was closed, which it doesn't yet.
 - **The wrong-link lesson names kinds of shared moment** ("a bulletin, a bell, a power cut"). That's the
   same list for every case, but in case 3 the answer is a power dip, so it nudges a little there.
+
+## Round 10 scope (7 Oct 2026, branch `improvements-10`)
+
+Baseline on `8050f0b` (main = origin/main): the Linux build is clean, and autoplay was run inside
+`Tools/nested.sh` to look at the game again as a player meets it. The ranked list is still used up
+apart from owner and hardware items. This time the thing that stood out is **the memos**, which are
+how the game teaches and how witnesses answer:
+
+- **A memo can be swept away before it's been read.** Moves often post three or four memos at once (a
+  witness's reply, a question, Connie's note, NEW EVIDENCE), and each one is replaced **2.2 seconds**
+  after it finishes typing, whatever its length. Connie's longer notes run to about 240 characters, so a
+  player who reads at an ordinary pace sees most of the burst go past, and a slow reader (one of the
+  players plain lettering is for) has to open the notebook to catch up. Nothing on the desk says more
+  memos are waiting, or how to see the next one sooner.
+- **The queue can show a question that's already been answered.** In the baseline capture of case 2,
+  the Lantern's clock had just been corrected, but the slip on the desk still asked "Who's wrong, or
+  whose clock is?", because it was still working through the queue.
+- **The memo slip is small on small screens.** At 1280×720 the slip is about 230 pixels wide, and a long
+  note is shrunk to fit it. Chips have a hover card to read them up close; memos have nothing.
+- **The wrong-link lesson nudges in case 3** (round 9's open item): it always suggests "a bulletin, a
+  bell, a power cut", and case 3's answer is a power dip.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round10/`.
+
+### R10-1. Time to read the memos
+
+When memos are waiting, the one on the desk now stays for a reading time based on its length (about 17
+characters a second from when it starts typing, roughly 185 words a minute, and never less than the old
+2.2 seconds after it's typed), instead of a flat 2.2 seconds. While memos are waiting, the slip carries a
+small **2 MORE** tag saying how to see the next one now (Space or a click on the slip, a tap, or the pad's
+button on it). A question whose contradiction has been cleared by the time it reaches the desk is passed
+over (it's still in the notebook). The rules, the hints and the notebook don't change.
+
+**Acceptance:** an EditMode test pins the reading time (short, long, and the 2.2 s floor). A new
+`-alibiMemoTest` self-test opens case 1, posts three memos of different lengths and checks, in game time,
+that each stayed at least its reading time, in order; that the tag counts down (2 MORE, 1 MORE, gone) and
+names the right control for the mouse, the keys, a pad and touch; that Space shows the next memo at
+once; and that a queued question is passed over once its contradiction is cleared. Autoplay, the mouse,
+pad, keys and touch tests still pass.
+**Verify:** `Tools/unity.sh test`, `-alibiMemoTest` and the input suites inside `Tools/nested.sh`,
+screenshots of the tag.
+
+### R10-2. A memo up close
+
+Hovering the memo slip (with the mouse, or the pad or keyboard cursor; a finger pressed and held on it)
+lifts it off the desk and enlarges it, like a chip's hover card, and the queue waits while it's held up
+(a slow reader can take as long as they like). A click on the slip still shows the next memo. It goes
+back to the desk when the pointer leaves it.
+
+**Acceptance:** the memo test measures the slip's body text on screen at rest and held up, at 1920×1080
+and at 1280×720 with Large text: held up, it's at least 1.6 times as large, fits inside the window, and
+no memo replaces it while it's held (for longer than its reading time). A press-and-hold with touch reads
+the memo without skipping it. Screenshots at both sizes.
+**Verify:** `-alibiMemoTest` at both sizes inside `Tools/nested.sh`, screenshots.
+
+### R10-3. The wrong-link lesson without the nudge
+
+Connie's line after a wrong link stops listing kinds of shared moment. Instead it points at what the
+board already shows: a card whose clock you can trust (one without the red **?** on its clock mark) that
+saw the same moment.
+
+**Acceptance:** the EditMode wrong-link tests (every wrong pair in cases 2–5 and a month of dockets)
+check that no line names a kind of event (bulletin, bell, power cut, broadcast…) and that the rest of
+their checks still hold. Autoplay's deliberate wrong link in case 3 checks the new line. Screenshot at
+1280×720 with Large text, where the slip is smallest.
+**Verify:** `Tools/unity.sh test`, autoplay, the validator (unchanged results).
+
+### R10-4. The browser build, checked again
+
+Rebuild the web build and run every `webtest.mjs` check in Chromium and Firefox, with the load average
+noted (R10-1 and R10-2 change how the desk handles the pointer, including touch).
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Every input-driven test runs inside `Tools/nested.sh`, after checking the load average is under about 24.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases,
+WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind or dyslexic players
+themselves, focus on macOS or Windows, a font such as Atkinson Hyperlegible), a real click on Copy result
+on the Linux desktop, and the owner's open calls (the background frame rate, pausing on focus loss, the
+link hold, advertising touch, how many boards to keep, Nintendo's confirm button, hints tagging cards,
+late dockets in the run). A setting for memo pace was considered and left out: holding the slip up does
+the same job without another row in Settings.
