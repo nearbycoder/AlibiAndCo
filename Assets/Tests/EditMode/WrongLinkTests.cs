@@ -21,6 +21,8 @@ namespace AlibiCo.Tests
 
         static CaseDef Load(string id) => CaseDef.FromJson(File.ReadAllText(Path.Combine(DataDir, id + ".json")));
 
+        static readonly string[] EventWords = { "bulletin", "bell", "power", "cut", "broadcast", "radio", "news", "chime", "flicker", "dip", "siren", "whistle", "gun" };
+
         /// <summary>A board with every card out, and optionally every link of the solution made.</summary>
         static Board Board(CaseDef c, TownMap map, bool mended)
         {
@@ -56,6 +58,11 @@ namespace AlibiCo.Tests
                     else if (x.Clock == y.Clock) { StringAssert.Contains(c.ClockById[x.Clock].InSentence, text, where); StringAssert.Contains("itself", text, where); kinds.Add("same"); }
                     else if (!tx && !ty) { StringAssert.Contains(c.ClockById[x.Clock].InSentence, text, where); StringAssert.Contains(c.ClockById[y.Clock].InSentence, text, where); kinds.Add("neither"); }
                     else { StringAssert.Contains(c.ClockById[tx ? y.Clock : x.Clock].InSentence, text, where); StringAssert.Contains("aren't the same moment", text, where); kinds.Add("one"); }
+                    // No kind of shared moment is suggested (in case 3 one of them was the answer); the names of
+                    // the two cards and of the clocks aside.
+                    var advice = c.Clocks.Aggregate(text, (t, k) => t.Replace(k.InSentence, "")).Replace(x.Title, "").Replace(y.Title, "");
+                    var suggested = EventWords.Where(w => System.Text.RegularExpressions.Regex.IsMatch(advice, @"\b" + w + @"s?\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)).ToList();
+                    Assert.IsEmpty(suggested, where + " suggests a kind of moment");
                 }
             return kinds;
         }

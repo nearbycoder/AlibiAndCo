@@ -454,7 +454,9 @@ namespace AlibiCo.Logic
             if (!ta && !tb)
                 return $"Neither {Case.ClockById[ca.Clock].InSentence} nor {Case.ClockById[cb.Clock].InSentence} has been checked yet, so one moment on both couldn't say which is right. Start from a clock you trust.";
             var wrong = Case.ClockById[ta ? cb.Clock : ca.Clock];
-            return $"{pair} aren't the same moment. To check {wrong.InSentence}, find something it timed that a clock you trust timed too: a bulletin, a bell, a power cut.";
+            // It points at what the board shows (a clock mark with no red ?), not at a kind of event: the
+            // list of kinds it used to give named the answer in a case built on one of them.
+            return $"{pair} aren't the same moment. To check {wrong.InSentence}, find something it timed that a card without a red\u00A0? on its clock timed too.";
         }
 
         public Outcome Link(string a, string b)

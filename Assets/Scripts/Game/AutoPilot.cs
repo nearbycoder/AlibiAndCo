@@ -2103,7 +2103,8 @@ namespace AlibiCo
                     yield return Wait(1.5f);
                     var why = s.Memos.History.Skip(memos).FirstOrDefault(m => m.Kind == MemoKind.Connie);
                     bool wrongOk = x != null && y != null && b.Mistakes == before + 1 && why != null
-                                   && why.Text.Contains(c.ClockById[x.Clock].InSentence) && why.Text.Contains("aren't the same moment");
+                                   && why.Text.Contains(c.ClockById[x.Clock].InSentence) && why.Text.Contains("aren't the same moment")
+                                   && !why.Text.Contains("power cut") && why.Text.Contains("without a red\u00A0?");
                     if (wrongOk)
                         for (int i = 0; i < 12 && !(s.Memos.Showing != null && s.Memos.Showing.Kind == MemoKind.Connie && s.Memos.Showing.Text.Contains("aren't the same moment")); i++)
                         {
