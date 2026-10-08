@@ -125,11 +125,17 @@ namespace AlibiCo
                     var st = new FrameStats();
                     yield return FrameTimes(seconds, st);
                     string name = $"{scene}-{level}-{Fidelity.Names[level].ToLowerInvariant()}{(i == order.Length - 1 ? "-again" : "")}";
-                    yield return new WaitForEndOfFrame();
-                    ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"{++shot:00}_{name}.png"));
-                    yield return new WaitForSecondsRealtime(0.3f);
+                    ++shot;
+                    if (capture)
+                    {
+                        yield return new WaitForEndOfFrame();
+                        ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"{shot:00}_{name}.png"));
+                        yield return new WaitForSecondsRealtime(0.3f);
+                    }
                     Debug.Log($"[Fidelity] bench {scene} {Fidelity.Names[level]}: {st} at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}");
                     rows.Add((scene, level, st, $"{shot:00}_{name}.png"));
+                    // In a browser the page takes the picture (Tools/webtest.mjs, on this line): hold the step for it.
+                    if (!capture) yield return new WaitForSecondsRealtime(2.5f);
                 }
                 Clock.Held = false;
                 Stage.I.Frozen = false;
@@ -158,7 +164,8 @@ namespace AlibiCo
             md.AppendLine("|---|---|---|---|---|---|---|---|---|");
             foreach (var r in rows)
                 md.AppendLine($"| {r.scene} | {Fidelity.Names[r.level]} | {r.stats.Mean:0.00} | {r.stats.Median:0.00} | {r.stats.P95:0.00} | {r.stats.Fps:0} | {r.stats.Frames} | {r.stats.Load:0.0} | {r.shot} |");
-            File.WriteAllText(Path.Combine(dir, "fidelity-bench.md"), md.ToString());
+            if (capture) File.WriteAllText(Path.Combine(dir, "fidelity-bench.md"), md.ToString());
+            else Debug.Log("[Fidelity] bench table\n" + md);
 
             Settings.GraphicsFidelity = startLevel;
             bool ok = errors == 0 && rows.Count == order.Length * 2;

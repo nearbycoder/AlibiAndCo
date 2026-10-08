@@ -14,11 +14,13 @@
 //   touch     ?touchtest: case 1 to CASE CLOSED with a simulated touchscreen inside the game
 //   touchreal ?touchreal: real touches from the browser (CDP in Chromium, puppeteer's touchscreen
 //             in Firefox): a tap, a finger drag, a held finger and a tap on a HUD button
+//   fidelity  ?fidelitybench: the title and a busy board held still at each graphics fidelity step
+//             (Low, Medium, High, Ultra, High), frame times per step, and a page screenshot of each
 // After autoplay it also checks the last docket result handed to the page's clipboard (pressed in
 // code, so without a user gesture: Firefox refuses it, which only the share run can show).
 // It records the load time, frame rate, WebGL renderer, console errors and periodic screenshots.
 //
-//   node Tools/webtest.mjs [--engine chromium,firefox,webkit|all] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal]
+//   node Tools/webtest.mjs [--engine chromium,firefox,webkit|all] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal,fidelity]
 //                          [--size 1920x1080] [--out Captures/webtest]
 //
 // Needs playwright-core and its browsers (npx playwright install chromium webkit). It isn't a
@@ -38,7 +40,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf("--" + name); return i >= 0 && i + 1 < args.length ? args[i + 1] : def; };
 const engines = opt("engine", "all") === "all" ? ["chromium", "firefox", "webkit"] : opt("engine").split(",");
-const only = opt("only", "autoplay,pad,keys,share,reload,focus,touch,touchreal").split(",");
+const only = opt("only", "autoplay,pad,keys,share,reload,focus,touch,touchreal,fidelity").split(",");
 const [W, H] = opt("size", "1920x1080").split("x").map(Number);
 const OUT = path.resolve(ROOT, opt("out", "Captures/webtest"));
 const WEB = path.join(ROOT, "Builds/WebGL");
@@ -129,13 +131,13 @@ async function run(browser, engine, mode, base, context) {
   page.on("console", (m) => {
     const t = m.text();
     append(`[${m.type()}] ${t}`);
-    if (/\[(AutoPilot|SaveCheck|Save|Seals|Conflicts|Share|Focus)\]/.test(t)) lines.push(t);
+    if (/\[(AutoPilot|SaveCheck|Save|Seals|Conflicts|Share|Focus|Fidelity)\]/.test(t)) lines.push(t);
     if (m.type() === "error") errors.push(t);
   });
   page.on("pageerror", (e) => { append("[pageerror] " + e.message); errors.push("pageerror: " + e.message); });
 
   const query = mode === "autoplay" ? "?autoplay" : mode === "pad" ? "?padtest" : mode === "keys" ? "?keystest" : mode === "share" ? "?sharecheck"
-    : mode === "focus" ? "?focustest" : mode === "touch" ? "?touchtest" : mode === "touchreal" ? "?touchreal" : "?savecheck";
+    : mode === "focus" ? "?focustest" : mode === "touch" ? "?touchtest" : mode === "touchreal" ? "?touchreal" : mode === "fidelity" ? "?fidelitybench" : "?savecheck";
   const t0 = Date.now();
   await page.goto(base + "/" + query, { waitUntil: "load" });
   if (puppet(engine)) await page.waitForFunction(() => !document.querySelector("#loader"), { timeout: 180000 });
@@ -151,11 +153,12 @@ async function run(browser, engine, mode, base, context) {
   const doneRe = mode === "autoplay" ? /\[AutoPilot\] done/ : mode === "pad" ? /\[AutoPilot\] (PASS|FAIL) pad test/
     : mode === "keys" ? /\[AutoPilot\] (PASS|FAIL) keys test/ : mode === "share" ? /\[AutoPilot\] (PASS|FAIL) share check/
     : mode === "focus" ? /\[AutoPilot\] (PASS|FAIL) focus test/ : /^touch/.test(mode) ? /\[AutoPilot\] (PASS|FAIL) touch test/
+    : mode === "fidelity" ? /\[AutoPilot\] (PASS|FAIL) fidelity bench/
     : /\[SaveCheck\] (done|FAIL)/;
   const limit = (mode === "autoplay" ? 40 : 15) * 60000 * (engine === "webkit" ? 2 : 1);
   let shot = 0, fps = [];
   const start = Date.now();
-  let clicked = false, focusHow = null, touched = 0;
+  let clicked = false, focusHow = null, touched = 0, benched = 0;
   // Real touches: Chromium through CDP, Firefox through puppeteer's touchscreen.
   const cdp = mode === "touchreal" && !puppet(engine) ? await context.newCDPSession(page) : null;
   const finger = async (type, x, y) => {
@@ -191,6 +194,12 @@ async function run(browser, engine, mode, base, context) {
       } else await sleep(kind === "hold" ? 1200 : 90);
       await finger("touchEnd", 0, 0);
     }
+    // The bench holds each step for a moment after logging it: photograph that step.
+    const steps = mode === "fidelity" ? lines.filter((l) => /\[Fidelity\] bench (title|board)/.test(l)) : [];
+    if (steps.length > benched) {
+      const m = /bench (\w+) (\w+):/.exec(steps[benched]);
+      await page.screenshot({ path: path.join(dir, `fidelity-${String(++benched).padStart(2, "0")}-${m[1]}-${m[2].toLowerCase()}.png`) });
+    }
     if (mode === "focus" && !focusHow && lines.some((l) => /focus: ready/.test(l))) {
       // Away for five seconds: first by bringing another page to the front (a real focus change, if
       // this headless engine has one), else with the page's own blur and focus events.
@@ -215,8 +224,8 @@ async function run(browser, engine, mode, base, context) {
         await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       }
     }
-    await sleep(mode === "reload" || mode === "share" || mode === "focus" || mode === "touchreal" ? 1000 : 15000);
-    if (mode !== "reload" && shot < 80) await page.screenshot({ path: path.join(dir, `${String(++shot).padStart(2, "0")}.jpg`), type: "jpeg", quality: 70 });
+    await sleep(mode === "reload" || mode === "share" || mode === "focus" || mode === "touchreal" ? 1000 : mode === "fidelity" ? 400 : 15000);
+    if (mode !== "reload" && mode !== "fidelity" && shot < 80) await page.screenshot({ path: path.join(dir, `${String(++shot).padStart(2, "0")}.jpg`), type: "jpeg", quality: 70 });
     if (mode === "autoplay" && fps.length < 6) {
       fps.push(await page.evaluate(() => new Promise((ok) => {
         let n = 0; const t = performance.now();
@@ -246,7 +255,7 @@ async function run(browser, engine, mode, base, context) {
   if (own) await context.close();
   return { engine, mode, loadMs, renderer, finished, focusHow, touches: touched || undefined, minutes: +((Date.now() - start) / 60000).toFixed(1),
     fps: fps.map((f) => Math.round(f)), clipboard, errors: errors.slice(0, 20), errorCount: errors.length,
-    results: lines.filter((l) => /PASS|FAIL|done|loadedFrom|files after|\[Focus\]|focus:|touch: a/.test(l)) };
+    results: lines.filter((l) => /PASS|FAIL|done|loadedFrom|files after|\[Focus\]|focus:|touch: a|\[Fidelity\] bench (title|board)/.test(l)) };
 }
 
 // ---------------------------------------------------------------- main

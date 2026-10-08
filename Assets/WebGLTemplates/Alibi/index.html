@@ -20,11 +20,12 @@
     <script src="Build/{{{ LOADER_FILENAME }}}"></script>
     <script>
       const canvas = document.querySelector("#unity-canvas");
-      // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck, ?savecheck, ?focustest, ?touchtest or ?touchreal become the player's
+      // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck, ?savecheck, ?focustest, ?touchtest, ?touchreal or ?fidelitybench become the player's
       // command-line flags. Nothing else in the address is passed on.
       const query = new URLSearchParams(location.search);
       const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", keystest: "-alibiKeysTest", sharecheck: "-alibiShareCheck", savecheck: "-alibiSaveCheck",
-                      focustest: "-alibiFocusTest -alibiFocusReal", touchtest: "-alibiTouchTest", touchreal: "-alibiTouchTest -alibiTouchReal" };
+                      focustest: "-alibiFocusTest -alibiFocusReal", touchtest: "-alibiTouchTest", touchreal: "-alibiTouchTest -alibiTouchReal",
+                      fidelitybench: "-alibiFidelityBench -alibiBenchSeconds 4" };
       createUnityInstance(canvas, {
         arguments: Object.keys(flags).filter((k) => query.has(k)).flatMap((k) => flags[k].split(" ")),
         dataUrl: "Build/{{{ DATA_FILENAME }}}",
