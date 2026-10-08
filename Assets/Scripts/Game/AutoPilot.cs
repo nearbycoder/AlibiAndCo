@@ -1224,8 +1224,61 @@ namespace AlibiCo
                 else Debug.Log("[AutoPilot] touch: a real tap on Notes opened the notebook, once");
             }
             root.Screens.CloseTopOverlay();
+            yield return Wait(0.8f);
+
+            // A finger held on the memo holds it up to read, and lifting it doesn't move on.
+            var m = s.Memos;
+            m.Clear();
+            yield return null;
+            // Long enough (about 12 s of reading time) that its time on the desk can't run out while the
+            // browser gets round to the hold: once it has, letting go rightly shows the next.
+            const string longMemo = "A memo to hold up with a real finger. It runs long on purpose, so that its reading time is still running when the finger lifts: letting go of a memo that hasn't been read yet must leave it on the desk.";
+            m.Post(MemoKind.Connie, null, longMemo);
+            m.Post(MemoKind.Connie, null, "The one waiting behind it.");
+            float posted = Time.unscaledTime;
+            yield return Wait(1f);
+            var first = m.Showing;
+            bool upWhileHeld = false;
+            Debug.Log($"[AutoPilot] touch: waiting for a hold at {Px(m.ScreenRect(out _).center)} {Of()}");
+            for (float t = 0; t < 30f && !upWhileHeld; t += Time.unscaledDeltaTime) { upWhileHeld |= m.HeldUp; yield return null; }
+            for (float t = 0; t < 4f && m.HeldUp; t += Time.unscaledDeltaTime) yield return null;
+            yield return Wait(0.6f);
+            if (!upWhileHeld) Fail("a real finger held on the memo didn't hold it up");
+            else if (m.Showing != first) Fail("lifting a real finger that was reading the memo moved on to the next");
+            else if (m.HeldUp) Fail("the memo stayed up after the real finger lifted");
+            else Debug.Log($"[AutoPilot] touch: a real finger held the memo up and lifting it didn't move on ({Time.unscaledTime - posted:0.0} s after it was posted; its reading time is {Reading.TimeToRead(longMemo.Length):0.0} s)");
+            if (Time.unscaledTime - posted > Reading.TimeToRead(longMemo.Length)) Debug.Log("[AutoPilot] touch: (the hold came after the memo's reading time, so that check proves less)");
+
+            // Link in two clicks with real taps: case 2's pinned card, Same moment as…, then its twin.
+            CardDef trusted = null, twin = null;
+            yield return Case2AtLink(Fail, (x, y) => { trusted = x; twin = y; });
+            if (trusted != null)
+            {
+                s = root.Session;
+                int lost = s.Board.Mistakes;
+                Debug.Log($"[AutoPilot] touch: waiting for a tap at {Px(Screen(s.ViewOf(trusted.Id).transform.position))} {Of()}");
+                yield return Until(() => root.Screens.LinkButtonScreen() != null);
+                yield return Wait(0.6f);
+                var btn = root.Screens.LinkButtonScreen();
+                if (btn == null) Fail($"a real tap on {trusted.Id} didn't open its panel with Same moment as…");
+                else
+                {
+                    Debug.Log($"[AutoPilot] touch: waiting for a tap at {Px(btn.Value)} {Of()}");
+                    yield return Until(() => s.LinkPicking);
+                    yield return Wait(0.6f);
+                    if (!s.LinkPicking) Fail("a real tap on Same moment as… didn't start a link");
+                    else
+                    {
+                        Debug.Log($"[AutoPilot] touch: waiting for a tap at {Px(TrayPoint(s.ViewOf(twin.Id)))} {Of()}");
+                        yield return Until(() => s.Board.Calibrated.Contains(twin.Clock) || !s.LinkPicking);
+                        yield return Wait(2.5f);
+                        if (!s.Board.Calibrated.Contains(twin.Clock) || s.Board.Mistakes != lost) Fail($"real taps: {trusted.Id}, Same moment as…, {twin.Id} didn't correct {twin.Clock} (mistakes {s.Board.Mistakes})");
+                        else Debug.Log($"[AutoPilot] touch: real taps linked {trusted.Id} and {twin.Id} and corrected {twin.Clock}");
+                    }
+                }
+            }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (real touches: tap, drag, hold, a HUD button)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (real touches: tap, drag, hold, a HUD button, a held memo, link in two clicks)");
             Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
