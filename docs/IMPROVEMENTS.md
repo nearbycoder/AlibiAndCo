@@ -1471,3 +1471,92 @@ Owner decisions this round adds:
   changes. A Settings row for it was left out because holding the slip up does the same job.
 - **Hovering the memo enlarges it over the board's lower-left corner.** It only happens after the pointer
   rests on the slip for a fifth of a second (0.3 s for a finger) and ends as soon as it leaves.
+
+## Round 11 scope (8 Oct 2026, branch `improvements-11`)
+
+Baseline on `e4fa2a3` (main = origin/main): the Linux build is clean, and the round 10 captures plus a new
+autoplay at 3440×1440 (21:9, never tried before) were read as a player meets them. The ranked list is still
+used up apart from owner and hardware items. What stood out:
+
+- **Linking is the hardest gesture, and the only way to do it is a drag-and-hold.** Cases 2–5 and every
+  clock day hinge on a link, and it needs a card dragged onto another and held there until the LINK tag
+  shows. That's fine with a mouse, fiddly with a pad stick or the arrow keys (hold A or Enter, steer, wait),
+  awkward on a tablet (the finger covers both cards), and hard for anyone with a motor impairment. Every
+  other action (pin, confront, send back) can be done with clicks.
+- **Board text collides in places.** On a chip, a time range ("21:00–21:47", "20:10–20:50") runs under the
+  card-kind icon in its corner (cases 1, 3, 4 and 5; round 9 fixed the same thing on the hover card only).
+  The "Clocks in this case" note sits on the ruler, so its second clock reads on top of the 21:15 and 21:30
+  (case 4) or 22:00 (case 5) times. On a full card, a record's last body line can run into its clock line
+  ("Timed by the glasshouse clock" over "? Glasshouse clock: untested" on case 5's Gate book in the tray).
+- **Screen shapes beyond 16:9 and 16:10 were never tried.** 21:9 turns out fine, but the camera's aspect is
+  clamped to 1.3–2.4 by *setting* it, which stretches the picture on a screen outside that range (32:9
+  super-ultrawides; slightly on 5:4).
+- **Round 10's late press is unexplained** (2 of 15 pad and keys runs).
+- **The private test desktops leave helpers behind**: about 80 `ksecretd` processes from earlier rounds'
+  nested sessions are still running on the machine. `Tools/nested.sh` stops KWin, but not what its D-Bus
+  session woke up.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round11/`.
+
+### R11-1. Test desktops that clean up after themselves
+
+`Tools/nested.sh` stops, after the game ends, every process still running with that session's private D-Bus
+address, scratch config folder or Wayland socket in its environment (nothing else carries them), and warns if
+any survive.
+
+**Acceptance:** after a nested run, no `ksecretd` (or other process) is left that wasn't running before it;
+the count is logged before and after. Processes from other sessions are untouched.
+**Verify:** `pgrep ksecretd` lists before and after each nested run this round.
+
+### R11-2. Board text that doesn't collide
+
+Chip time ranges no longer run under the kind icon (a range chip drops the icon; its quoted source already
+says it's a statement), the clocks note sits clear of the ruler with every clock row, and a record's body
+stops above its clock line (shrinking to fit like the rest). Then autoplay at more screen shapes (2560×1440,
+1366×768, 1024×768 4:3, and 5120×1440 32:9), and the camera keeps the right shape (black bars, not a
+stretch) outside the aspects the desk is laid out for.
+
+**Acceptance:** autoplay logs, for every chip, whether its time's rendered bounds cross the kind icon, and
+whether the clock legend's rows cross the ruler's labels, and fails if so; none at 1920×1080, 1280×720 (Large
+text) and the new shapes, with screenshots. A full card's body never reaches its clock line (checked on every
+card of every case at their rendered bounds). At 32:9 the board isn't stretched (a circle stays round: the
+pins), and the mouse, pad and touch still hit what they point at there (the input test at that size).
+**Verify:** autoplay at each size inside `Tools/nested.sh`, the input test at 5120×1440, screenshots.
+
+### R11-3. Link in two clicks
+
+A pinned card's panel gets **Same moment as…**. The next card you click (pinned or in the tray) is linked to
+it, exactly as a drag-and-hold would. While it's waiting, the card stays selected, the card under the pointer
+glows as a link target with the LINK tag, and the controls strip says how to cancel (Esc, Backspace, B, a
+right-click, or a click on nothing). Hints and Connie's link tip mention it. The rules don't change: a wrong
+link still costs a badge, and the drag-and-hold still works.
+
+**Acceptance:** the mouse test links in case 2 through the panel (and cancels once without cost), the keys
+test and the touch test each link a case-2 pair through the panel with only their own input, and the pad
+test cancels with B. Each checks the clock was corrected, no badge was lost on the cancel, and the LINK tag
+showed. Autoplay, the hint tour and every input test still pass.
+**Verify:** the input suites inside `Tools/nested.sh` at 1920×1080 and 1280×800, screenshots.
+
+### R11-4. The late press, hunted
+
+Run the keys and PlayStation pad tests repeatedly (at least ten each across the round, load noted) with
+round 10's logging, and read any failure's log. If the cause is in the game, fix it; if it's the test, fix
+the test; if it doesn't come back, say so.
+
+**Acceptance:** a written cause and fix, or the number of clean runs and the loads they ran at.
+**Verify:** the runs' own logs.
+
+### R11-5. The browser build, checked again
+
+Rebuild the web build and run every `webtest.mjs` check in Chromium and Firefox, with the load noted; the
+real-touch run also holds a finger on the memo (round 10's open item) and links through the panel by taps.
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases, WebKit, a
+real controller, tablet or Steam Deck, the sound by ear, colour-blind or dyslexic players themselves, focus on
+macOS or Windows, a font such as Atkinson Hyperlegible), a real click on Copy result on the Linux desktop, and
+the owner's open calls (memo pace, the held-up memo's size, the background frame rate, pausing on focus loss,
+the link hold, advertising touch, how many boards to keep, Nintendo's confirm button, hints tagging cards,
+late dockets in the run).
