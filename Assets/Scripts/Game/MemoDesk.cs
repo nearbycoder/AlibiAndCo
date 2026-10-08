@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 
@@ -10,7 +11,8 @@ namespace AlibiCo
     /// Connie's typed memos, witness replies and open questions, typed onto paper slips in the
     /// desk's notes corner. New slips slide in over the old ones; the old ones slide away. While
     /// others are waiting, a slip stays long enough to be read (Logic.Reading) and wears a MORE tag
-    /// saying how to see the next one now.
+    /// saying how to see the next one now. Hovered (or a finger resting on it), the slip is held up:
+    /// lifted off the desk and enlarged, and the queue waits for as long as it's held.
     /// </summary>
     public sealed class MemoDesk : MonoBehaviour
     {
@@ -53,6 +55,22 @@ namespace AlibiCo
         public string MoreShown => moreTag != null && moreTag.gameObject.activeSelf ? moreText.text : "";
         /// <summary>True once the memo on the desk has been given its time to read.</summary>
         bool ReadEnough => !typing && AlibiCo.Logic.Reading.Read(total, typeTimer, holdTimer);
+
+        // Held up to read: the slip's contents (liftRoot) rise toward the camera and grow from the slip's
+        // lower-left corner, so it opens over the board rather than off the screen's edge.
+        public const float LiftScale = 1.6f, LiftHeight = 3.2f;
+        Transform liftRoot;
+        Vector2 slipSize;
+        Vector3 slipRest;   // the slip's place on the desk, once it has slid in
+        Quaternion slipTilt;
+        Vector3 liftOffset;
+        float lift, hoverTime, awayTime;
+        bool hovered;
+        /// <summary>The slip is held up (or on its way up or down): the board's cards under it don't take the pointer.</summary>
+        public bool HeldUp => lift > 0.001f || WantsLift;
+        bool WantsLift => current != null && hoverTime >= (PadCursor.Using == PadCursor.Pointer.Touch ? 0.3f : 0.2f);
+        /// <summary>The session says, every frame, whether the pointer rests on the slip.</summary>
+        public void Hover(bool over) => hovered = over;
         public bool Busy => typing || queue.Count > 0;
         /// <summary>The memo on the desk right now (the last one dealt from the queue).</summary>
         public Memo Showing { get; private set; }
@@ -74,7 +92,7 @@ namespace AlibiCo
             var m = new Memo { Kind = kind, Title = title, Text = text, Stale = stale };
             queue.Enqueue(m);
             History.Add(m);
-            if (current == null || ReadEnough) Next();
+            if (current == null || (ReadEnough && !HeldUp)) Next();
         }
 
         public void Clear()
@@ -102,7 +120,78 @@ namespace AlibiCo
             typeTimer = holdTimer = AlibiCo.Logic.Reading.MaxOnDesk;   // already read
         }
 
-        public bool Contains(Vector2 deskLocal) => stage.Notes.Contains(deskLocal);
+        /// <summary>Is this screen point on the slip, as it's shown right now (resting, or held up)?</summary>
+        public bool Under(Vector2 screen)
+        {
+            if (current == null || liftRoot == null) return false;
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            foreach (var c in new[] { new Vector2(-1, -1), new Vector2(1, -1), new Vector2(-1, 1), new Vector2(1, 1) })
+            {
+                var p = stage.Cam.WorldToScreenPoint(liftRoot.TransformPoint(new Vector3(c.x * slipSize.x / 2, c.y * slipSize.y / 2, 0)));
+                minX = Mathf.Min(minX, p.x); maxX = Mathf.Max(maxX, p.x); minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y);
+            }
+            return screen.x >= minX && screen.x <= maxX && screen.y >= minY && screen.y <= maxY;
+        }
+
+        /// <summary>The slip's on-screen rectangle and its body text's em height in pixels (the tests read them).</summary>
+        public Rect ScreenRect(out float bodyEm)
+        {
+            bodyEm = -1;
+            if (current == null || liftRoot == null) return Rect.zero;
+            var cam = stage.Cam;
+            var pts = new[] { new Vector2(-1, -1), new Vector2(1, -1), new Vector2(-1, 1), new Vector2(1, 1) }
+                .Select(c => (Vector2)cam.WorldToScreenPoint(liftRoot.TransformPoint(new Vector3(c.x * slipSize.x / 2, c.y * slipSize.y / 2, 0)))).ToList();
+            if (body != null)
+            {
+                body.ForceMeshUpdate();
+                var at = body.transform.position;
+                var up = body.transform.TransformVector(Vector3.up * body.fontSize / 10f);
+                bodyEm = (cam.WorldToScreenPoint(at + up) - cam.WorldToScreenPoint(at)).magnitude;
+            }
+            return Rect.MinMaxRect(pts.Min(q => q.x), pts.Min(q => q.y), pts.Max(q => q.x), pts.Max(q => q.y));
+        }
+
+        /// <summary>Where the slip's contents go when it's held up: grown from its lower-left corner, then nudged onto the screen.</summary>
+        Vector3 LiftOffset()
+        {
+            var off = new Vector3(slipSize.x * (LiftScale - 1) / 2, slipSize.y * (LiftScale - 1) / 2, -LiftHeight);
+            var cam = stage.Cam;
+            var half = slipSize * LiftScale / 2;
+            const float margin = 0.015f;
+            // Measured where the slip rests (it may still be sliding in), held level.
+            Vector3 World(Vector3 local) => transform.TransformPoint(slipRest + local);
+            for (int i = 0; i < 3; i++)
+            {
+                var a = cam.WorldToViewportPoint(World(off + new Vector3(-half.x, -half.y, 0)));
+                var b = cam.WorldToViewportPoint(World(off + new Vector3(half.x, half.y, 0)));
+                float minX = Mathf.Min(a.x, b.x), maxX = Mathf.Max(a.x, b.x), minY = Mathf.Min(a.y, b.y), maxY = Mathf.Max(a.y, b.y);
+                float dx = minX < margin ? margin - minX : (maxX > 1 - margin ? 1 - margin - maxX : 0);
+                float dy = minY < margin ? margin - minY : (maxY > 1 - margin ? 1 - margin - maxY : 0);
+                if (Mathf.Approximately(dx, 0) && Mathf.Approximately(dy, 0)) break;
+                float depth = Vector3.Dot(World(off) - cam.transform.position, cam.transform.forward);
+                var w0 = cam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, depth));
+                var w1 = cam.ViewportToWorldPoint(new Vector3(0.5f + dx, 0.5f + dy, depth));
+                var shift = transform.InverseTransformVector(w1 - w0);
+                off += new Vector3(shift.x, shift.y, 0);
+            }
+            // The contents sit inside the tilted slip: the same place, in the slip's own axes.
+            return Quaternion.Inverse(slipTilt) * off;
+        }
+
+        void UpdateLift()
+        {
+            if (hovered) { hoverTime += Clock.Dt; awayTime = 0; }
+            else if ((awayTime += Clock.Dt) > 0.12f) hoverTime = 0;   // a brief slip off the edge doesn't drop it
+            bool want = WantsLift;
+            if (want && lift <= 0.001f && current != null) liftOffset = LiftOffset();
+            float to = want ? 1f : 0f;
+            lift = Settings.ReducedMotion ? to : Mathf.MoveTowards(lift, to, Clock.Dt / 0.18f);
+            if (liftRoot == null) return;
+            float e = Easing.Apply(Ease.OutCubic, lift);
+            liftRoot.localPosition = liftOffset * e;
+            liftRoot.localScale = Vector3.one * Mathf.Lerp(1f, LiftScale, e);
+            liftRoot.localRotation = Quaternion.Slerp(Quaternion.identity, Quaternion.Inverse(slipTilt), e);
+        }
 
         void Next()
         {
@@ -117,10 +206,21 @@ namespace AlibiCo
                 var p = old.localPosition;
                 old.MoveLocal(p + new Vector3(-6f, -0.6f, 0), 0.45f, Ease.InCubic, () => { if (old) Destroy(old.gameObject); });
             }
+            bool held = HeldUp;
             current = BuildSlip(m);
-            var target = current.localPosition;
-            current.localPosition = target + new Vector3(-6.5f, 0.4f, -0.4f);
-            current.MoveLocal(target, 0.5f, Ease.OutCubic);
+            if (held)
+            {
+                // Read one after another while it's held up: the next one comes up already in the reader's hands.
+                liftOffset = LiftOffset();
+                lift = 1;
+                UpdateLift();
+            }
+            else
+            {
+                var target = current.localPosition;
+                current.localPosition = target + new Vector3(-6.5f, 0.4f, -0.4f);
+                current.MoveLocal(target, 0.5f, Ease.OutCubic);
+            }
             Sfx.Play("paper_slide", 0.3f);   // every memo: keep it under the pins and stamps
             typing = true;
             visible = 0;
@@ -133,11 +233,18 @@ namespace AlibiCo
         Transform BuildSlip(Memo m)
         {
             var r = stage.Notes;
-            var root = new GameObject("memo").transform;
-            root.SetParent(transform, false);
-            root.localPosition = new Vector3(r.center.x, r.center.y, -0.05f);
-            root.localRotation = Quaternion.Euler(0, 0, Random.Range(-2.5f, 1.5f));
+            var slip = new GameObject("memo").transform;
+            slip.SetParent(transform, false);
+            slip.localPosition = new Vector3(r.center.x, r.center.y, -0.05f);
+            slip.localRotation = Quaternion.Euler(0, 0, Random.Range(-2.5f, 1.5f));
+            var root = new GameObject("lift").transform;   // everything on the slip; held up, this rises and grows
+            root.SetParent(slip, false);
             var size = new Vector2(r.width - 0.1f, r.height - 0.15f);
+            liftRoot = root;
+            slipSize = size;
+            slipRest = slip.localPosition;
+            slipTilt = slip.localRotation;
+            lift = 0;
             Color paper, ink;
             string head, font;
             float textSize;
@@ -190,7 +297,7 @@ namespace AlibiCo
             Shapes.Icon(root, "clip", 0.55f, Pal.Hex("9AA3AB"), new Vector3(-size.x / 2 + 0.55f, size.y / 2 - 0.02f, -0.06f), 8);
             body.ForceMeshUpdate();
             BuildMoreTag(root, size, headLine);
-            return root;
+            return slip;
         }
 
         /// <summary>A small oxblood label at the right of the slip's heading while memos are waiting: how many, and how to see the next.</summary>
@@ -272,8 +379,9 @@ namespace AlibiCo
                 typeTimer += Clock.Dt;
                 holdTimer += Clock.Dt;
                 // Let each memo be read before the next one replaces it.
-                if (queue.Count > 0 && ReadEnough) Next();
+                if (queue.Count > 0 && ReadEnough && !HeldUp) Next();
             }
+            UpdateLift();
             RefreshMoreTag();
         }
     }

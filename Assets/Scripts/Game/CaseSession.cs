@@ -503,7 +503,7 @@ namespace AlibiCo
         void Update()
         {
             if (!Solved && !InputLocked && !GameRoot.Paused && ((GameRoot.Attended && !GameRoot.JustBack) || GameRoot.TimerIgnoresFocus)) Elapsed += Clock.Dt;
-            if (GameRoot.Paused || InputLocked) { EndHover(); return; }
+            if (GameRoot.Paused || InputLocked) { EndHover(); Memos.Hover(false); return; }
             var mouse = Mouse.current;
             if (mouse == null) return;
             Vector2 mp = mouse.position.ReadValue();
@@ -513,12 +513,16 @@ namespace AlibiCo
             debugOverUi = overUi;
             debugMouse = mp;
 
-            if (dragging != null) { UpdateDrag(mp, mouse); return; }
+            if (dragging != null) { Memos.Hover(false); UpdateDrag(mp, mouse); return; }
 
             // Hover. (With touch, only while a finger is down.)
             bool fingerUp = PadCursor.FingerUp;
             var hit = overUi || fingerUp ? null : Pick(mp, null);
             if (DebugHoverId != null) hit = DebugHoverId == "incident" ? incident : ViewOf(DebugHoverId);
+            // The memo slip, held up to read, lies over the board: the cards under it don't take the pointer.
+            bool onMemo = !overUi && !fingerUp && DebugHoverId == null && Memos.Under(mp);
+            if (onMemo && Memos.HeldUp) hit = null;
+            Memos.Hover(onMemo && hit == null);
             if (hit != hover)
             {
                 var old = hover;
@@ -542,7 +546,19 @@ namespace AlibiCo
             {
                 pressed = hit;
                 pressScreen = mp;
-                if (hit == null) { Deselect(); Memos.Skip(); }
+                if (hit == null)
+                {
+                    Deselect();
+                    // A finger may be resting on the memo to read it: it moves on when the finger lifts, unless it was held.
+                    if (PadCursor.Using == PadCursor.Pointer.Touch) skipOnLift = true;
+                    else Memos.Skip();
+                }
+            }
+            if (skipOnLift && !mouse.leftButton.isPressed)
+            {
+                skipOnLift = false;
+                bool read = PadCursor.TakeHeldToRead();
+                if (!read && !Memos.HeldUp) Memos.Skip();
             }
             if (mouse.rightButton.wasPressedThisFrame && !overUi && hit != null)
             {
@@ -565,6 +581,8 @@ namespace AlibiCo
             }
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) Memos.Skip();
         }
+
+        bool skipOnLift;
 
         bool MapHit(Vector2 mp)
         {

@@ -53,6 +53,7 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Drag** a card from the tray onto the board (or click it) | Pin it to its person's line at its printed time |
 | **Hover** a card | Lift it, read it in full, and see the walk to and from it on the town map |
 | **Hover** the town map | Zoom in on Wrenhaven |
+| **Hover** the memo on the desk | Hold it up to read it larger; the next memo waits until you let go (click it for the next) |
 | **Hold a card on another card** until it says **LINK**, then drop it | **Link**: "these are the same moment, seen on two clocks" |
 | **Click** a pinned statement | Open its panel: **Confront** the witness, or send it back |
 | **Right-click** a pinned card | Send it back to the tray |
@@ -87,7 +88,7 @@ Or with the keyboard alone:
 | **Q / E** | Jump to the previous / next card (or button, in menus) |
 | **Enter** | Click: pin a card, open a statement, press a button. **Hold Enter and steer** with the arrows to drag |
 | **Backspace** | Send a pinned card back to the tray; back or close in menus |
-| **Tab**, **H**, **Space**, **Esc** | The notebook, a hint, skip a memo, pause (as above) |
+| **Tab**, **H**, **Space**, **Esc** | The notebook, a hint, the next memo, pause (as above) |
 | **Up / Down**, **Page Up / Page Down** | Scroll the notebook's notes while it's open |
 
 Or with a touchscreen, in the browser build:
@@ -97,6 +98,7 @@ Or with a touchscreen, in the browser build:
 | **Tap** a card | Pin it; on a pinned card, open its panel (**Confront**, **Back to the tray**) |
 | **Drag** a card | Pin it, link it (hold it on the other card until it says **LINK**), or drag the incident card to accuse |
 | **Press and hold** a card | Read it in full (lift your finger and nothing is clicked) |
+| **Press and hold** the memo | Hold it up to read it larger |
 | **Hint**, **Notes**, **Menu** | The buttons at the top right (drag the notebook's notes to scroll them) |
 | **Tap** the memo (or an empty spot) | Show the next memo waiting |
 
@@ -157,7 +159,8 @@ time it comes up. The notebook (Tab) keeps every question, witness reply, clock 
 When a move brings several memos at once, each one stays on the desk long enough to read (about 185
 words a minute), its slip says how many more are waiting and how to see the next one now, and a
 question the board has already answered by the time its turn comes is passed over (the notebook
-still has it).
+still has it). Hover the memo (or rest a finger on it) and it's held up off the desk at nearly twice
+the size, and nothing replaces it until you let it go.
 Hints point at the next step, never the answer, and the cards a hint names wear a brass **CONNIE**
 tag until the board changes (with a pad or the keyboard, the next jump lands on them). When an honest witness stands firm and costs you a
 badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name),
@@ -287,7 +290,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
 | `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
-| `Tools/play.sh -alibiMemoTest [outdir]` | Opens case 1, posts three memos at once and checks, in game time, that each stays its reading time, that the slip's MORE tag counts them down, that Space finishes typing and then shows the next, and that a question answered before its turn is passed over. The pad, keys and touch tests also check the tag names their control. |
+| `Tools/play.sh -alibiMemoTest [outdir]` | Opens case 1, posts three memos at once and checks, in game time, that each stays its reading time, that the slip's MORE tag counts them down, that Space finishes typing and then shows the next, and that a question answered before its turn is passed over. Then it hovers the slip with the mouse and checks it's held up at least 1.6 times as large, inside the window, that nothing replaces it while it's held, that a click on it shows the next, and that a finger held on it reads it without moving on while a tap moves on. It logs the slip's size and body text before and after. The pad, keys and touch tests also check the tag names their control. |
 | `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
 | `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
 | `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag. |

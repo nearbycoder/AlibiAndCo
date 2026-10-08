@@ -985,7 +985,7 @@ namespace AlibiCo
                 ("Backspace", "send a pinned card back; back in menus"),
                 ("Hold Enter on the incident", "accuse: steer it to the one line it fits"),
                 ("Tab  ·  H", "notebook  ·  Connie's hint"),
-                ("Space  ·  Esc", "skip a memo  ·  pause, resume"),
+                ("Space  ·  Esc", "next memo  ·  pause, resume"),
                 ("Move the mouse", "hands control back to the mouse"),
             } : pointer == PadCursor.Pointer.Pad ? new[]
             {
@@ -1006,7 +1006,7 @@ namespace AlibiCo
                 ("Tap a pinned card", "its panel: Confront, or back to the tray"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
-                ("Tap an empty spot", "skip a memo"),
+                ("Press and hold the memo", "hold it up to read; tap it for the next"),
             } : new[]
             {
                 ("Drag a card to the board", "pin it (or just click it)"),
@@ -1016,8 +1016,9 @@ namespace AlibiCo
                 ("Right-click a pinned card", "back to the tray"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hover the town map", "zoom in on Wrenhaven"),
+                ("Hover the memo", "hold it up to read; click it for the next"),
                 ("Tab  ·  H or F1", "notebook  ·  Connie's hint"),
-                ("Space or click", "skip a memo"),
+                ("Space", "finish a memo, then the next"),
                 ("F11  ·  F12", "fullscreen  ·  screenshot"),
                 ("Arrows, Q / E, Enter", "play with the keyboard alone"),
             };

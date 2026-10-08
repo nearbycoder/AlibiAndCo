@@ -1350,6 +1350,74 @@ namespace AlibiCo
             else Debug.Log($"[AutoPilot] memo: passed over {m.PassedOver - passed} answered question(s); the notebook still has it: {s.Memos.History.Any(h => h.Text == question)}");
             if (!s.Memos.History.Any(h => h.Text == question)) Fail("the passed-over question isn't in the notebook");
 
+            // Held up to read: hovering the slip lifts and enlarges it, and nothing replaces it while it's held.
+            m.Clear();
+            yield return null;
+            m.Post(MemoKind.Connie, null, texts[1]);
+            m.Post(MemoKind.Connie, null, "The next one, waiting.");
+            m.Post(MemoKind.Connie, null, "And one more after it.");
+            yield return Wait(1f);
+            var resting = m.ScreenRect(out float restEm);
+            var first = m.Showing;
+            var away = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
+            MouseTo(away);
+            yield return Wait(0.2f);
+            yield return Glide(away, resting.center, false);
+            yield return Wait(0.8f);
+            var held = m.ScreenRect(out float heldEm);
+            var screen = new Rect(0, 0, UnityEngine.Screen.width, UnityEngine.Screen.height);
+            Debug.Log($"[AutoPilot] memo: at rest {resting.width:0}x{resting.height:0} px, body {restEm:0.0} px em; held up {held.width:0}x{held.height:0} px, body {heldEm:0.0} px em ({heldEm / Mathf.Max(0.01f, restEm):0.00}x) at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSizeNames[Settings.TextSize]}");
+            if (!m.HeldUp) Fail("hovering the slip didn't hold it up");
+            if (heldEm < restEm * 1.6f) Fail($"held up, the body is only {heldEm / Mathf.Max(0.01f, restEm):0.00}x as large");
+            if (held.xMin < 0 || held.yMin < 0 || held.xMax > screen.width || held.yMax > screen.height) Fail($"held up, the slip runs off the window ({held})");
+            yield return Shot("memo_held_up");
+            float wait = Reading.TimeToRead(texts[1].Length) + 3f;
+            for (float t = 0; t < wait; t += Clock.Dt) yield return null;
+            if (m.Showing != first || m.Waiting != 2) Fail($"while held up for {wait:0} s, the memo was replaced ({m.Waiting} waiting)");
+            else Debug.Log($"[AutoPilot] memo: held up for {wait:0.0} s (its reading time is {Reading.TimeToRead(texts[1].Length):0.0} s), nothing replaced it");
+            // A click on the held slip shows the next one, still held up.
+            yield return Click(m.ScreenRect(out _).center);
+            yield return Wait(0.5f);
+            if (m.Showing == first || !m.HeldUp) Fail($"a click on the held slip {(m.Showing == first ? "didn't show the next memo" : "dropped it")}");
+            else Debug.Log("[AutoPilot] memo: a click on the held slip showed the next one, held up");
+            // Pointer away: it goes back to the desk, and the queue moves on once it's been read.
+            MouseTo(away);
+            yield return Wait(0.6f);
+            if (m.HeldUp) Fail("the slip stayed up after the pointer left it");
+            var back = m.ScreenRect(out float backEm);
+            if (Mathf.Abs(backEm - restEm) > 0.5f) Fail($"back on the desk, the body is {backEm:0.0} px em, not {restEm:0.0}");
+
+            // A finger held on the slip reads it without moving on; a tap moves on.
+            touchscreen = InputSystem.AddDevice<Touchscreen>("TestTouch");
+            PadCursor.IgnoreRealMouse = true;
+            m.Clear();
+            yield return null;
+            m.Post(MemoKind.Connie, null, "A memo to hold up with a finger.");
+            m.Post(MemoKind.Connie, null, "The one a tap brings up.");
+            yield return Wait(0.8f);
+            var fingerFirst = m.Showing;
+            var at = m.ScreenRect(out _).center;
+            touchId++;
+            Finger(at, UnityEngine.InputSystem.TouchPhase.Began);
+            bool upWhileHeld = false;
+            for (float t = 0; t < 1.2f; t += Clock.Dt)
+            {
+                yield return null;
+                upWhileHeld |= m.HeldUp;
+            }
+            if (upWhileHeld) yield return Shot("memo_held_by_finger");
+            Finger(at, UnityEngine.InputSystem.TouchPhase.Ended);
+            yield return null;
+            yield return Wait(0.6f);
+            if (!upWhileHeld) Fail("a finger held on the slip didn't hold it up");
+            if (m.Showing != fingerFirst) Fail("lifting a finger that was reading the memo moved on to the next");
+            if (m.HeldUp) Fail("the slip stayed up after the finger lifted");
+            yield return TouchTap(m.ScreenRect(out _).center);
+            yield return Wait(0.4f);
+            if (m.Showing == fingerFirst) Fail("a tap on the slip didn't show the next memo");
+            else if (upWhileHeld) Debug.Log("[AutoPilot] memo: a held finger read the memo without moving on; a tap showed the next");
+            InputSystem.RemoveDevice(touchscreen);
+
             if (errors > 0) ok = false;
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} memo test");
             Debug.Log($"[AutoPilot] done: memo test, {errors} errors");
