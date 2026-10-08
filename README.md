@@ -203,9 +203,11 @@ the board you played last).
 
 **Controls when you need them.** A single line on the board's frame shows the gesture that matters
 right now (pin, confront, link, accuse), and each tip retires once you've used it. The full
-controls list is in the pause menu. A link only happens when you mean it: a dragged card has to
+controls list is in the pause menu. A link doesn't need a drag at all: click a pinned card and choose
+**Same moment as…**, then click the card that saw the same moment (handy with a pad, the keys or a finger).
+A link only happens when you mean it: a dragged card has to
 rest on the other card until a **LINK** tag appears, so a card that just lands on another on its
-way to a lane never costs a badge. And the case timer waits while the game is in the background,
+way to a lane never costs a badge. The case timer waits while the game is in the background,
 where the game also drops to 10 frames a second.
 
 ## Content
@@ -290,19 +292,19 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/validate.sh --docket N [yyyy-MM-dd]` / `--docket-show yyyy-MM-dd` | Generates and proves N consecutive Daily Dockets (and reports how many variations the worst day needed), or prints one day's docket in full with its solution. |
 | `Tools/validate.sh --docket-phrases N [yyyy-MM-dd]` | Lists the sentences that turn up on more than a quarter of N consecutive dockets: the template showing through. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
-| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
-| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
-| `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
+| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, that no text on the board runs into other text or an icon (`[Collide]`: chip times, a card's clock line, the clock legend against the ruler, the title card and the HUD buttons), the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
+| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link; then links a pair through the card panel's *Same moment as…* (cancelling once with a right-click first). |
+| `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and links a pair in case 2 through *Same moment as…* (B cancels once first), and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
 | `Tools/play.sh -alibiMemoTest [outdir]` | Opens case 1, posts three memos at once and checks, in game time, that each stays its reading time, that the slip's MORE tag counts them down, that Space finishes typing and then shows the next, and that a question answered before its turn is passed over. Then it hovers the slip with the mouse and checks it's held up at least 1.6 times as large, inside the window, that nothing replaces it while it's held, that a click on it shows the next, and that a finger held on it reads it without moving on while a tap moves on. It logs the slip's size and body text before and after. The pad, keys and touch tests also check the tag names their control. |
 | `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
-| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
-| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag. |
+| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook), including the link through *Same moment as…* (Backspace cancels). |
+| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag; then a link in case 2 by taps through *Same moment as…* (a tap on nothing cancels). |
 | `Tools/play.sh -alibiFocusTest [outdir] [-alibiFocusReal]` | Opens case 1 and checks the case timer stands still while the game is out of focus and runs again when it's back, and that the game drops to about 10 frames a second while away (it logs frames a second and the CPU time of the game's threads, attended and away, at the title and on a board): through Unity's focus handler, or with `-alibiFocusReal`, by waiting for a real focus change from outside. |
 | `Tools/play.sh -alibiBoardsTest [outdir]` | Leaves three boards part-way (case 1, case 2 with a badge lost, today's docket) and checks every one is kept: the folders and the drawer say IN PROGRESS, *Continue* resumes the last, each case reopens with its own pins, badges and timer, *Start over* asks first, and solving one drops only its own board. |
 | `Tools/play.sh [-alibiClockAt yyyy-MM-ddTHH:mm:ss] -alibiMidnightTest [outdir]` | Leaves today's docket in progress, opens the docket drawer and waits for midnight (within 20 minutes; `-alibiClockAt` starts the game's clock at a chosen moment), then checks the drawer redrew itself for the new day and that Continue resumes yesterday's docket. |
 | `Tools/play.sh -alibiClipboardCheck -alibiShareCheck [outdir]` | Solves today's docket, clicks Copy result and holds the line on the system clipboard for 8 seconds, so a script can read it from outside. Without `-alibiClipboardCheck`, automated runs never touch the system clipboard. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
-| `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`, then reads back the copied docket result), the pad and keyboard tests (`?padtest`, `?keystest`), Copy result with a real click (`?sharecheck`), a reload check that the save persists (`?savecheck`), the focus check with the page sent to the background (`?focustest`), and the touch tests: simulated inside the game (`?touchtest`) and with real touches sent through the browser (`?touchreal`). It logs load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
+| `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`, then reads back the copied docket result), the pad and keyboard tests (`?padtest`, `?keystest`), Copy result with a real click (`?sharecheck`), a reload check that the save persists (`?savecheck`), the focus check with the page sent to the background (`?focustest`), and the touch tests: simulated inside the game (`?touchtest`) and with real touches sent through the browser (`?touchreal`: a tap, a drag, a held finger on a card and on the memo, a HUD button, and a link by three taps). It logs load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
 | `Tools/nested.sh [--size WxH] [play.sh args]` | Runs the game, or any self-test above, inside a private nested KWin (`kwin_wayland --virtual`, with its own Wayland socket, D-Bus session and config folder, closed afterwards, along with anything the session woke up, such as `ksecretd` or a desktop portal: whatever still carries the session's bus address, config folder or socket is stopped). The window is certainly on screen there, so it runs at its real frame rate: on the development machine the self-tests ran at 52–56 fps inside it against about 11 on the shared desktop, where the compositor throttles a covered window. It can't go fullscreen on the real desktop, the real pointer can't reach it, and the player's prefs land in a scratch folder. It needs KDE's KWin. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
 
@@ -426,15 +428,16 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 10). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 11). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
-  the browser (a tap, a finger drag, a held finger and a tap on a HUD button) reach the game; a real
+  the browser (a tap, a finger drag, a held finger on a card and on the memo, a tap on a HUD button, and a
+  link made by three taps through *Same moment as…*) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
   the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
-  and progress survives a page reload. It's 26.6 MB. In round 10 it loaded from localhost in 1.2–1.6
-  seconds (2.8 for Chromium's first, cold load) and autoplay ran at 59–60 fps in both browsers, at a
-  load average of 1–9. It hasn't been tried in Safari: Playwright's
+  and progress survives a page reload. It's 26.6 MB. In round 11 it loaded from localhost in 1.2–1.3
+  seconds in Chromium and 1.5–1.7 in Firefox, and autoplay ran at 60 fps in both, at a load average of
+  1.3–5.8. It hasn't been tried in Safari: Playwright's
   WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
   browser, where the page sets the size.
@@ -500,7 +503,9 @@ changes since then aren't released yet.
 - **The link guard was checked by simulated input.** The mouse test drops cards onto other cards in
   one quick movement (a quarter of a second) and checks they pin or go back without linking, then
   holds one until the LINK tag shows and checks it links. The half-second hold was chosen by hand,
-  not tuned with players.
+  not tuned with players. Linking without a drag (a pinned card's panel, *Same moment as…*, then the
+  other card) was checked by the mouse, keys, pad and touch tests and with real taps in the browsers,
+  not by players.
 - **Plain lettering was checked by automation, not by the players it's for.** Autoplay plays every
   case and docket with it on at 1920×1080 and at 1280×720 with Large text and checks no reading text
   is left in a decorative face or runs out of its box, and the mouse test switches it mid-case. Its
@@ -511,7 +516,8 @@ changes since then aren't released yet.
   the slip up (hover it, or rest a finger on it) keeps it as long as you like at about 1.8 times the size.
   Neither the pace nor the size has been tried with players. Someone who plays quickly will see the MORE
   tag count up after a burst of moves (the self-tests saw up to 8 waiting); Space or a click moves on.
-  Holding the slip up hasn't been tried in the browser build (the touch runs there cover the tap).
+  In the browser, a real finger held on the slip (sent through headless Chromium and Firefox) held it up, and
+  lifting it didn't move on.
 - **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
   triangle as well as the red glow, and the locks differ by icon and word. That was checked on
   protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.

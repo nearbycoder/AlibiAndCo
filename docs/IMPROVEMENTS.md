@@ -1560,3 +1560,61 @@ macOS or Windows, a font such as Atkinson Hyperlegible), a real click on Copy re
 the owner's open calls (memo pace, the held-up memo's size, the background frame rate, pausing on focus loss,
 the link hold, advertising touch, how many boards to keep, Nintendo's confirm button, hints tagging cards,
 late dockets in the run).
+
+## Round 11 results (8 Oct 2026)
+
+Every item landed on `improvements-11`. Screenshots are in `docs/media/improvements/round11/` (`r11-2-*` the
+legend, the Gate book and a 32:9 window before and after; `r11-3-*` the card panel and a link made with the
+pad through it). Each item was built and tested on its own: R11-3's code sat in a stash while R11-2's 4:3
+follow-up was built, tested and committed.
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R11-1 | Test desktops that clean up after themselves | d62b25c | A stand-in "game" run through a copy of `Tools/nested.sh` (in `Logs/r11/`) that woke `ksecretd` over the private bus (it brought a portal chain with it) and left a detached child: after the session, nested.sh stopped the child, `ksecretd` and the one portal still running, and no `ksecretd` was left that wasn't there before. The first nested run compared `pgrep ksecretd` before and after, and the machine had 84 at the start of the round and 84 at the end, after more than 60 nested runs | Met. The two new `ksecretd` seen after the first run belonged to another game's session (by their environment) and were left alone. The 84 already running when the round began, left by earlier nested sessions on this machine, weren't touched: they aren't this session's to stop |
+| R11-2 | Board text that doesn't collide | e65fe79, 5cb70e8 | A new autoplay check (`[Collide]`, 54 per run) after every step: chip times against the kind icon, a full card's body against its clock line, the clock legend against the ruler's times, the title card and the HUD pill, measured in each card's own plane. Autoplay inside `Tools/nested.sh` at 1920×1080 (Normal and Larger text), 2560×1440, 3440×1440, 1366×768, 1280×720 (Large), 1024×768 (Normal and Larger): 10/10 cases and dockets and 54/54 checks clean at every size. The mouse test at 5120×1440 (32:9). (2560×1440, 3440×1440, 1366×768 and 32:9 ran on e65fe79's build; after 5cb70e8, which only moves the legend where the title card or the HUD pill crowds it, 1024×768 at both sizes, 1280×720 and 1920×1080 at Normal and Larger ran again) | Met. Before the fix the check (in a first, world-space version that also over-counted tilted tray cards) failed 46 of 54 at 1920×1080: every range chip and the legend in cases 2–5. At 32:9 the picture was stretched by half again; it now keeps its shape with bars (`[Stage] picture 3456x1440 at (832, 0)`) and the mouse test passed. The chips' `[Legibility]` figures didn't change. 4:3 turned up two more collisions (the legend on the title card, then under the HUD pill at Larger text), fixed in 5cb70e8 |
+| R11-3 | Link in two clicks | 0334e75 | The mouse, keys, pad and touch tests go on to case 2, open the trusted card's panel, choose *Same moment as…*, cancel with their own control (right-click, Backspace, B, a tap on nothing; no badge lost, nothing linked), choose it again and click the wrong clock's card in the tray: the Lantern clock was corrected and the card pinned, no badge lost, and the LINK tag showed under the mouse, keys and pad pointers. At 1920×1080 and 1280×800. Hint tour, autoplay and the validator still pass | Met |
+| R11-4 | The late press, hunted | — (no code) | The keys test and the PlayStation pad test eight times each, alternating, on the final build inside `Tools/nested.sh` (`Logs/r11/latepress.sh`, logs in `Captures/r11-lp*`), plus the other keys and pad runs this round (mouse-free runs at 1920×1080 and 1280×800 with an Xbox, PlayStation and Nintendo pad) | **Not reproduced, cause still unknown.** 16 of 16 passed with no late press and 0 errors, at one-minute load averages of 1.9–13.6; every other keys and pad run this round passed too. Round 10's two failures came at loads of about 15–21, and the machine was quieter today; I didn't load it on purpose (it's shared). Round 10's logging (the board, the pointer, the panel and the frame time around the press) stays in, so the next failure can be read |
+| R11-5 | The browser build, checked again | 0fec8e7 | `node Tools/webtest.mjs --engine chromium,firefox` on a fresh build. `?touchreal` now also holds a real finger on a memo (held up, and lifting it before its reading time is out leaves it on the desk) and links by three real taps | Met. All 16 runs PASS with 0 console errors; autoplay 10/10 at 60 fps in both browsers; 26.6 MB; loads 1.2–1.3 s in Chromium and 1.5–1.7 s in Firefox, at a load average of 1.3–5.8. Round 10's open item (holding a memo up in the browser) is closed: a real finger held it up in both engines |
+
+EditMode tests: 73/73 (unchanged: this round's code is on the Unity side, which the player self-tests cover).
+The validator proves cases 1–5 airtight with 60 pin orders each (case 2 changed only the wording of its
+opening memo), and `--docket 365` from 7 October 2026 is all airtight (worst day 5 of 40 variations). The
+final checks ran on the build of `0fec8e7` (the commits after it are docs), inside `Tools/nested.sh`, at load
+averages of 1.3–13.6: autoplay 10/10 (5 cases, 5 dockets) with 54/54 collision checks at 1920×1080, at
+1280×720 with Large text and in plain lettering; the mouse, touch, Xbox pad and Nintendo pad tests, the memo
+test, the hint tour, the boards test and the focus test (55.6–57.0 fps with focus, 10.0 away) at 1920×1080;
+the mouse, keys, touch, PlayStation pad and memo tests at 1280×800; and R11-4's sixteen keys and PlayStation
+pad runs. All PASS, 0 errors (`Logs/r11-final-run.log`, each run's `player.log` under `Captures/r11-f-*` and
+`Captures/r11-lp*`). The real `alibi_save.json` and `prefs` were byte-identical before and after the round
+(Unity's test runner rewrote its own `TestResults.xml` next to them, as in earlier rounds).
+
+Found along the way:
+
+- **The first collision check flagged text that didn't touch.** Tray cards lie at a slight angle, and boxes
+  taken in world space grow with the angle; three statements and records "ran into" their clock line on paper
+  that, in the screenshot, had a clear gap. The check now measures in each card's own plane.
+- **A letterbox for half a second.** The tests start the game at 1920×1080 and then switch to the size under
+  test; for the half second before the board is rebuilt for the new shape, the old 16:9 picture is now shown
+  with bars rather than stretched. Each stage logs its picture once, so the log shows both.
+- **The browser memo check needed a longer memo.** The first `?touchreal` run "moved on" after the finger
+  lifted, because the short memo's reading time had run out while the browser got round to the hold (it polls
+  once a second); after that, moving on is right. With a memo of about 12 s it passes in both engines.
+
+Not done, and why:
+
+- **Players on these screens and pointers.** The screen shapes, the bars and the two-click link were checked by
+  automation and simulated input (and real touches in headless browsers), not by people on an ultrawide, a
+  4:3 monitor, a pad or a tablet.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real controller,
+  tablet or Steam Deck, focus on macOS or Windows, a real click on Copy result on Linux, the sound by ear,
+  colour-blind or dyslexic players, a font such as Atkinson Hyperlegible): unchanged.
+
+Owner decisions this round adds:
+
+- **Range chips lost their kind icon.** A chip showing a time range (mostly statements, which carry the
+  witness's name in quotes) no longer draws the small statement/receipt icon in its corner, which its time ran
+  under. The hover card still names the kind. The alternative was a smaller time on those chips.
+- **Bars outside 1.3–2.4.** A 32:9 or 5:4 window now gets black bars rather than a stretched picture. Laying
+  the desk out for a 32:9 screen would be a bigger job.
+- **Same moment as… sits on every pinned, unstruck card's panel**, records and statements alike, whether or not
+  a link would help; showing it only when it could work would give the answer away.

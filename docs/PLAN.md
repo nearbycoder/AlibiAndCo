@@ -97,7 +97,9 @@ deliver a **lead** (a new card).
 Drag a card onto another card and hold it there to claim *"these are the same moment."* (The link
 arms after about half a second over the same card, when a **LINK · same moment?** tag appears; a
 card that only lands on another one on its way to a lane or back to the tray pins or returns as
-usual. Added in improvement round 6, so a slip of the hand never costs a badge.) If they share an `event`
+usual. Added in improvement round 6, so a slip of the hand never costs a badge. Since round 11 a link
+also needs no drag: a pinned card's panel offers **Same moment as…**, and the next card clicked is
+linked to it.) If they share an `event`
 and one side's clock is trusted (a reference clock or one already corrected), the other clock's
 offset is established. Every card on that clock slides along the timeline to its true time (the
 trailer moment). A wrong link costs a badge ("Those aren't the same moment").
@@ -312,7 +314,7 @@ All synthesized with Python and numpy (no samples). It should be **restrained de
 |---|---|
 | Left-drag | pick up / move a card; drop on a lane to pin; hold it on another card until LINK shows, then drop, to link |
 | Hover | lift and enlarge the card (full text); hover a ribbon to show the route on the map |
-| Left-click a pinned card | open its detail panel: **Confront**, Unpin |
+| Left-click a pinned card | open its detail panel: **Confront**, **Same moment as…** (then click the other card to link; round 11), Unpin |
 | Right-click | return a card to the tray |
 | Drag the incident card | preview fit per lane; drop to accuse |
 | Esc | pause (resume, settings, case select, quit) |
