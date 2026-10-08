@@ -220,7 +220,7 @@ namespace AlibiCo
             var body = Txt(full, "text", Def.Text, hand ? AlibiCo.Art.Hand : AlibiCo.Art.Mono, hand ? 0.29f : 0.19f, Ink,
                 new Vector2(textWidth, bodyTop - bodyBottom), TextAlignmentOptions.TopLeft,
                 new Vector3(textLeft + textWidth / 2, (bodyTop + bodyBottom) / 2, z));
-            body.Fit(hand ? 0.2f : 0.13f);
+            body.Fit(hand ? 0.17f : 0.13f);   // the longest statements (case 3's Mrs Pengelly) cut off their last line at 0.2
             body.lineSpacing = hand && !Settings.PlainText ? -18 : 0;   // Caveat's tall loops; plain lettering needs the room
 
             // Footer: time, place, clock.
