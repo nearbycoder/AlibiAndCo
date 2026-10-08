@@ -41,7 +41,10 @@ namespace AlibiCo
         float lampBase;
         Transform lampShade;
         ParticleSystem dust;
+        Light moon;
+        UniversalAdditionalCameraData camData;
         Bloom bloom;
+        FilmGrain grain;
         Vignette vignette;
         ColorAdjustments colorAdj;
         DepthOfField dof;
@@ -74,7 +77,7 @@ namespace AlibiCo
             Cam.backgroundColor = Pal.Hex("0E1215");
             Cam.allowHDR = true;
             Cam.allowMSAA = true;
-            var data = camGo.AddComponent<UniversalAdditionalCameraData>();
+            var data = camData = camGo.AddComponent<UniversalAdditionalCameraData>();
             data.renderPostProcessing = true;
             data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             data.antialiasingQuality = AntialiasingQuality.High;
@@ -152,7 +155,7 @@ namespace AlibiCo
 
             var moonGo = new GameObject("Window Light");
             moonGo.transform.SetParent(transform, false);
-            var moon = moonGo.AddComponent<Light>();
+            moon = moonGo.AddComponent<Light>();
             moon.type = LightType.Directional;
             moon.color = Pal.Hex("7FA3C2");
             moon.intensity = 0.32f;
@@ -348,7 +351,7 @@ namespace AlibiCo
             colorAdj.colorFilter.Override(Pal.Hex("FFFAF4"));
             var wb = p.Add<WhiteBalance>(true);
             wb.temperature.Override(-2f);
-            var grain = p.Add<FilmGrain>(true);
+            grain = p.Add<FilmGrain>(true);
             grain.type.Override(FilmGrainLookup.Thin2);
             grain.intensity.Override(0.22f);
             grain.response.Override(0.7f);
@@ -362,6 +365,72 @@ namespace AlibiCo
             dof.gaussianMaxRadius.Override(1.2f);
             dof.active = false;
         }
+
+        // ------------------------------------------------------------------ graphics fidelity
+
+        /// <summary>What the last ApplyFidelity set on the set itself (for the log).</summary>
+        public string FidelityNote { get; private set; } = "";
+
+        /// <summary>
+        /// The set's share of a fidelity step (see Fidelity): the camera's anti-aliasing, the lamp's and the
+        /// window's shadows, bloom, film grain and the dust in the lamp's beam. Step 2 (High) is the look
+        /// the game was built with.
+        /// </summary>
+        public void ApplyFidelity(int level)
+        {
+            if (camData != null)
+            {
+                camData.antialiasing = level == 0 ? AntialiasingMode.FastApproximateAntialiasing : AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+                camData.antialiasingQuality = level == 1 ? AntialiasingQuality.Medium : AntialiasingQuality.High;
+            }
+            if (Lamp != null)
+            {
+                Lamp.shadows = level == 0 ? LightShadows.Hard : LightShadows.Soft;
+                if (!Lamp.TryGetComponent<UniversalAdditionalLightData>(out var ld)) ld = Lamp.gameObject.AddComponent<UniversalAdditionalLightData>();
+                ld.additionalLightsShadowResolutionTier = level switch { 0 => 0, 1 => 1, _ => 2 };
+                ld.softShadowQuality = level switch { 1 => SoftShadowQuality.Low, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
+            }
+            if (moon != null)
+            {
+                moon.shadows = level == 0 ? LightShadows.None : LightShadows.Soft;
+                if (!moon.TryGetComponent<UniversalAdditionalLightData>(out var md)) md = moon.gameObject.AddComponent<UniversalAdditionalLightData>();
+                md.softShadowQuality = level switch { 1 => SoftShadowQuality.Low, 3 => SoftShadowQuality.High, _ => SoftShadowQuality.UsePipelineSettings };
+            }
+            if (bloom != null)
+            {
+                bloom.intensity.Override(level == 0 ? 0f : 0.55f);
+                bloom.downscale.Override(level == 1 ? BloomDownscaleMode.Quarter : BloomDownscaleMode.Half);
+                bloom.highQualityFiltering.Override(level == 3);
+                bloom.maxIterations.Override(level == 3 ? 8 : 6);
+            }
+            if (grain != null) grain.intensity.Override(level == 0 ? 0f : 0.22f);
+            if (dust != null)
+            {
+                float k = Fidelity.ParticleScale;
+                var main = dust.main;
+                main.maxParticles = Mathf.RoundToInt(160 * k);
+                var em = dust.emission;
+                em.rateOverTime = 14 * k;
+            }
+            FidelityNote = $"AA {(level == 0 ? "FXAA" : level == 1 ? "SMAA medium" : "SMAA high")}, lamp shadows {(level == 0 ? "hard" : "soft")} tier {(level switch { 0 => "low", 1 => "medium", _ => "high" })}, " +
+                           $"window shadows {(level == 0 ? "off" : "soft")}, bloom {(level == 0 ? "off" : level == 1 ? "quarter-res" : level == 3 ? "high quality" : "on")}, grain {(level == 0 ? "off" : "on")}, dust {Mathf.RoundToInt(160 * Fidelity.ParticleScale)}";
+        }
+
+        /// <summary>
+        /// Holds the lamp's flicker, the camera's drift and the dust still, so a benchmark can photograph
+        /// the same moment at every fidelity step.
+        /// </summary>
+        public bool Frozen
+        {
+            get => frozen;
+            set
+            {
+                frozen = value;
+                if (dust == null) return;
+                if (value) dust.Pause(); else dust.Play();
+            }
+        }
+        bool frozen;
 
         // ------------------------------------------------------------------ runtime life
 
@@ -390,14 +459,15 @@ namespace AlibiCo
 
         void LateUpdate()
         {
-            float t = Clock.Now;
+            Fidelity.Tick();
+            float t = frozen ? 0f : Clock.Now;
             // Lamp: gentle filament breathing plus the occasional flicker.
             float flicker = 1f + 0.015f * Mathf.Sin(t * 7.1f) + 0.01f * Mathf.Sin(t * 13.3f + 1.3f);
             if (Mathf.PerlinNoise(t * 0.7f, 3.3f) > 0.86f) flicker *= 0.92f + 0.08f * Mathf.PerlinNoise(t * 30f, 1f);
             if (Lamp) Lamp.intensity = lampBase * flicker * lampDim;
 
             var cam = Cam.transform;
-            var smooth = Vector2.Lerp(parallaxNow, parallax, 1 - Mathf.Exp(-Clock.Dt * 3f));
+            var smooth = frozen ? Vector2.zero : Vector2.Lerp(parallaxNow, parallax, 1 - Mathf.Exp(-Clock.Dt * 3f));
             parallaxNow = smooth;
             var pos = camBasePos + new Vector3(smooth.x * 0.35f, 0, smooth.y * 0.25f);
             if (pushIn > 0.001f)

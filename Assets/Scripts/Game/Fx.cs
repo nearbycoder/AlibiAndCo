@@ -12,6 +12,7 @@ namespace AlibiCo
 
         static ParticleSystem Burst(string name, Vector3 pos, Material mat, int count, float speed, float size, float life, Color color, float gravity = 0, float spread = 1f)
         {
+            count = Mathf.Max(1, Mathf.RoundToInt(count * Fidelity.ParticleScale));   // fewer on Low, twice as many on Ultra
             if (Settings.ReducedMotion) count = Mathf.Max(1, count / 3);
             var go = new GameObject("fx_" + name);
             go.transform.position = pos;

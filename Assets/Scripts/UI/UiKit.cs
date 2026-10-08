@@ -495,6 +495,78 @@ namespace AlibiCo
             return tg;
         }
 
+        /// <summary>
+        /// A labelled slider that snaps to named notches (Low · Medium · High · Ultra): drag the handle, or
+        /// click the track or a name. The chosen name is lit. Returns the slider (on the track inside the row).
+        /// </summary>
+        public static Slider Notches(Transform parent, string label, string[] names, int index, Action<int> onChange)
+        {
+            var row = Rect(parent, "notches_" + label);
+            var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
+            t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.4f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            var area = Rect(row, "area");
+            area.Place(new Vector2(0.42f, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            // The track spans the notches' centres, inset by half a name's width at each end.
+            int n = names.Length;
+            float inset = 0.5f / n;
+            var sl = Rect(area, "slider");
+            sl.Place(new Vector2(inset, 1), new Vector2(1 - inset, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(0, 26));
+            var bg = Panel(sl, "bg", Pal.Hex("3A434C"), true, true);
+            bg.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(24, 12));
+            var fillArea = Rect(sl, "fillArea");
+            fillArea.Stretch();
+            var fill = Panel(fillArea, "fill", Pal.Lamp, true, true);
+            fill.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0, 12));
+            var dots = new Image[n];
+            for (int i = 0; i < n; i++)
+            {
+                var d = Panel(sl, "notch" + i, Pal.Hex("1E252C"), true, true);
+                float x = n > 1 ? i / (float)(n - 1) : 0.5f;
+                d.rectTransform.Place(new Vector2(x, 0.5f), new Vector2(x, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(10, 10));
+                d.raycastTarget = false;
+                dots[i] = d;
+            }
+            var handleArea = Rect(sl, "handleArea");
+            handleArea.Stretch();
+            var handle = Panel(handleArea, "handle", Pal.Paper, true, true);
+            handle.rectTransform.sizeDelta = new Vector2(26, 36);
+            var labels = new TextMeshProUGUI[n];
+            Slider s = null;
+            for (int i = 0; i < n; i++)
+            {
+                int k = i;
+                var hit = Rect(area, "name_" + names[i]);
+                hit.Place(new Vector2(i / (float)n, 0), new Vector2((i + 1) / (float)n, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 30));
+                var img = hit.gameObject.AddComponent<Image>();
+                img.color = new Color(0, 0, 0, 0);   // a click target, not a picture
+                var b = hit.gameObject.AddComponent<Button>();
+                b.transition = Selectable.Transition.None;
+                b.onClick.AddListener(() => { if (s != null) s.value = k; });
+                labels[i] = Text(hit, names[i], Art.SansBold, 19, Pal.Paper, TextAlignmentOptions.Center, "label");
+                labels[i].rectTransform.Stretch();
+                labels[i].characterSpacing = 1.5f;
+            }
+            s = sl.gameObject.AddComponent<Slider>();
+            s.fillRect = fill.rectTransform;
+            s.handleRect = handle.rectTransform;
+            s.targetGraphic = handle;
+            s.wholeNumbers = true;
+            s.minValue = 0;
+            s.maxValue = n - 1;
+            void Paint(int v)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    labels[i].color = i == v ? Pal.Lamp : new Color(Pal.Paper.r, Pal.Paper.g, Pal.Paper.b, 0.55f);
+                    dots[i].color = i <= v ? Pal.Hex("8A6A2E") : Pal.Hex("1E252C");
+                }
+            }
+            s.SetValueWithoutNotify(Mathf.Clamp(index, 0, n - 1));
+            Paint((int)s.value);
+            s.onValueChanged.AddListener(v => { Paint((int)v); Sfx.Play("ui_click", 0.5f); onChange?.Invoke((int)v); });
+            return s;
+        }
+
         /// <summary>A labelled "‹ value ›" picker that cycles through choices.</summary>
         public static RectTransform Stepper(Transform parent, string label, string[] choices, int index, Action<int> onChange)
         {

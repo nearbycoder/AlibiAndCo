@@ -249,7 +249,28 @@ namespace AlibiCo
         public static int TextSizeOverride = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { TextSizeOverride = -1; PlainTextFlag = plainForRun = false; }   // see Art.ResetStatics
+        static void ResetStatics() { TextSizeOverride = FidelityOverride = -1; fidelityForRun = AlibiCo.Fidelity.Default; PlainTextFlag = plainForRun = false; }   // see Art.ResetStatics
+
+        // ------------------------------------------------------------------ graphics fidelity
+
+        /// <summary>
+        /// Index into AlibiCo.Fidelity.Names (Low, Medium, High, Ultra), applied live. Automated runs use
+        /// High unless -alibiFidelity n says otherwise, and keep a change in memory, never in the prefs.
+        /// </summary>
+        public static int GraphicsFidelity
+        {
+            get => Mathf.Clamp(FidelityOverride >= 0 ? FidelityOverride : SaveData.Volatile ? fidelityForRun : PlayerPrefs.GetInt("fidelity", AlibiCo.Fidelity.Default), 0, AlibiCo.Fidelity.Names.Length - 1);
+            set
+            {
+                FidelityOverride = -1;
+                if (SaveData.Volatile) fidelityForRun = value; else PlayerPrefs.SetInt("fidelity", value);
+                AlibiCo.Fidelity.Apply(value);
+            }
+        }
+
+        /// <summary>-alibiFidelity n on the command line.</summary>
+        public static int FidelityOverride = -1;
+        static int fidelityForRun = AlibiCo.Fidelity.Default;
 
         /// <summary>Scales the screen-space UI and the hovered-card inspector.</summary>
         public static float TextScale => TextScales[TextSize];

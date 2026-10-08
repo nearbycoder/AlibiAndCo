@@ -119,6 +119,9 @@ namespace AlibiCo
             UiKit.Init();
             PadCursor.Create(gameObject);
             Stage = Stage.Build();
+            int fidArg = Array.IndexOf(args, "-alibiFidelity");
+            if (fidArg >= 0 && fidArg + 1 < args.Length && int.TryParse(args[fidArg + 1], out var fid)) Settings.FidelityOverride = fid;
+            Fidelity.Apply(Settings.GraphicsFidelity);
             Screens = new Screens(this);
             Settings.Apply();
             AudioDirector.I.StartAmbience();
@@ -141,14 +144,15 @@ namespace AlibiCo
             int boardsArg = Array.IndexOf(args, "-alibiBoardsTest");
             int hintArg = Array.IndexOf(args, "-alibiHintTour");
             int memoArg = Array.IndexOf(args, "-alibiMemoTest");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0 || hintArg >= 0 || memoArg >= 0;
+            int benchArg = Array.IndexOf(args, "-alibiFidelityBench");
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0 || hintArg >= 0 || memoArg >= 0 || benchArg >= 0;
             TimerIgnoresFocus = automated && focusArg < 0;
             ApplyFrameRate(true);   // focus may have gone before this was known
             int textArg = Array.IndexOf(args, "-alibiTextSize");
             if (textArg >= 0 && textArg + 1 < args.Length && int.TryParse(args[textArg + 1], out var ts)) Settings.TextSizeOverride = ts;
             // Automated runs don't overwrite the desktop's clipboard (a browser's belongs to the test).
             Clipboard.Private = automated && Application.platform != RuntimePlatform.WebGLPlayer && !args.Contains("-alibiClipboardCheck");
-            if (automated) { SaveData.UseVolatile(); Settings.PlainTextForRun(); }
+            if (automated) { SaveData.UseVolatile(); Settings.PlainTextForRun(); Fidelity.Apply(Settings.GraphicsFidelity); }
             // A saved resolution choice; automated runs keep the size they were launched with.
             else if (PlayerPrefs.HasKey("resolution") && Application.platform != RuntimePlatform.WebGLPlayer) Settings.ApplyResolution();
             int resArg = Array.IndexOf(args, "-alibiResolution");
@@ -174,6 +178,12 @@ namespace AlibiCo
             {
                 string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
+                yield break;
+            }
+            if (benchArg >= 0)
+            {
+                string dir = benchArg + 1 < args.Length && !args[benchArg + 1].StartsWith("-") ? args[benchArg + 1] : "Captures/fidelity-bench";
+                gameObject.AddComponent<AutoPilot>().RunFidelityBench(dir);
                 yield break;
             }
             if (memoArg >= 0)

@@ -1100,12 +1100,12 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
             UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 920));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 1060));
             UiKit.FitInCanvas(panel.rectTransform);
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
             var col = UiKit.Rect(panel.transform, "col");
-            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 710));
+            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 850));
             var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
             vl.spacing = 16; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
             Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
@@ -1117,6 +1117,7 @@ namespace AlibiCo
                 Row(UiKit.Stepper(col, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
                     resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
             }
+            FidelityRow(col);
             Row(UiKit.Stepper(col, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
             Row(UiKit.Toggle(col, "Plain lettering", Settings.PlainText, v => Settings.PlainText = v));
             Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
@@ -1126,6 +1127,23 @@ namespace AlibiCo
             Size(reset, 50);
             var close = UiKit.Button(panel.transform, "Done", () => { PlayerPrefs.Save(); Hide(settings); }, Pal.Hex("8E2B2B"), Cream, 26);
             ((RectTransform)close.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(220, 60));
+        }
+
+        /// <summary>The fidelity slider (the tests find it here) and the line under it that says what the step does.</summary>
+        public Slider FidelitySlider { get; private set; }
+        TextMeshProUGUI fidelityBlurb;
+
+        void FidelityRow(Transform col)
+        {
+            FidelitySlider = UiKit.Notches(col, "Graphics fidelity", Fidelity.Names, Settings.GraphicsFidelity, i =>
+            {
+                Settings.GraphicsFidelity = i;
+                fidelityBlurb.text = Fidelity.Blurbs[i];
+            });
+            ((RectTransform)FidelitySlider.transform.parent.parent).sizeDelta = new Vector2(0, 76);
+            fidelityBlurb = UiKit.Text(col, Fidelity.Blurbs[Settings.GraphicsFidelity], Art.Sans, 19, CreamDim, TextAlignmentOptions.TopLeft, "fidelity_blurb");
+            fidelityBlurb.rectTransform.sizeDelta = new Vector2(0, 46);
+            fidelityBlurb.margin = new Vector4(0, 0, 0, 0);
         }
 
         /// <summary>Row height for a settings control (a Slider lives on the bar inside its row, so size the row).</summary>

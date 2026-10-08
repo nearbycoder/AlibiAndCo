@@ -14,8 +14,23 @@ namespace AlibiCo
     public static class Clock
     {
         static bool Capturing => Time.captureDeltaTime > 0;
-        public static float Dt => Capturing ? Time.captureDeltaTime : Time.unscaledDeltaTime;
-        public static float Now => Capturing ? Time.frameCount * Time.captureDeltaTime : Time.unscaledTime;
+        public static float Dt => held ? 0f : Capturing ? Time.captureDeltaTime : Time.unscaledDeltaTime;
+        public static float Now => held ? heldAt : Capturing ? Time.frameCount * Time.captureDeltaTime : Time.unscaledTime;
+
+        /// <summary>
+        /// Stops the game's clock where it is (every tween, pulse and memo waits), so a benchmark can photograph
+        /// one moment at several fidelity steps. Only the fidelity bench uses it.
+        /// </summary>
+        public static bool Held
+        {
+            get => held;
+            set { if (value && !held) heldAt = Now; held = value; }
+        }
+        static bool held;
+        static float heldAt;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => held = false;   // see Art.ResetStatics
     }
 
     public static class Easing

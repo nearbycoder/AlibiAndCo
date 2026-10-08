@@ -13,7 +13,7 @@ namespace AlibiCo
     /// plays every case through the real session code, using the solver's moves, and prints
     /// PASS/FAIL lines to the log. Exceptions during the run fail it.
     /// </summary>
-    public sealed class AutoPilot : MonoBehaviour
+    public sealed partial class AutoPilot : MonoBehaviour
     {
         string dir;
         bool capture;
@@ -866,6 +866,12 @@ namespace AlibiCo
             yield return PadTap(GamepadButton.RightShoulder);
             var menuTargets = PadCursor.Targets();
             if (menuTargets.Count < 5 || !menuTargets.Any(t => (t - PadCursor.I.Position).magnitude < 2f)) Fail($"RB in the pause menu didn't land on a button ({menuTargets.Count} targets)");
+            // Settings by pad: the fidelity slider, then B closes the panel.
+            yield return PadClick(root.Screens.ButtonScreen("btn_Settings") ?? Vector2.zero);
+            yield return FidelityByHand("pad", p => PadClick(p), (a, b) => PadDrag(a, b), Fail);
+            yield return PadTap(GamepadButton.East);
+            yield return Wait(0.5f);
+            if (root.Screens.AnyOverlayOpen) Fail("B didn't close Settings");
             yield return PadTap(GamepadButton.Start);
             yield return Wait(0.5f);
             if (GameRoot.Paused) Fail("Start didn't resume");
@@ -1083,6 +1089,12 @@ namespace AlibiCo
             yield return Wait(0.8f);
             if (!GameRoot.Paused) Fail("a tap on Menu didn't pause");
             yield return Shot("touch_pause_controls");
+            // Settings by touch: the fidelity slider, then a tap on Done.
+            yield return TouchTap(Button("btn_Settings"));
+            yield return FidelityByHand("touch", p => TouchTap(p), (a, b) => TouchDrag(a, b), Fail);
+            yield return TouchTap(Button("btn_Done"));
+            yield return Wait(0.5f);
+            if (root.Screens.AnyOverlayOpen) Fail("a tap on Done didn't close Settings");
             yield return TouchTap(Button("btn_Resume"));
             yield return Wait(0.6f);
             if (GameRoot.Paused) Fail("a tap on Resume didn't resume");
@@ -1634,6 +1646,12 @@ namespace AlibiCo
             var menuTargets = PadCursor.Targets();
             if (menuTargets.Count < 5 || !menuTargets.Any(t => (t - PadCursor.I.Position).magnitude < 2f)) Fail($"E in the pause menu didn't land on a button ({menuTargets.Count} targets)");
             yield return Shot("keys_pause_controls");
+            // Settings by keys: the fidelity slider, then Backspace closes the panel.
+            yield return KeyClick(root.Screens.ButtonScreen("btn_Settings") ?? Vector2.zero);
+            yield return FidelityByHand("keys", p => KeyClick(p), (a, b) => KeyDrag(a, b), Fail);
+            yield return KeyTap(Key.Backspace);
+            yield return Wait(0.5f);
+            if (root.Screens.AnyOverlayOpen) Fail("Backspace didn't close Settings");
             yield return KeyTap(Key.Escape);
             yield return Wait(0.5f);
             if (GameRoot.Paused) Fail("Esc didn't resume");
@@ -2051,6 +2069,7 @@ namespace AlibiCo
                 yield return Wait(0.5f);
                 int during = FancyTexts();
                 yield return Shot("input_plain_settings");
+                yield return FidelityByHand("mouse", p => Click(p), (a, b) => Drag(a, b), why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
                 root.Screens.CloseTopOverlay();
                 root.SetPaused(false);
                 yield return Wait(1.5f);
