@@ -1263,3 +1263,62 @@ WebKit, a real controller, tablet or Steam Deck, the sound by ear, colour-blind 
 themselves, focus on macOS or Windows), a real click on Copy result on the Linux desktop, and the
 owner's open calls (the background frame rate, pausing on focus loss, the link hold, advertising
 touch, how many boards to keep, Nintendo's confirm button, hints tagging cards).
+
+## Round 9 results (7 Oct 2026)
+
+Every item landed on `improvements-9`, plus two fixes found along the way. Screenshots are in
+`docs/media/improvements/round9/` (`r9-1-*` plain lettering, `r9-2-*` the wrong-link lesson, `r9-3-*` the
+run of days, `r9-4-*` the replayed case 2). R9-1, R9-2 and R9-3 were each built and tested on their own
+(the later items stashed) before they were committed; R9-4 and the hover-time fix touch separate files
+and were built together.
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R9-1 | Plain lettering | 4f94754 | Autoplay with `-alibiPlainText`, 9/9 at 1920×1080 and at 1280×720 with Large text (then 10/10 on the final build): at every case file, board and closed panel, every reading text (32–68 of them) was in a plain face and none ran out of its box. The mouse test clicks the box in Settings mid-case: the decorative texts went 21 → 0 at once, the board was rebuilt with its 6 pins, the hover card and witness replies came up plain, and switching it off brought the typewriter back. At 1920×1080 and 1280×800 | Met. `[Legibility]` is unchanged because it measures the chips, whose faces (Courier Bold, Plex) this doesn't touch. The settings panel grew by a row and fits at 1280×720. The real prefs file wasn't touched (automated runs keep the choice in memory) |
+| R9-2 | Connie explains a wrong link | 3a6e1d4 | 3 new EditMode tests try every wrong pair in cases 2–5 (at the start and with the clocks mended) and in a month of dockets: each of the four explanations comes up, names the unchecked clock where there is one, and never names a third card. Autoplay links a press-camera photo to the fault log in case 3: a badge goes and Connie says “Roll 3, frame 14” and “Fault log” aren't the same moment, and how to check the press camera's date-back | Met. The wording was trimmed after the first run to fit a memo slip at 1280×720 |
+| R9-3 | The docket run | e989512 | 2 new EditMode tests (empty, today only, yesterday only, a gap, a day made up late, across a month and a year end). Autoplay now also plays yesterday's docket: the closed panels said nothing on a run of one and "2 days in a row" after, clear of the epilogue and buttons, and the drawer's foot said "5 closed in all. 2 days in a row." At 1920×1080 and 1280×720 with Large text | Met |
+| R9-4 | A replayed case 2, closed | 8e0257c | Autoplay replays case 2 after the main run and plays it to CASE CLOSED (its second play): no closing line | Met. Round 8's open check is closed |
+| R9-5 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs --engine chromium,firefox`, every run (autoplay, pad, keys, share, reload, focus, touch, touchreal) on a fresh build with every round 9 commit | Met. Every run PASS in both engines with 0 console errors; autoplay 10/10 (5 cases, 5 dockets) at 60 fps in both; 26.6 MB; loads 1.1–1.3 s in Chromium and 1.5–1.7 s in Firefox, at a load average of 0.5–3.5. The first Chromium attempt didn't launch (the `playwright-core` it picked up wants a Chromium revision this machine doesn't have); it ran with the copy that matches the installed browser |
+
+Fixes found along the way:
+
+- **42b02b3: a hover card's time range ran into the place.** "20:15–21:30" overlapped "Odeon" on Agnes's
+  statement in case 1 (the time box ignored the place label). It now stops short of the place's icon and
+  shrinks to fit.
+- **4bc3ab8: Mrs Pengelly's statement lost its last line.** Autoplay's new lettering check found case 3's
+  longest statement ending in an ellipsis on the hover card at every size, in the normal handwriting:
+  "St Brigid's had just struck the quarter", the line that times her story, was cut off. Long handwritten
+  statements now shrink a little further to fit; on the rerun no reading text in any case or docket was
+  out of its box.
+
+EditMode tests: 70/70 (65 before the round). The validator proves cases 1–5 airtight with 60 pin orders
+each, and `--docket 365` from 7 October 2026 is all airtight (worst day 5 of 40 variations); no case or
+generator changed. The final build (before the Pengelly fix) ran the whole suite inside `Tools/nested.sh`
+at a load average of 9–21: autoplay 10/10 (5 cases, 5 dockets) at 1920×1080, at 1280×720 with Large text
+and in plain lettering; the mouse test and the keys test at 1920×1080 and 1280×800; the pad test with an
+Xbox, PlayStation and Nintendo pad at 1920×1080 and PlayStation at 1280×800; touch at both sizes; the focus
+test (52 fps with focus), the boards test and the hint tour: all PASS, 0 errors. The Pengelly fix was
+then checked with autoplay at 1920×1080 (10/10). Every input-driven run waited for a load average under 24.
+The keys test ran five times (four at 1920×1080) and passed every time, so round 8's one-in-four failure
+didn't come back; its cause is still unknown. The real `alibi_save.json` and `prefs` were byte-identical
+before and after the round (Unity's test runner rewrote its own `TestResults.xml` next to them, as in
+earlier rounds).
+
+Not done, and why:
+
+- **Plain lettering with the players it's for**: nobody with dyslexia or low vision has tried it. The face
+  is DejaVu Sans (already in the build) and the sizes were set by measuring widths, not by a reader.
+- **The keys-test flake's cause**: not reproduced in five runs.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  controller, tablet or Steam Deck, focus on macOS or Windows, a real click on Copy result on Linux, the
+  sound by ear, colour-blind players): unchanged.
+
+Owner decisions this round adds:
+
+- **Which face plain lettering uses.** DejaVu Sans was free (it's already the fallback). A face made for
+  low vision, such as Atkinson Hyperlegible (OFL), would mean adding a font and its licence.
+- **Whether a docket made up late counts toward the run.** It does: the drawer exists so a missed day can
+  be made up. Counting only days closed on the day itself would need the save to record when each
+  docket was closed, which it doesn't yet.
+- **The wrong-link lesson names kinds of shared moment** ("a bulletin, a bell, a power cut"). That's the
+  same list for every case, but in case 3 the answer is a power dip, so it nudges a little there.

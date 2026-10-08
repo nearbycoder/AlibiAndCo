@@ -156,7 +156,10 @@ candidate faces live as the records rule people out.
 time it comes up. The notebook (Tab) keeps every question, witness reply, clock and alibi status.
 Hints point at the next step, never the answer, and the cards a hint names wear a brass **CONNIE**
 tag until the board changes (with a pad or the keyboard, the next jump lands on them). When an honest witness stands firm and costs you a
-badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name).
+badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name),
+and after a wrong link she says why it couldn't have worked: both clocks were already right, one
+clock was on both cards, neither clock had been checked, or (naming the unchecked clock) the two
+cards didn't see the same moment.
 
 **The accusation and the reconstruction.** Drag the incident across the board: it refuses the
 covered lines and drops into the one with a hole in it. A brass pawn then walks the culprit's
@@ -174,11 +177,15 @@ handwritten cases proves each one airtight before it's offered. On some days a w
 honest story in the red. The last seven days stay in the docket drawer, so a missed day can still be
 played for a week, and the case files keep each day's best result. **Copy result** puts a
 spoiler-free line on the clipboard to send a friend (the day, the crime, the stars, the time and the
-seals).
+seals). The drawer and the closed panel count your run of days in a row (a day made up from the
+drawer counts).
 
 **Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
-the board's labels and the memo slips (windows under 900 pixels tall start at Large); fullscreen;
+the board's labels and the memo slips (windows under 900 pixels tall start at Large); **plain
+lettering**, which sets the memos, statements, records, notebook, case files and epilogues in a
+plain sans (DejaVu Sans) instead of the typewriter, handwriting and Courier, for anyone who finds
+those hard to read, while titles, times and buttons keep their faces; fullscreen;
 reduced motion; and an optional case timer. Progress and settings save automatically, and every
 case and docket keeps its own board: leave case 4 half-solved, play today's docket, and case 4 is
 still there, pins, badges and timer, when you open its file again (*Continue* on the title picks up
@@ -273,8 +280,8 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/validate.sh --docket N [yyyy-MM-dd]` / `--docket-show yyyy-MM-dd` | Generates and proves N consecutive Daily Dockets (and reports how many variations the worst day needed), or prints one day's docket in full with its solution. |
 | `Tools/validate.sh --docket-phrases N [yyyy-MM-dd]` | Lists the sentences that turn up on more than a quarter of N consecutive dockets: the template showing through. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
-| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and five Daily Dockets (today's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame. It checks every contradiction carries its marker, saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. |
-| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
+| `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
+| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
 | `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
 | `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
 | `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
@@ -408,16 +415,14 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 8). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 9). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
   the browser (a tap, a finger drag, a held finger and a tap on a HUD button) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
   the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
-  and progress survives a page reload. It's 26.6 MB. In round 8 it loaded from localhost in 1.4–4.8
-  seconds, and autoplay ran at 59–60 fps in Chromium and 54–59 in Firefox, at a load average of about
-  4–17 from other sessions (under 2
-  seconds at 60 fps on a quiet machine in round 4). It hasn't been tried in Safari: Playwright's
+  and progress survives a page reload. It's 26.6 MB. In round 9 it loaded from localhost in 1.1–1.7
+  seconds and autoplay ran at 60 fps in both browsers, on a quiet machine (load average under 4). It hasn't been tried in Safari: Playwright's
   WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
   browser, where the page sets the size.
@@ -484,6 +489,11 @@ changes since then aren't released yet.
   one quick movement (a quarter of a second) and checks they pin or go back without linking, then
   holds one until the LINK tag shows and checks it links. The half-second hold was chosen by hand,
   not tuned with players.
+- **Plain lettering was checked by automation, not by the players it's for.** Autoplay plays every
+  case and docket with it on at 1920×1080 and at 1280×720 with Large text and checks no reading text
+  is left in a decorative face or runs out of its box, and the mouse test switches it mid-case. Its
+  face (DejaVu Sans, already shipped as the fallback) and sizes were chosen by measurement; nobody
+  with dyslexia or low vision has tried it.
 - **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
   triangle as well as the red glow, and the locks differ by icon and word. That was checked on
   protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.
