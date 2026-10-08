@@ -1103,7 +1103,12 @@ namespace AlibiCo
             {
                 Tween.Delay(0.3f, () => Sfx.Play("resolve", 0.6f));
             }
-            foreach (var q in o.Questions) Memos.Post(MemoKind.Question, null, q);
+            foreach (var q in o.Questions)
+            {
+                // A contradiction's question is moot once the board has cleared it (a link, a confrontation).
+                var t = Case.Triggers.FirstOrDefault(x => x.Question == q && x.Kind == TriggerKind.Conflict);
+                Memos.Post(MemoKind.Question, null, q, t == null ? null : (System.Func<bool>)(() => !Board.EstablishedConflicts.Any(k => k.IsPair(t.A, t.B))));
+            }
             foreach (var m in o.Memos) Memos.Post(MemoKind.Connie, null, m);
             foreach (var id in o.Confirmed)
             {

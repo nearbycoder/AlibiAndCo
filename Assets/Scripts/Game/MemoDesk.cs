@@ -8,7 +8,9 @@ namespace AlibiCo
 
     /// <summary>
     /// Connie's typed memos, witness replies and open questions, typed onto paper slips in the
-    /// desk's notes corner. New slips slide in over the old ones; the old ones slide away.
+    /// desk's notes corner. New slips slide in over the old ones; the old ones slide away. While
+    /// others are waiting, a slip stays long enough to be read (Logic.Reading) and wears a MORE tag
+    /// saying how to see the next one now.
     /// </summary>
     public sealed class MemoDesk : MonoBehaviour
     {
@@ -16,6 +18,8 @@ namespace AlibiCo
         {
             public MemoKind Kind;
             public string Title, Text;
+            /// <summary>Set for a question that the board may answer before it reaches the desk; it's passed over then (never saved).</summary>
+            public System.Func<bool> Stale;
 
             /// <summary>"kind|title|text" for the save file.</summary>
             public string Pack() => (int)Kind + "|" + (Title ?? "") + "|" + Text;
@@ -35,6 +39,20 @@ namespace AlibiCo
         int visible, total;
         float typeTimer, holdTimer;
         bool typing;
+        Transform moreTag, moreTab;
+        TextMeshPro moreText, headText;
+        float headWidth, slipWidth;
+        int moreCount = -1;
+        PadCursor.Pointer morePointer;
+        AlibiCo.Logic.PadFamily moreFamily;
+        /// <summary>Questions passed over because the board had already answered them (the tests read it).</summary>
+        public int PassedOver { get; private set; }
+        /// <summary>Memos waiting behind the one on the desk.</summary>
+        public int Waiting => queue.Count;
+        /// <summary>The MORE tag's text, or "" when nothing is waiting (the tests read it).</summary>
+        public string MoreShown => moreTag != null && moreTag.gameObject.activeSelf ? moreText.text : "";
+        /// <summary>True once the memo on the desk has been given its time to read.</summary>
+        bool ReadEnough => !typing && AlibiCo.Logic.Reading.Read(total, typeTimer, holdTimer);
         public bool Busy => typing || queue.Count > 0;
         /// <summary>The memo on the desk right now (the last one dealt from the queue).</summary>
         public Memo Showing { get; private set; }
@@ -50,13 +68,13 @@ namespace AlibiCo
             return m;
         }
 
-        public void Post(MemoKind kind, string title, string text)
+        public void Post(MemoKind kind, string title, string text, System.Func<bool> stale = null)
         {
             if (string.IsNullOrEmpty(text)) return;
-            var m = new Memo { Kind = kind, Title = title, Text = text };
+            var m = new Memo { Kind = kind, Title = title, Text = text, Stale = stale };
             queue.Enqueue(m);
             History.Add(m);
-            if (!typing && (current == null || holdTimer > 2.2f)) Next();
+            if (current == null || ReadEnough) Next();
         }
 
         public void Clear()
@@ -67,9 +85,10 @@ namespace AlibiCo
             typing = false;
         }
 
+        /// <summary>Space, or a click off the cards: finish typing the memo, or if it's typed, show the next one.</summary>
         public void Skip()
         {
-            if (typing) { visible = total; body.maxVisibleCharacters = total; typing = false; holdTimer = 3f; }
+            if (typing) { visible = total; body.maxVisibleCharacters = total; typing = false; holdTimer = 0; }
             else if (queue.Count > 0) Next();
         }
 
@@ -80,13 +99,15 @@ namespace AlibiCo
             if (current != null) Destroy(current.gameObject);
             current = BuildSlip(m);
             typing = false;
-            holdTimer = 3f;
+            typeTimer = holdTimer = AlibiCo.Logic.Reading.MaxOnDesk;   // already read
         }
 
         public bool Contains(Vector2 deskLocal) => stage.Notes.Contains(deskLocal);
 
         void Next()
         {
+            // A question the board has answered in the meantime stays in the notebook, not on the desk.
+            while (queue.Count > 0 && queue.Peek().Stale != null && queue.Peek().Stale()) { queue.Dequeue(); PassedOver++; }
             if (queue.Count == 0) return;
             var m = queue.Dequeue();
             Showing = m;
@@ -158,7 +179,7 @@ namespace AlibiCo
             }
             Shapes.Quad(root, "shadow", size * 1.18f, Art.Unlit(new Color(0, 0, 0, 0.3f), true, "shadow"), new Vector3(0.08f, -0.1f, 0.01f));
             var headCol = m.Kind == MemoKind.Firm || m.Kind == MemoKind.Question ? Pal.Oxblood : Pal.InkSoft;
-            Txt.Make(root, "head", head, Art.SansBold, 0.15f * Mathf.Min(Settings.TextScale, 1.2f), headCol, new Vector2(size.x - 0.4f, 0.3f), TextAlignmentOptions.Left,
+            var headLine = Txt.Make(root, "head", head, Art.SansBold, 0.15f * Mathf.Min(Settings.TextScale, 1.2f), headCol, new Vector2(size.x - 0.4f, 0.3f), TextAlignmentOptions.Left,
                 new Vector3(0, size.y / 2 - 0.3f, -0.03f), false).Fit(0.1f);
             Shapes.Quad(root, "rule", new Vector2(size.x - 0.4f, 0.015f), Art.Unlit(new Color(0.2f, 0.2f, 0.25f, 0.35f), true), new Vector3(0, size.y / 2 - 0.5f, -0.03f));
             body = Txt.Make(root, "body", m.Text, font, textSize, ink, new Vector2(size.x - 0.45f, size.y - 1.15f), TextAlignmentOptions.TopLeft,
@@ -168,7 +189,62 @@ namespace AlibiCo
             // Paper clip.
             Shapes.Icon(root, "clip", 0.55f, Pal.Hex("9AA3AB"), new Vector3(-size.x / 2 + 0.55f, size.y / 2 - 0.02f, -0.06f), 8);
             body.ForceMeshUpdate();
+            BuildMoreTag(root, size, headLine);
             return root;
+        }
+
+        /// <summary>A small oxblood label at the right of the slip's heading while memos are waiting: how many, and how to see the next.</summary>
+        void BuildMoreTag(Transform slip, Vector2 size, TextMeshPro head)
+        {
+            float k = Mathf.Min(Settings.TextScale, 1.2f);
+            headText = head;
+            headWidth = head.rectTransform.sizeDelta.x;
+            slipWidth = size.x;
+            moreTag = new GameObject("more").transform;
+            moreTag.SetParent(slip, false);
+            moreTag.localPosition = new Vector3(0, head.transform.localPosition.y, -0.035f);
+            moreTab = Shapes.Slab(moreTag, "tab", Vector2.one, 0.01f, Art.Lit(Pal.Oxblood, "paper", 0.1f), Vector3.zero).transform;
+            moreText = Txt.Make(moreTag, "text", "", Art.SansBold, 0.12f * k, Pal.Hex("F3EAD3"), new Vector2(size.x * 0.6f, 0.3f * k),
+                TextAlignmentOptions.Center, new Vector3(0, 0, -0.02f), false);
+            moreText.characterSpacing = 2;
+            moreCount = -1;
+            RefreshMoreTag();
+        }
+
+        static string HowToSeeNext(PadCursor.Pointer p) => p switch
+        {
+            PadCursor.Pointer.Keys => "SPACE",
+            PadCursor.Pointer.Pad => PadCursor.Label("[A] ON IT"),
+            PadCursor.Pointer.Touch => "TAP IT",
+            _ => "CLICK IT",
+        };
+
+        void RefreshMoreTag()
+        {
+            if (moreTag == null) return;
+            var pointer = PadCursor.Using;
+            var family = PadCursor.PadFamily;
+            if (queue.Count == moreCount && pointer == morePointer && family == moreFamily) return;
+            moreCount = queue.Count; morePointer = pointer; moreFamily = family;
+            moreTag.gameObject.SetActive(moreCount > 0);
+            float tagWidth = 0;
+            if (moreCount > 0)
+            {
+                moreText.text = $"{moreCount} MORE  ·  {HowToSeeNext(pointer)}";
+                var pref = moreText.GetPreferredValues(moreText.text);
+                tagWidth = pref.x + 0.2f;
+                float h = pref.y + 0.08f;
+                moreTab.localScale = new Vector3(tagWidth, h, 0.01f);
+                moreTag.localPosition = new Vector3(slipWidth / 2 - 0.2f - tagWidth / 2, moreTag.localPosition.y, moreTag.localPosition.z);
+            }
+            // The heading gives way to the label (and shrinks to fit if it must).
+            if (headText != null)
+            {
+                float w = Mathf.Max(0.6f, headWidth - (tagWidth > 0 ? tagWidth + 0.15f : 0));
+                headText.rectTransform.sizeDelta = new Vector2(w, headText.rectTransform.sizeDelta.y);
+                var p = headText.transform.localPosition;
+                headText.transform.localPosition = new Vector3((w - headWidth) / 2, p.y, p.z);   // keep its left edge
+            }
         }
 
         void Update()
@@ -193,10 +269,12 @@ namespace AlibiCo
             }
             else
             {
+                typeTimer += Clock.Dt;
                 holdTimer += Clock.Dt;
                 // Let each memo be read before the next one replaces it.
-                if (queue.Count > 0 && holdTimer > 2.2f) Next();
+                if (queue.Count > 0 && ReadEnough) Next();
             }
+            RefreshMoreTag();
         }
     }
 }

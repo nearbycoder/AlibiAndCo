@@ -59,7 +59,7 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Drag the incident card** | Preview where the crime fits; drop it on a line to accuse |
 | **Tab** (or *Notes*) | The notebook: where the case stands, what each clock does, every memo and reply (scroll for older notes) |
 | **H** or **F1** | Ask Connie for a hint (the case is marked "with Connie's help"); the cards it names wear a **CONNIE** tag |
-| **Space** or click | Skip a memo or the reconstruction |
+| **Space** or click | Finish typing a memo, or show the next one waiting; skip the reconstruction |
 | **Esc** | Pause: resume, restart, case files, settings, quit |
 | **F11** / **F12** | Toggle fullscreen / save a screenshot |
 
@@ -98,7 +98,7 @@ Or with a touchscreen, in the browser build:
 | **Drag** a card | Pin it, link it (hold it on the other card until it says **LINK**), or drag the incident card to accuse |
 | **Press and hold** a card | Read it in full (lift your finger and nothing is clicked) |
 | **Hint**, **Notes**, **Menu** | The buttons at the top right (drag the notebook's notes to scroll them) |
-| **Tap** an empty spot | Skip a memo |
+| **Tap** the memo (or an empty spot) | Show the next memo waiting |
 
 Touching the mouse hands control straight back. The board is laid out for a landscape screen the
 size of a tablet or larger; phones aren't a target.
@@ -154,6 +154,10 @@ candidate faces live as the records rule people out.
 
 **Connie, the notebook and hints.** Short typed memos from your mentor teach each idea the first
 time it comes up. The notebook (Tab) keeps every question, witness reply, clock and alibi status.
+When a move brings several memos at once, each one stays on the desk long enough to read (about 185
+words a minute), its slip says how many more are waiting and how to see the next one now, and a
+question the board has already answered by the time its turn comes is passed over (the notebook
+still has it).
 Hints point at the next step, never the answer, and the cards a hint names wear a brass **CONNIE**
 tag until the board changes (with a pad or the keyboard, the next jump lands on them). When an honest witness stands firm and costs you a
 badge, Connie tells you what made their story red (usually a clock nobody has checked yet, by name),
@@ -283,6 +287,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
 | `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link. |
 | `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiMemoTest [outdir]` | Opens case 1, posts three memos at once and checks, in game time, that each stays its reading time, that the slip's MORE tag counts them down, that Space finishes typing and then shows the next, and that a question answered before its turn is passed over. The pad, keys and touch tests also check the tag names their control. |
 | `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
 | `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook). |
 | `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag. |

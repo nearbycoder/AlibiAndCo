@@ -900,6 +900,7 @@ namespace AlibiCo
             yield return PadTap(GamepadButton.East);
             yield return Wait(0.4f);
             if (root.Screens.NotebookOpen) Fail("B didn't close the notebook after scrolling");
+            yield return CheckMoreTag(s, "pad", PadCursor.Label("[A] ON IT"), Fail);
 
             // 7. Hold A on the incident card and drop it in the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
@@ -1117,6 +1118,7 @@ namespace AlibiCo
                 yield return Wait(0.5f);
                 if (root.Screens.NotebookOpen) Fail("a tap on the shade didn't close the notebook after scrolling");
             }
+            yield return CheckMoreTag(s, "touch", "TAP IT", Fail);
 
             // 8. Drag the incident into the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
@@ -1211,6 +1213,146 @@ namespace AlibiCo
             if (errors > 0) ok = false;
             Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (real touches: tap, drag, hold, a HUD button)");
             Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
+
+        // ------------------------------------------------------------------ memos
+
+        /// <summary>With two memos waiting, the slip's MORE tag names the way to see the next for the pointer in use.</summary>
+        IEnumerator CheckMoreTag(CaseSession s, string how, string expect, System.Action<string> fail)
+        {
+            s.Memos.Post(MemoKind.Notice, "NOTE", "A note waiting behind the one on the desk.");
+            s.Memos.Post(MemoKind.Notice, "NOTE", "And another behind it.");
+            yield return null;
+            yield return null;
+            var tag = s.Memos.MoreShown;
+            if (!tag.EndsWith(expect)) fail($"with {how}, the memo's MORE tag says \"{tag}\", not \"… {expect}\"");
+            else Debug.Log($"[AutoPilot] {how}: the memo's tag says \"{tag}\"");
+            yield return Shot(how + "_more_tag");
+        }
+
+
+        public void RunMemo(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(MemoTest());
+        }
+
+        /// <summary>
+        /// -alibiMemoTest: memos waiting behind each other each stay long enough to read (Logic.Reading),
+        /// the slip's MORE tag counts them down, Space finishes typing and then shows the next, and a
+        /// question the board has answered before it reaches the desk is passed over.
+        /// </summary>
+        IEnumerator MemoTest()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Fail(string why) { Debug.LogError("[AutoPilot] FAIL memo: " + why); ok = false; }
+            SaveData.UnlockAll = true;
+            SaveData.Current.DropAllBoards();
+            root.StartCase(Cases.All[0], false);
+            yield return Wait(3f);
+            var s = root.Session;
+            var m = s.Memos;
+            m.Clear();
+            yield return null;
+
+            // Three memos at once, short, long and middling: each one's time on the desk, in game time.
+            var texts = new[]
+            {
+                "A short one. Read it and move on.",
+                "A long one, the length of Connie's longest notes: two or three sentences about a clock, a card and what the board is telling you, the kind a player needs a few seconds to take in before the next slip slides over it.",
+                "A middling one, about as long as a witness's reply to a confrontation.",
+            };
+            foreach (var t in texts) m.Post(MemoKind.Connie, null, t);
+            var shownAt = new float[texts.Length];
+            var tags = new string[texts.Length];
+            int seen = -1;
+            float start = Clock.Now;
+            while (Clock.Now - start < 60f)
+            {
+                int i = System.Array.IndexOf(texts, m.Showing?.Text);
+                if (i != seen && i >= 0)
+                {
+                    if (i != seen + 1) Fail($"memo {i + 1} came up after memo {seen + 1}");
+                    shownAt[i] = Clock.Now;
+                    seen = i;
+                    yield return null;
+                    tags[i] = m.MoreShown;
+                    if (i == 1) yield return Shot("tag_1_more");
+                }
+                if (seen == texts.Length - 1) break;
+                yield return null;
+            }
+            if (seen != texts.Length - 1) Fail($"only {seen + 1} of {texts.Length} memos came up in 60 s");
+            for (int i = 0; i + 1 <= seen && i + 1 < texts.Length; i++)
+            {
+                float stayed = shownAt[i + 1] - shownAt[i];
+                // From the slip's arrival: a 0.35 s slide before typing, then its reading time (or typing and the beat after it).
+                float typed = 0.35f + texts[i].Length / 70f;
+                float least = 0.35f + Mathf.Max(Reading.TimeToRead(texts[i].Length), typed - 0.35f + Reading.MinAfterTyped);
+                Debug.Log($"[AutoPilot] memo: {texts[i].Length} characters stayed {stayed:0.00} s (reading time {least:0.00} s; the old rule gave {typed + 2.2f:0.00} s)");
+                if (stayed < least - 0.1f) Fail($"memo {i + 1} ({texts[i].Length} characters) was replaced after {stayed:0.00} s, under its {least:0.00} s");
+                if (stayed > least + 1.5f) Fail($"memo {i + 1} kept the next waiting {stayed - least:0.00} s past its reading time");
+            }
+            Debug.Log($"[AutoPilot] memo: tags {string.Join(" | ", tags.Select(t => "\"" + t + "\""))}");
+            if (!(tags[0] ?? "").StartsWith("2 MORE") || !(tags[1] ?? "").StartsWith("1 MORE") || tags[2] != "")
+                Fail("the MORE tag didn't count 2, 1, then go");
+            if (!(tags[0] ?? "").EndsWith("CLICK IT")) Fail($"with the mouse, the tag says \"{tags[0]}\"");
+
+            // Space: the first press finishes typing (the slip stays), the second shows the next memo.
+            m.Clear();
+            yield return null;
+            m.Post(MemoKind.Connie, null, "One to cut short: a memo long enough that it's still typing when Space is pressed.");
+            m.Post(MemoKind.Connie, null, "And the one after it.");
+            yield return Wait(0.6f);
+            var typingOne = m.Showing;
+            keyboard = InputSystem.AddDevice<Keyboard>("TestKeys");
+            keyboard.MakeCurrent();
+            yield return null;
+            Keys(Key.Space); yield return null; yield return null; Keys(); yield return Wait(0.3f);
+            if (m.Showing != typingOne) Fail("the first Space moved on instead of finishing the memo");
+            else if (m.Waiting != 1) Fail($"after the first Space, {m.Waiting} memos wait (should be 1)");
+            Keys(Key.Space); yield return null; yield return null; Keys(); yield return Wait(0.3f);
+            if (m.Showing == typingOne || m.Showing?.Text != "And the one after it.") Fail($"the second Space didn't show the next memo (showing \"{m.Showing?.Text}\", {m.Waiting} waiting)");
+            else Debug.Log("[AutoPilot] memo: Space finished the typing, then showed the next memo");
+            InputSystem.RemoveDevice(keyboard);
+            keyboard = null;
+
+            // A question answered before it reaches the desk: pin case 1's cards, then confront Agnes at once.
+            int passed = m.PassedOver;
+            foreach (var id in s.Board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+            yield return Wait(0.5f);
+            // The last question posted whose statement is a lie: confronting it clears its contradiction.
+            string Liar(TriggerDef t) => new[] { t.A, t.B }.FirstOrDefault(id => s.Case.CardById.TryGetValue(id, out var c) && c.IsTestimony && c.Truth == Truth.Lie);
+            var agnes = s.Case.Triggers.Where(t => t.Kind == TriggerKind.Conflict && !string.IsNullOrEmpty(t.Question) && s.Board.Fired.Contains(t.Key) && Liar(t) != null)
+                .LastOrDefault(t => m.Showing?.Text != t.Question);
+            var question = agnes?.Question;
+            bool queued = question != null;
+            Debug.Log($"[AutoPilot] memo: {m.Waiting} waiting after the pins; the question \"{question}\" is {(queued ? "queued" : "not found")}");
+            var who = agnes == null ? null : Liar(agnes);
+            if (who == null || !s.Board.CanConfront(who, out _)) Fail("no statement to confront in case 1");
+            else s.Confront(s.ViewOf(who));
+            yield return Wait(0.5f);
+            bool cameUp = false;
+            for (int i = 0; i < 40 && m.Waiting > 0; i++)
+            {
+                m.Skip(); yield return null; m.Skip(); yield return null;
+                if (m.Showing?.Text == question) cameUp = true;
+            }
+            if (!queued) Debug.Log("[AutoPilot] memo: the question was already on the desk (not judged)");
+            else if (cameUp) Fail("a question the board had already answered came up on the desk");
+            else if (m.PassedOver <= passed) Fail("nothing was passed over");
+            else Debug.Log($"[AutoPilot] memo: passed over {m.PassedOver - passed} answered question(s); the notebook still has it: {s.Memos.History.Any(h => h.Text == question)}");
+            if (!s.Memos.History.Any(h => h.Text == question)) Fail("the passed-over question isn't in the notebook");
+
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} memo test");
+            Debug.Log($"[AutoPilot] done: memo test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
         }
@@ -1386,6 +1528,7 @@ namespace AlibiCo
             yield return KeyTap(Key.Tab);
             yield return Wait(0.4f);
             if (root.Screens.NotebookOpen) Fail("Tab didn't close the notebook after scrolling");
+            yield return CheckMoreTag(s, "keys", "SPACE", Fail);
 
             // 7. Hold Enter on the incident card and steer it into the culprit's line.
             var lane = s.View.LaneById[c.Incident.Culprit];
