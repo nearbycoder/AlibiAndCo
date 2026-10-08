@@ -190,13 +190,14 @@ spoiler-free line on the clipboard to send a friend (the day, the crime, the sta
 seals). The drawer and the closed panel count your run of days in a row (a day made up from the
 drawer counts).
 
-**Settings that matter.** Master, music and effects volume; resolution; text size (Normal,
+**Settings that matter.** Master, music and effects volume (each shows its level); resolution; **graphics
+fidelity** (Low, Medium, High or Ultra, below); text size (Normal,
 Large, Larger) for menus, the HUD, the notebook, the hover card, the chips pinned on the board,
 the board's labels and the memo slips (windows under 900 pixels tall start at Large); **plain
 lettering**, which sets the memos, statements, records, notebook, case files and epilogues in a
 plain sans (DejaVu Sans) instead of the typewriter, handwriting and Courier, for anyone who finds
 those hard to read, while titles, times and buttons keep their faces; fullscreen;
-reduced motion; and an optional case timer. Progress and settings save automatically, and every
+reduced motion; and an optional case timer, sorted into Sound, Picture, Reading and Play. Progress and settings save automatically, and every
 case and docket keeps its own board: leave case 4 half-solved, play today's docket, and case 4 is
 still there, pins, badges and timer, when you open its file again (*Continue* on the title picks up
 the board you played last).
@@ -209,6 +210,15 @@ A link only happens when you mean it: a dragged card has to
 rest on the other card until a **LINK** tag appears, so a card that just lands on another on its
 way to a lane never costs a badge. The case timer waits while the game is in the background,
 where the game also drops to 10 frames a second.
+
+**Graphics fidelity, Low to Ultra.** One slider with four notches, applied the moment it moves. **High** is the
+look the game was built with and stays the default: 4× MSAA with SMAA, soft lamp and window shadows, ambient
+occlusion, bloom, film grain and colour grading. **Medium** (2× MSAA, softer and cheaper shadows,
+half-resolution occlusion, quarter-resolution bloom) and **Low** (FXAA, hard lamp shadows, no window shadows,
+occlusion, bloom or grain, half the dust) are for weaker graphics. **Ultra** draws the picture at 1.5 times the
+window's size and scales it down (never above 4K's pixel count), with high-sample occlusion, high-quality bloom,
+a sharper shadow map for the window's light, 64-bit HDR colour, 16× anisotropic filtering and twice the dust and particle bursts. No step
+draws the board's text below the window's resolution, so chip times stay sharp on Low.
 
 ## Content
 
@@ -293,12 +303,14 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/validate.sh --docket-phrases N [yyyy-MM-dd]` | Lists the sentences that turn up on more than a quarter of N consecutive dockets: the template showing through. |
 | `Tools/unity.sh validate` / `Tools/unity.sh test` | The same validator inside Unity, and the EditMode tests in `Assets/Tests/EditMode`. |
 | `Tools/autoplay.sh [outdir]` | Launches the built game, plays every case and six Daily Dockets (today's, yesterday's, three fixed days, and one from earlier in the week opened through the docket drawer) through the real session code with the solver's moves. It confronts an honest witness on purpose in case 4 and on a clock day, to check they stand firm and that Connie names the clock to blame, and makes a wrong link in case 3 to check Connie says why. It checks every contradiction carries its marker, that no text on the board runs into other text or an icon (`[Collide]`: chip times, a card's clock line, the clock legend against the ruler, the title card and the HUD buttons), the docket run on the closed panels and the drawer, that a replayed case 2 doesn't announce the docket again, and which reading texts are in which lettering; it saves a screenshot per step (to `Captures/autoplay` by default) and prints PASS/FAIL. Add `-alibiPlainText` (through `Tools/play.sh -alibiCapture <dir> -alibiPlainText`) to play it all in plain lettering, which fails if any reading text is left in a decorative face. |
-| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link; then links a pair through the card panel's *Same moment as…* (cancelling once with a right-click first). |
-| `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook), then steers through the case files and the docket drawer to an earlier day's board, and links a pair in case 2 through *Same moment as…* (B cancels once first), and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiInputTest [outdir]` | Drives case 1 with simulated mouse input (drag, hover, right-click, a click on *Plain lettering* in Settings mid-case and the graphics fidelity slider set by clicks and a drag, Confront, the incident drag) and checks every gesture lands, then goes on to case 2 to check that a card dropped in one movement onto another card pins or goes back to the tray without linking, and that one held there until the LINK tag shows does link; then links a pair through the card panel's *Same moment as…* (cancelling once with a right-click first). |
+| `Tools/play.sh -alibiPadTest [outdir] [-alibiPadLayout ps\|nintendo]` | Plays case 1 to the end with a simulated gamepad only (stick, LB/RB jumps, A to pin and drag, B, X, Y, Start, the right stick and D-pad to scroll the notebook, and the graphics fidelity slider in Settings), then steers through the case files and the docket drawer to an earlier day's board, and links a pair in case 2 through *Same moment as…* (B cancels once first), and prints PASS/FAIL. It checks the controls strip, the pause menu and the notebook footer name that pad's buttons: a PlayStation pad (by its Input System layout) or a Switch Pro controller (by its name, as a browser reports it). The mouse input test also goes on to the drawer. |
+| `Tools/play.sh -alibiFidelityBench [outdir] [-alibiBenchSeconds n]` | Holds the title's polaroid wall and a busy board (case 3, every named card pinned) still, then sets each graphics fidelity step in turn (Low, Medium, High, Ultra, then High again) and, at each, saves a screenshot of that same frozen moment and measures frame times with vsync off (mean, median, 95th percentile, with the machine's load average). Writes `fidelity-bench.md`. `-alibiFidelity n` starts any run at a step (0 Low to 3 Ultra). |
+| `Tools/play.sh -alibiScreensTour [outdir]` | A quick look at the menus at the window's size and text size (add `-alibiTextSize n`): Settings over the title and over the pause menu with a layout check (rows apart, inside the panel, no label overflowing or wrapping), the pause menu's controls list measured for the mouse, keys, pad and touch (one line per row, inside its card), and the pause panel's settle logged frame by frame, with and without Reduced motion. About 25 seconds. |
 | `Tools/play.sh -alibiMemoTest [outdir]` | Opens case 1, posts three memos at once and checks, in game time, that each stays its reading time, that the slip's MORE tag counts them down, that Space finishes typing and then shows the next, and that a question answered before its turn is passed over. Then it hovers the slip with the mouse and checks it's held up at least 1.6 times as large, inside the window, that nothing replaces it while it's held, that a click on it shows the next, and that a finger held on it reads it without moving on while a tap moves on. It logs the slip's size and body text before and after. The pad, keys and touch tests also check the tag names their control. |
 | `Tools/play.sh -alibiHintTour [outdir]` | Asks Connie twice before every move of case 4 and a clock day's docket, and checks the CONNIE tags sit on exactly the cards each hint names, clear once the move is made, and that the first Q/E jump after a hint lands on one. |
-| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook), including the link through *Same moment as…* (Backspace cancels). |
-| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the notebook's notes dragged to the oldest and back, and the incident drag; then a link in case 2 by taps through *Same moment as…* (a tap on nothing cancels). |
+| `Tools/play.sh -alibiKeysTest [outdir]` | The same with simulated key presses only (arrows, Q/E, Enter, Backspace, Tab, H, Esc, and Down and Page Up in the notebook), including the graphics fidelity slider and the link through *Same moment as…* (Backspace cancels). |
+| `Tools/play.sh -alibiTouchTest [outdir]` | Plays case 1 to the end with a simulated touchscreen only: taps, finger drags, a press held to read a chip, the card panel, the Hint, Notes and Menu buttons (each must act once per tap), the graphics fidelity slider in Settings, the notebook's notes dragged to the oldest and back, and the incident drag; then a link in case 2 by taps through *Same moment as…* (a tap on nothing cancels). |
 | `Tools/play.sh -alibiFocusTest [outdir] [-alibiFocusReal]` | Opens case 1 and checks the case timer stands still while the game is out of focus and runs again when it's back, and that the game drops to about 10 frames a second while away (it logs frames a second and the CPU time of the game's threads, attended and away, at the title and on a board): through Unity's focus handler, or with `-alibiFocusReal`, by waiting for a real focus change from outside. |
 | `Tools/play.sh -alibiBoardsTest [outdir]` | Leaves three boards part-way (case 1, case 2 with a badge lost, today's docket) and checks every one is kept: the folders and the drawer say IN PROGRESS, *Continue* resumes the last, each case reopens with its own pins, badges and timer, *Start over* asks first, and solving one drops only its own board. |
 | `Tools/play.sh [-alibiClockAt yyyy-MM-ddTHH:mm:ss] -alibiMidnightTest [outdir]` | Leaves today's docket in progress, opens the docket drawer and waits for midnight (within 20 minutes; `-alibiClockAt` starts the game's clock at a chosen moment), then checks the drawer redrew itself for the new day and that Continue resumes yesterday's docket. |
@@ -428,16 +440,17 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 11). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 12). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
   the browser (a tap, a finger drag, a held finger on a card and on the memo, a tap on a HUD button, and a
   link made by three taps through *Same moment as…*) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
   the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
-  and progress survives a page reload. It's 26.6 MB. In round 11 it loaded from localhost in 1.2–1.3
-  seconds in Chromium and 1.5–1.7 in Firefox, and autoplay ran at 60 fps in both, at a load average of
-  1.3–5.8. It hasn't been tried in Safari: Playwright's
+  progress survives a page reload; and the graphics fidelity bench photographs and times every step
+  (`--only fidelity`). It's 26.6 MB. In round 12 it loaded from localhost in 3.2–4.0 seconds in Chromium and 3.9–4.7
+  in Firefox (1.2–1.7 in round 11, on a quieter machine; the build is the same size), and autoplay ran at 58–60 fps in
+  both, with the GPU busy with other work. It hasn't been tried in Safari: Playwright's
   WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
   browser, where the page sets the size.
@@ -454,7 +467,9 @@ changes since then aren't released yet.
   (`-alibiPadTest`, `-alibiKeysTest`) play case 1 to the end and open a docket from the drawer with
   nothing but stick and button events, or key presses, in the Linux build and in the browser. It
   hasn't been tried with a physical controller or on a Steam Deck. The layout was checked at the
-  Deck's 1280×800. The PlayStation and Nintendo button names were checked with a simulated
+  Deck's 1280×800. When the game runs slowly, one frame moves the pad or keys cursor at most a thirtieth of a
+  second's worth, so it crawls a little rather than jumping past a small button (on the loaded development machine
+  the tests ran at 9–18 fps, where it used to stop 20–30 px off target). The PlayStation and Nintendo button names were checked with a simulated
   PlayStation pad and a simulated pad that calls itself a Nintendo Pro Controller; which family a
   real pad reads as depends on the name its driver or browser gives it (unrecognised pads get
   Xbox letters).
@@ -537,6 +552,16 @@ changes since then aren't released yet.
   black bars instead of stretching; the mouse test passed at 5120×1440. On a 4:3 screen with Larger
   text the clock legend is narrower and its type a little smaller, to fit between the title and the
   buttons.
+- **Graphics fidelity was measured on one machine.** Every step was photographed at the same frozen moment and timed
+  with vsync off on the development machine's Radeon 8060S, an integrated GPU (`-alibiFidelityBench`; the full table
+  is in `docs/IMPROVEMENTS.md`, round 12). On a busy board at 1920×1080: Low 1.7 ms a frame, Medium 2.6, High 3.4,
+  Ultra 8.1; at 2560×1440, 2.5, 4.0, 5.6 and 14.3. In Chromium every step held 60 fps; in Firefox, measured while the
+  GPU was busy with other work, Ultra's board dropped to about 42. Low hasn't been tried on genuinely weak hardware,
+  and no step has been tried on Windows, a Mac or a Steam Deck. High is the look the game always had, and the default.
+- **The menus' motion and the new settings layout were checked by automation.** `-alibiScreensTour` checks the
+  settings panel and the controls list at 1920×1080, 2560×1440, 1280×720 (Large text) and 1024×768 (Larger) and logs
+  the pause panel settling in frame by frame (and not moving with Reduced motion). Nobody has judged the motion or the
+  layout by eye except in screenshots.
 - **Window backends:** on some Wayland desktops the default X11/XWayland path can hang at
   startup. Use `-force-wayland` (as `Tools/play.sh` and the packaged `AlibiAndCo.sh` do; set
   `ALIBI_X11=1` to make the launcher skip it). The native Wayland backend isn't perfect either:

@@ -1649,7 +1649,7 @@ GPUs: FXAA instead of MSAA, hard lamp shadows at a lower resolution, no window s
 bloom or grain, half the dust. **Medium**: 2× MSAA with SMAA, soft low-quality shadows, half-resolution ambient
 occlusion, quarter-resolution bloom. **Ultra** goes past today: the picture supersampled 1.5× (capped at 4K's
 pixel count, so a 4K window isn't drawn at 6K), high-sample occlusion with finer normals, high-quality bloom
-filtering, high-quality soft shadows and a 4096 window shadow map, 16× anisotropic filtering, and twice the dust
+filtering, a 4096 window shadow map, 16× anisotropic filtering, and twice the dust
 and particle bursts. The board's text is never rendered below the window's size at any step. A line under the
 slider says what the chosen step does. `-alibiFidelity n` sets it for a run; `-alibiFidelityBench [dir]` holds the
 title wall and a busy board (case 3, all named cards pinned) still and, at each step, takes a screenshot of that
@@ -1701,7 +1701,102 @@ fidelity bench in the browser (the URP settings it reaches by name must work und
 **Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed, a frame rate per fidelity step.
 **Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
 
+### R12-6. A cursor that can stop on small targets when the game runs slowly (added during the round)
+
+Found while testing R12-1: on the loaded machine the self-tests ran at 9–18 fps, and the pad and keys tests then
+missed presses (an Enter on a tray card, on *Same moment as…*, on a drawer row). One frame of the pad or arrow-key
+cursor covered a whole frame's worth of movement, 20–30 px at those rates, so it stopped beside a tray card or on a
+button's edge, for a player on a slow machine as much as for the tests. One frame now moves the cursor at most a
+thirtieth of a second's worth.
+
+**Acceptance:** the keys and pad tests pass at the loads where they failed, with the cursor stopping within about
+10 px of its target (logged as `[Press]` when it stops more than 8 px short).
+**Verify:** the keys and pad tests (Xbox, PlayStation, Nintendo) inside `Tools/nested.sh` at 1920×1080 and 1280×800.
+
 Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases, WebKit, a real
 controller, tablet or Steam Deck, the sound by ear, colour-blind or dyslexic players, a font such as Atkinson
 Hyperlegible, weak hardware itself: Low is measured on this machine's Radeon 8060S, not on an old GPU), and the
 owner's open calls listed in round 11.
+
+## Round 12 results (8 Oct 2026)
+
+Every item landed on `improvements-12`. Screenshots are in `docs/media/improvements/round12/` (`r12-1-*` the four
+fidelity steps of one frozen moment, whole and zoomed; `r12-2-*` the settings panel before and after, and at
+1024×768 with Larger text; `r12-3-pause-opening.jpg` the pause panel a few frames into settling; `r12-4-*` the pause
+menu before and after, and at 1280×720 with Large text).
+
+The machine was shared with fourteen other sessions all round, several running their own games' graphics benchmarks:
+the GPU read 98–99% busy from other processes for most of the afternoon, and self-tests ran at 9–41 fps where earlier
+rounds saw 52–57. The fidelity timings below come from a run at 17:19, when the GPU was idle.
+
+| # | Item | Commits | Verified by | Result |
+|---|---|---|---|---|
+| R12-1 | Graphics fidelity: Low, Medium, High, Ultra | e26633f, 047784a, c42dcf3, 1d3833a | The bench (`-alibiFidelityBench`) at 1920×1080 and 2560×1440 inside `Tools/nested.sh`: the title wall and case 3's busy board held at one moment (the game's clock, the lamp's flicker, the dust and the camera's drift stopped), each step photographed and timed with vsync off; the mouse, keys, pad (Xbox, PlayStation, Nintendo, and at 1280×800) and touch tests set the slider by a click on Low, a click on the track at Medium, a drag of the handle to Ultra and a click on High, checking the step in force after each; a restart check in a shared scratch config (`nested.sh --config`): a launch at the default High saved Ultra, and the next launch came back at Ultra and applied it before the title | Met (table below). High's settings were checked against the project's asset line by line; the one difference (anisotropic filtering per texture instead of forced) was found and fixed (047784a). Medium first used URP's low soft-shadow filter, whose sampling pattern showed beside the chips; it now uses the medium one (1d3833a) |
+| R12-2 | Settings, sorted | 26a7bc0 | A new layout check (rows apart, inside the panel and the window, no label overflowing or wrapping) in autoplay and in a new quick `-alibiScreensTour`: 18 rows clear at 1920×1080, 2560×1440, 1280×720 (Large) and 1024×768 (Larger), over the title and over the pause menu; the mouse test's click on *Plain lettering* still lands; screenshots | Met. The first version wrapped "Desktop (1920 × 1080)" in the narrower column; the label is shorter and shrinks to fit |
+| R12-3 | Menus that settle | b0dcd8f, a99ce16 | The screens tour logs the pause panel every frame as it opens: from 22 px low at 96% to in place in about 0.3 s at every size, and with Reduced motion 0 px and 100% from the first frame; every self-test, which clicks buttons as panels appear, still passes | Met. Found before it shipped: the case files' top shade is drawn flipped (a −1 scale) and the first version reset it; panels now keep their own scale and shades never move (a99ce16) |
+| R12-4 | Controls you can scan | 4a69314 | The screens tour measures the pause menu's list for the mouse, keys, pad and touch at four sizes: every row on one line, inside its card, at 21 px (it was 15.2 px, two lines a row); the pad and keys tests' check that the list names the pad's buttons | Met |
+| R12-5 | The browser build, checked again | 8b565cc (the bench in the browser) | `node Tools/webtest.mjs --engine chromium,firefox` on a fresh build of `1d3833a`, every run (fidelity, pad, keys, share, reload, focus, touch, touchreal, autoplay); the new `fidelity` run photographs each held step and reads its frame times. Started at a load of 10 with the GPU 99% busy from other work, finished at a load of 2 | Met. All 18 runs PASS with 0 console errors; autoplay 10/10 at 58–60 fps in both browsers; the pad, keys and touch tests set the fidelity slider by hand in both; the occlusion settings were reached by name under IL2CPP too (no "unreachable" in the log). 26.6 MB. Loads took 3.2–4.0 s in Chromium and 3.9–4.7 s in Firefox, against 1.2–1.7 s in round 11: the machine was busier, and this round's code adds no assets (the build is the same 26.6 MB) |
+| R12-6 | A cursor that can stop on small targets when the game runs slowly | 4ca27e2 | The keys and pad tests at the loads where they had failed: before the cap, keys and pad runs at 9–18 fps missed an Enter on a tray card, *Same moment as…* and a drawer row (`Captures/r12-keys2`, `r12-pad2`); after it, every keys and pad run passed (two right after the change at a load of about 24, and six on the tip at 1920×1080 and 1280×800 with three pad layouts), and the cursor stopped at most 8–9 px from its target (`[Press]`) | Met for the tests. This is the likely cause of round 10's late press (a cursor stopping on a button's edge at a low frame rate), but round 10's own failures can't be replayed to prove it |
+
+### The fidelity steps
+
+Measured on the tip (`1d3833a`) with `-alibiFidelityBench` inside `Tools/nested.sh`: the Linux build on the dev machine's
+Radeon 8060S (an integrated GPU; OpenGL core), vsync off, 6 s per step after 1.5 s to settle, the same frozen moment
+photographed at each step. Mean frame time, the 95th percentile in brackets, frames a second after the slash. This run
+came at 17:19, when the GPU was idle (0% busy from other processes) and the load average was 2–4; High was measured twice
+(before Ultra and again after) and came out within 0.1 ms. Logs: `Logs/r12/bench-quiet-1080.md` and `-1440.md`, each
+run's `Captures/r12-bench-quiet-*/player.log`.
+
+| Step | What it does (High is the game as it was) | Board, 1920×1080 | Title, 1920×1080 | Board, 2560×1440 | Title, 2560×1440 |
+|---|---|---|---|---|---|
+| **Low** | FXAA instead of MSAA; hard lamp shadows at the low shadow tier (1024), no window-light shadows; no ambient occlusion, bloom or film grain; anisotropic filtering off; half the dust and particle bursts. Grading, vignette and the full-resolution picture stay | 1.67 ms (2.20) / 598 fps | 1.37 ms (1.62) / 729 fps | 2.52 ms (2.95) / 397 fps | 2.14 ms (2.27) / 468 fps |
+| **Medium** | 2× MSAA with medium SMAA; soft shadows with URP's medium filter at the medium tier (2048), window shadows 1024; half-resolution ambient occlusion (4 samples, Gaussian blur); quarter-resolution bloom; anisotropic per texture; three-quarters of the dust | 2.56 ms (3.03) / 391 fps | 2.29 ms (2.58) / 436 fps | 4.00 ms (4.14) / 250 fps | 3.60 ms (3.62) / 278 fps |
+| **High** (default) | 4× MSAA with high SMAA, soft lamp shadows (4096 tier) and window shadows (2048), full-resolution ambient occlusion (8 samples, bilateral blur), bloom, film grain, forced anisotropic filtering, 160 motes of dust | 3.35 ms (3.65) / 299 fps; again 3.42 | 2.95 ms (3.07) / 339 fps; again 2.83 | 5.56 ms (5.55) / 180 fps; again 5.49 | 4.97 ms (4.96) / 201 fps; again 4.86 |
+| **Ultra** | High, plus the picture drawn at 1.5× and scaled down (capped at 4K's pixel count), 64-bit HDR colour, 12-sample occlusion with high-quality normals, high-quality bloom filtering over 8 passes, a 4096 window shadow map, 16× anisotropic filtering on every texture, twice the dust and bursts | 8.05 ms (8.14) / 124 fps | 7.38 ms (7.29) / 136 fps | 14.27 ms (13.88) / 70 fps | 13.55 ms (12.88) / 74 fps |
+
+Low takes about half of High's frame time and Ultra about two and a half times it; on this integrated GPU even Ultra at
+2560×1440 stays above 60 fps. Under contention the order held too: at 16:25, with the GPU 52% busy from other games
+beforehand, the 1920×1080 board took 6.4 ms on Low, 7.8 on Medium, 11.9 and 10.4 on High and 15.2 on Ultra
+(`Logs/r12/bench-tip-1080.md`). In the browsers (`webtest.mjs --only fidelity`) the page paces the frames: in Chromium
+every step held 59–60 fps on both scenes; in Firefox, measured while the GPU was busy with other work, the board held
+60 on Low and Medium, 53–55 on High and 42 on Ultra.
+
+What the pictures show (`r12-1-board-steps-zoom.jpg`, `r12-1-title-steps-zoom.jpg`): on Low the chips and polaroids
+sit flatter (no ambient occlusion, hard shadow edges, no grain) and the red strings step; Medium and High are close,
+High's shadow edges a little softer; Ultra's strings, pins and handwriting are visibly cleaner than High's. Every step keeps the chip text at
+the window's resolution or better. 
+
+EditMode tests: 73/73. The validator proves cases 1–5 airtight with 60 random pin orders each (the logic didn't
+change). The final checks ran on the build of `1d3833a` (the commits after it are docs), inside `Tools/nested.sh`, at load averages of 9–20 with the GPU 78–100% busy (mostly 98–99%) before each run: autoplay 10/10 (5 cases, 5 dockets) with 54/54 collision checks and the settings layout clear at 1920×1080, at 1280×720 with Large text and in plain lettering; the mouse, keys, Xbox, PlayStation and Nintendo pad, touch and memo tests, the hint tour, the boards test and the focus test (39.8–41.1 fps with focus, 10.0 away; earlier rounds saw 55–57 with focus on a quieter GPU) at 1920×1080; the keys and pad tests at 1280×800; and the screens tour at 1920×1080, 1280×720 (Large), 1024×768 (Larger) and 2560×1440. 19 of 19 PASS, 0 errors (`Logs/r12/final.log`, each run's `Captures/r12-f-*/player.log`). The validator and `--docket 365` from 8 October (all airtight, worst day 5 of 40 variations) and the EditMode tests also ran on `1d3833a`.
+
+Found along the way:
+
+- **The GPU was the bottleneck, not the CPU.** The load average said 13–30; the GPU said 99% busy, from other games'
+  players (read from `/sys/class/drm/card1/device/gpu_busy_percent` and the players' `fdinfo`). The title at Low took
+  1.4 ms with the GPU idle (17:19), 4.4 ms at 13:14 and 19 ms at 14:47. The test runner now waits for the GPU as well as
+  the load before a timing run (`Logs/r12/run.sh`, `GPUMAX`).
+- **Unity's Editor rewrites its prefs file.** `~/.config/unity3d/AlibiAndCo/Alibi & Co_/prefs` holds the Editor's
+  session keys, and batch runs rewrite it on quit (its timestamp moved to 14:59 and 16:34 today). Its bytes were the
+  same at 15:00 and at the end of the round, and it holds none of the game's settings (no fidelity, volumes or text
+  size). `alibi_save.json` is untouched since 4 October; the test runner rewrote its own `TestResults.xml`, as in
+  earlier rounds. Every game run this round used a scratch config folder (`Tools/nested.sh`).
+
+Not done, and why:
+
+- **Weak hardware.** Low is measured on this machine's integrated Radeon 8060S, not on an old or low-end GPU.
+- **Depth of field on Ultra.** The camera looks almost straight down at a flat desk, so a physical depth of field
+  would only blur the lamp's top corner and lifted cards; it doesn't suit the board, and blurring a lifted card hurts
+  reading. The menus keep their existing backdrop blur.
+- **Higher-resolution textures for Ultra.** The cork, wood and paper are already imported at their full 1024 px;
+  larger ones would need new generated textures and add to the browser download. Ultra's supersampling and 16×
+  anisotropic filtering sharpen what's there.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real controller, tablet or
+  Steam Deck, the sound by ear, colour-blind or dyslexic players): unchanged.
+
+Owner decisions this round adds:
+
+- **High stays the default everywhere**, browser included. Low or Medium by default on integrated GPUs (or in the
+  browser) would be a judgement about who plays where.
+- **Ultra's supersampling is capped at 4K's pixel count**, so a 4K window gets none and a 1440p window gets 1.5×
+  (`Fidelity.UltraScale`).
+- **The settle is 22 px and 96%** over about a third of a second. Smaller reads as a fade; larger starts to feel slow.
