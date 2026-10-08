@@ -704,9 +704,14 @@ namespace AlibiCo
             /// <summary>How far below its place the panel is right now (the screens tour logs it).</summary>
             public float Offset => applied.y;
             Vector2 applied;
+            Vector3 baseScale = Vector3.one;
             bool fits;
 
-            void Awake() => fits = TryGetComponent<FitToCanvas>(out _);
+            void Awake()
+            {
+                fits = TryGetComponent<FitToCanvas>(out _);
+                baseScale = transform.localScale;   // a panel's own scale (even a flipped one) is kept
+            }
 
             public void Play(bool show, float time)
             {
@@ -724,7 +729,7 @@ namespace AlibiCo
                 rt.anchoredPosition += new Vector2(0, dy) - applied;
                 applied = new Vector2(0, dy);
                 Scale = scale;
-                if (!fits) rt.localScale = new Vector3(scale, scale, 1);
+                if (!fits) rt.localScale = Vector3.Scale(baseScale, new Vector3(scale, scale, 1));
             }
         }
 
@@ -734,7 +739,8 @@ namespace AlibiCo
             if (g == null) return;
             foreach (Transform child in g.transform)
             {
-                if (child.name == "shade" || child.name.EndsWith("_shadow") || !(child is RectTransform)) continue;
+                // Full-screen shades stay put (only panels move); the panels' soft shadows follow them anyway.
+                if (child.name.ToLowerInvariant().Contains("shade") || child.name.EndsWith("_shadow") || !(child is RectTransform)) continue;
                 if (!child.TryGetComponent<Settle>(out var m)) m = child.gameObject.AddComponent<Settle>();
                 m.Play(show, time);
             }
