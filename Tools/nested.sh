@@ -5,22 +5,25 @@
 # to about 10 fps), it can't go fullscreen on the real desktop, and the real pointer can't reach it.
 # Player prefs land in the scratch config folder too, never in ~/.config/unity3d.
 #
-#   Tools/nested.sh [--size WxH] [--keep] [play.sh args...]
+#   Tools/nested.sh [--size WxH] [--keep] [--config DIR] [play.sh args...]
 #   Tools/nested.sh -alibiPadTest "$PWD/Captures/pad" -logFile "$PWD/Logs/pad.log"
 #   Tools/nested.sh --size 1280x800 -screen-width 1280 -screen-height 800 -alibiResolution 1280x800 -alibiKeysTest ...
 #
 # --size is the nested desktop's size (default 1920x1080). --keep leaves the scratch folder
-# (Captures/nested-<pid>/, KWin's log) for a look afterwards. The exit code is the game's. Only the
+# (Captures/nested-<pid>/, KWin's log) for a look afterwards. --config uses DIR (a scratch folder, never
+# ~/.config) as the config folder instead of a fresh one, so two runs can share the player's prefs (a setting
+# saved in one and read back in the next). The exit code is the game's. Only the
 # processes started here are stopped: KWin by PID, and afterwards any helper the session woke up
 # (ksecretd, a portal, PipeWire...) that is still running with this session's private D-Bus address
 # or scratch config folder in its environment. Nothing else carries either, so nothing else is touched.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SIZE=1920x1080; KEEP=0
+SIZE=1920x1080; KEEP=0; CONFIG=
 while [ $# -gt 0 ]; do
   case "$1" in
     --size) SIZE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
+    --config) CONFIG="$(realpath -m "$2")"; shift 2 ;;
     *) break ;;
   esac
 done
@@ -31,10 +34,15 @@ done
 
 SCRATCH="$ROOT/Captures/nested-$$"
 rm -rf "$SCRATCH"; mkdir -p "$SCRATCH/config"
+case "${CONFIG:-}" in
+  "") CONFIG="$SCRATCH/config" ;;
+  "$HOME/.config"|"$HOME/.config/"*) echo "nested.sh: --config must be a scratch folder, not $CONFIG" >&2; exit 2 ;;
+  *) mkdir -p "$CONFIG" ;;
+esac
 export ALIBI_NESTED_SOCK="alibi-nested-$$" ALIBI_NESTED_DIR="$SCRATCH" ALIBI_ROOT="$ROOT"
 export ALIBI_NESTED_W="${SIZE%x*}" ALIBI_NESTED_H="${SIZE#*x}"
 # Everything inside (KWin's settings, the player's prefs) reads and writes the scratch folder.
-export XDG_CONFIG_HOME="$SCRATCH/config"
+export XDG_CONFIG_HOME="$CONFIG"
 
 set +e
 dbus-run-session -- bash -c '
@@ -63,7 +71,7 @@ ours() {
     [ -O "$p" ] || continue
     env=$({ tr '\0' '\n' < "$p/environ"; } 2>/dev/null) || continue
     if { [ -n "$BUS" ] && grep -qxF "DBUS_SESSION_BUS_ADDRESS=$BUS" <<< "$env"; } \
-       || grep -qxF "XDG_CONFIG_HOME=$SCRATCH/config" <<< "$env" \
+       || grep -qxF "XDG_CONFIG_HOME=$CONFIG" <<< "$env" \
        || grep -qxF "WAYLAND_DISPLAY=$ALIBI_NESTED_SOCK" <<< "$env"; then
       [ "${p#/proc/}" = "$$" ] || echo "${p#/proc/}"
     fi

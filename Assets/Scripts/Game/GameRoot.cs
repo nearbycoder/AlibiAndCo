@@ -282,6 +282,16 @@ namespace AlibiCo
             var save = SaveData.Current;
             var solved = string.Join(",", save.cases.Where(c => c.solved).Select(c => c.id));
             Debug.Log($"[SaveCheck] folder={SaveData.Folder} loadedFrom={SaveData.LoadedFrom} solved=[{solved}] inProgress={save.inProgress?.caseId ?? "none"} shelved=[{string.Join(",", save.shelved.Select(b => $"{b.caseId}:{b.pinned.Count}pins"))}]");
+            // The graphics fidelity a player's launch comes back to (from the prefs), and with -alibiSetFidelity n
+            // a new choice saved the way the settings panel saves it, for the next launch to read back.
+            Debug.Log($"[SaveCheck] graphics fidelity at launch: {Fidelity.Names[Settings.GraphicsFidelity]} (in force: {Fidelity.Names[Fidelity.Level]})");
+            int setFid = Array.IndexOf(Environment.GetCommandLineArgs(), "-alibiSetFidelity");
+            if (setFid >= 0 && setFid + 1 < Environment.GetCommandLineArgs().Length && int.TryParse(Environment.GetCommandLineArgs()[setFid + 1], out var fid))
+            {
+                Settings.GraphicsFidelity = fid;
+                PlayerPrefs.Save();
+                Debug.Log($"[SaveCheck] graphics fidelity set to {Fidelity.Names[Settings.GraphicsFidelity]} and saved");
+            }
             ShowTitle(true);
             yield return new WaitForSecondsRealtime(3f);
             if (!web) Debug.Log("[SaveCheck] " + DevCapture.Capture(System.IO.Path.Combine(dir, "title.png"), Screen.width, Screen.height));

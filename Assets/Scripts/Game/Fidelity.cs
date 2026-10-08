@@ -124,7 +124,7 @@ namespace AlibiCo
                     SetField(ssaoSettings, "BlurQuality", level == 1 ? 1 : 0);
                     SetField(ssaoSettings, "NormalSamples", level == 3 ? 2 : 1);
                 }
-                notes.Add(level == 0 ? "AO off" : level == 1 ? "AO half-res" : level == 2 ? "AO" : "AO high");
+                notes.Add((level == 0 ? "AO off" : level == 1 ? "AO half-res" : level == 2 ? "AO" : "AO high") + (ssaoSettings == null ? " (its settings unreachable: on/off only)" : ""));
             }
             // The project forces anisotropic filtering on (High); Ultra raises its floor, Medium leaves it to each texture.
             QualitySettings.anisotropicFiltering = level switch { 0 => AnisotropicFiltering.Disable, 1 => AnisotropicFiltering.Enable, _ => AnisotropicFiltering.ForceEnable };
