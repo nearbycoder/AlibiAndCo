@@ -145,7 +145,8 @@ namespace AlibiCo
             int hintArg = Array.IndexOf(args, "-alibiHintTour");
             int memoArg = Array.IndexOf(args, "-alibiMemoTest");
             int benchArg = Array.IndexOf(args, "-alibiFidelityBench");
-            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0 || hintArg >= 0 || memoArg >= 0 || benchArg >= 0;
+            int tourArg = Array.IndexOf(args, "-alibiScreensTour");
+            bool automated = inputArg >= 0 || padArg >= 0 || keysArg >= 0 || shareArg >= 0 || midnightArg >= 0 || autoArg >= 0 || capArg >= 0 || recordArg >= 0 || focusArg >= 0 || touchArg >= 0 || boardsArg >= 0 || hintArg >= 0 || memoArg >= 0 || benchArg >= 0 || tourArg >= 0;
             TimerIgnoresFocus = automated && focusArg < 0;
             ApplyFrameRate(true);   // focus may have gone before this was known
             int textArg = Array.IndexOf(args, "-alibiTextSize");
@@ -178,6 +179,12 @@ namespace AlibiCo
             {
                 string dir = padArg + 1 < args.Length && !args[padArg + 1].StartsWith("-") ? args[padArg + 1] : "Captures/pad-test";
                 gameObject.AddComponent<AutoPilot>().Run(dir, true, false, true);
+                yield break;
+            }
+            if (tourArg >= 0)
+            {
+                string dir = tourArg + 1 < args.Length && !args[tourArg + 1].StartsWith("-") ? args[tourArg + 1] : "Captures/screens-tour";
+                gameObject.AddComponent<AutoPilot>().RunScreensTour(dir);
                 yield break;
             }
             if (benchArg >= 0)

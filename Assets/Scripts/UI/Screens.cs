@@ -1017,6 +1017,17 @@ namespace AlibiCo
         public string HelpShown => (helpKeys != null ? helpKeys.text : "") + "\n" + (helpGroup != null && helpGroup.alpha > 0.05f ? helpText.text : "");
         public string ControlsShown => controlsBody != null ? controlsBody.text : "";
 
+        /// <summary>The pause menu's controls list fits its card at a readable size (empty when it does).</summary>
+        public List<string> ControlsLayoutReport()
+        {
+            var found = new List<string>();
+            if (controlsBody == null) { found.Add("no controls list"); return found; }
+            controlsBody.ForceMeshUpdate();
+            if (controlsBody.isTextOverflowing) found.Add("the list runs out of its card");
+            Debug.Log($"[Controls] list at {controlsBody.fontSize:0.#} px (of {controlsBody.fontSizeMax:0.#}), {controlsBody.textInfo.lineCount} lines, card scale {controlsBody.canvas.scaleFactor:0.##}");
+            return found;
+        }
+
         static string ControlsText(PadCursor.Pointer pointer)
         {
             var rows = pointer == PadCursor.Pointer.Keys ? new[]
@@ -1100,33 +1111,122 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(settings.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.97f));
             UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(800, 1060));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1320, 820));
             UiKit.FitInCanvas(panel.rectTransform);
+            settingsPanel = panel.rectTransform;
             var t = UiKit.Text(panel.transform, "Settings", Art.Display, 60, Cream, TextAlignmentOptions.Center);
-            t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(0, 84));
-            var col = UiKit.Rect(panel.transform, "col");
-            col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(680, 850));
-            var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
-            vl.spacing = 16; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
-            Row(UiKit.Slider(col, "Master volume", Settings.Master, v => Settings.Master = v));
-            Row(UiKit.Slider(col, "Music", Settings.Music, v => Settings.Music = v));
-            Row(UiKit.Slider(col, "Sound effects", Settings.Effects, v => { Settings.Effects = v; Sfx.Play("pin", 0.6f); }));
+            t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -22), new Vector2(0, 84));
+
+            // Two columns of headed sections: what you hear and see on the left, how you read and play on the right.
+            RectTransform Column(string name, float x)
+            {
+                var col = UiKit.Rect(panel.transform, name);
+                col.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(x, -124), new Vector2(570, 580));
+                var vl = col.gameObject.AddComponent<VerticalLayoutGroup>();
+                vl.spacing = 12; vl.childControlHeight = false; vl.childControlWidth = true; vl.childForceExpandHeight = false;
+                return col;
+            }
+            var left = Column("col_left", -315);
+            var right = Column("col_right", 315);
+            var rule = UiKit.Panel(panel.transform, "divider", new Color(1, 1, 1, 0.08f), false);
+            rule.raycastTarget = false;
+            rule.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(2, 560));
+
+            Section(left, "Sound", true);
+            Row(UiKit.Slider(left, "Master volume", Settings.Master, v => Settings.Master = v));
+            Row(UiKit.Slider(left, "Music", Settings.Music, v => Settings.Music = v));
+            Row(UiKit.Slider(left, "Sound effects", Settings.Effects, v => { Settings.Effects = v; Sfx.Play("pin", 0.6f); }));
+            Section(left, "Picture");
             if (!Web)   // in a browser the page decides the canvas size
             {
                 var resChoices = Settings.ResolutionChoices();
-                Row(UiKit.Stepper(col, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
+                Row(UiKit.Stepper(left, "Resolution", resChoices.Select(Settings.ResolutionLabel).ToArray(),
                     resChoices.IndexOf(Settings.Resolution), i => Settings.Resolution = resChoices[i]));
             }
-            FidelityRow(col);
-            Row(UiKit.Stepper(col, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
-            Row(UiKit.Toggle(col, "Plain lettering", Settings.PlainText, v => Settings.PlainText = v));
-            Row(UiKit.Toggle(col, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
-            Row(UiKit.Toggle(col, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
-            Row(UiKit.Toggle(col, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));
-            var reset = UiKit.Button(col, "Erase all progress", () => Confirm("Erase every closed case and badge?", () => { SaveData.Reset(); if (root.Flow == Flow.Select) root.ShowSelect(); }), Pal.Hex("3A2526"), Pal.Hex("E8B4A8"), 20);
+            Row(UiKit.Toggle(left, "Fullscreen", Settings.Fullscreen, v => Settings.Fullscreen = v));
+            FidelityRow(left);
+
+            Section(right, "Reading", true);
+            Row(UiKit.Stepper(right, "Text size", Settings.TextSizeNames, Settings.TextSize, i => Settings.TextSize = i));
+            Row(UiKit.Toggle(right, "Plain lettering", Settings.PlainText, v => Settings.PlainText = v));
+            Section(right, "Play");
+            Row(UiKit.Toggle(right, "Reduced motion", Settings.ReducedMotion, v => Settings.ReducedMotion = v));
+            Row(UiKit.Toggle(right, "Show case timer", Settings.ShowTimer, v => Settings.ShowTimer = v));
+            Section(right, "Progress");
+            var reset = UiKit.Button(right, "Erase all progress", () => Confirm("Erase every closed case and badge?", () => { SaveData.Reset(); if (root.Flow == Flow.Select) root.ShowSelect(); }), Pal.Hex("3A2526"), Pal.Hex("E8B4A8"), 20);
             Size(reset, 50);
+            var note = UiKit.Text(right, "Every closed case, badge, seal and board. It asks first.", Art.Sans, 18, new Color(CreamDim.r, CreamDim.g, CreamDim.b, 0.7f), TextAlignmentOptions.TopLeft, "reset_note");
+            note.rectTransform.sizeDelta = new Vector2(0, 26);
+
             var close = UiKit.Button(panel.transform, "Done", () => { PlayerPrefs.Save(); Hide(settings); }, Pal.Hex("8E2B2B"), Cream, 26);
-            ((RectTransform)close.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(220, 60));
+            ((RectTransform)close.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(240, 60));
+        }
+
+        RectTransform settingsPanel;
+
+        /// <summary>A section's small-caps heading in brass, with a hairline under it.</summary>
+        static void Section(Transform col, string title, bool first = false)
+        {
+            var r = UiKit.Rect(col, "section_" + title);
+            r.sizeDelta = new Vector2(0, first ? 34 : 50);
+            var t = UiKit.Text(r, title.ToUpperInvariant(), Art.SansBold, 19, Pal.Lamp, TextAlignmentOptions.BottomLeft, "heading");
+            t.rectTransform.Stretch();
+            t.rectTransform.offsetMin = new Vector2(0, 6);
+            t.characterSpacing = 6;
+            var line = UiKit.Panel(r, "rule", new Color(Pal.Lamp.r, Pal.Lamp.g, Pal.Lamp.b, 0.25f), false);
+            line.raycastTarget = false;
+            line.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(0, 2));
+        }
+
+        /// <summary>
+        /// The settings panel's rows don't overlap each other, stay inside the panel and the window, and no label
+        /// runs out of its room (autoplay checks this at every size it plays). Empty when all is well.
+        /// </summary>
+        public List<string> SettingsLayoutReport(out int rows)
+        {
+            var found = new List<string>();
+            rows = 0;
+            if (settingsPanel == null) { found.Add("no settings panel"); return found; }
+            Rect World(RectTransform r)
+            {
+                var c = new Vector3[4];
+                r.GetWorldCorners(c);
+                return Rect.MinMaxRect(c[0].x, c[0].y, c[2].x, c[2].y);
+            }
+            var panelRect = World(settingsPanel);
+            var screen = new Rect(0, 0, UnityEngine.Screen.width, UnityEngine.Screen.height);
+            if (panelRect.xMin < screen.xMin - 1 || panelRect.yMin < screen.yMin - 1 || panelRect.xMax > screen.xMax + 1 || panelRect.yMax > screen.yMax + 1)
+                found.Add($"panel {panelRect} leaves the window");
+            foreach (var colName in new[] { "col_left", "col_right" })
+            {
+                var col = settingsPanel.Find(colName);
+                if (col == null) { found.Add("no " + colName); continue; }
+                var kids = new List<(string name, Rect r)>();
+                foreach (RectTransform k in col)
+                {
+                    if (!k.gameObject.activeSelf || k.name.EndsWith("_shadow")) continue;
+                    var r = World(k);
+                    kids.Add((k.name, r));
+                    rows++;
+                    if (r.yMin < panelRect.yMin + 92 * settingsPanel.lossyScale.y || r.xMin < panelRect.xMin || r.xMax > panelRect.xMax)
+                        found.Add($"{k.name} runs past the panel (or into Done)");
+                    foreach (var tmp in k.GetComponentsInChildren<TextMeshProUGUI>())
+                    {
+                        if (!tmp.gameObject.activeInHierarchy || string.IsNullOrEmpty(tmp.text) || tmp.text.Length == 1) continue;   // ‹ › glyphs sit a little proud by design
+                        tmp.ForceMeshUpdate();
+                        var box = tmp.rectTransform.rect;
+                        var ink = tmp.textBounds.size;   // what was laid out (after any auto-size), against its box
+                        if (ink.x > box.width - tmp.margin.x - tmp.margin.z + 1 || ink.y > box.height + 2)
+                            found.Add($"{k.name}/{tmp.name} \"{tmp.text}\" overflows its box");
+                        else if (tmp.textInfo.lineCount > 1 && !k.name.StartsWith("fidelity_blurb") && !k.name.StartsWith("reset_note"))
+                            found.Add($"{k.name}/{tmp.name} \"{tmp.text}\" wraps to {tmp.textInfo.lineCount} lines");
+                    }
+                }
+                for (int i = 0; i + 1 < kids.Count; i++)
+                    if (kids[i].r.yMin < kids[i + 1].r.yMax - 0.5f)
+                        found.Add($"{kids[i].name} overlaps {kids[i + 1].name}");
+            }
+            return found;
         }
 
         /// <summary>The fidelity slider (the tests find it here) and the line under it that says what the step does.</summary>
@@ -1142,7 +1242,7 @@ namespace AlibiCo
             });
             ((RectTransform)FidelitySlider.transform.parent.parent).sizeDelta = new Vector2(0, 76);
             fidelityBlurb = UiKit.Text(col, Fidelity.Blurbs[Settings.GraphicsFidelity], Art.Sans, 19, CreamDim, TextAlignmentOptions.TopLeft, "fidelity_blurb");
-            fidelityBlurb.rectTransform.sizeDelta = new Vector2(0, 46);
+            fidelityBlurb.rectTransform.sizeDelta = new Vector2(0, 52);
             fidelityBlurb.margin = new Vector4(0, 0, 0, 0);
         }
 

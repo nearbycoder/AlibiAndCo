@@ -392,6 +392,38 @@ namespace AlibiCo
             }
         }
 
+        /// <summary>
+        /// A settings row that lights faintly under the pointer (mouse, pad or keys cursor, or a finger) with a
+        /// soft tick, so whoever is steering can see which row they're on. Its backdrop also makes the whole row
+        /// a target: a click on a toggle's label flips the toggle.
+        /// </summary>
+        public sealed class RowHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+        {
+            public Image Back;
+            bool over;
+            float k;
+
+            public void OnPointerEnter(PointerEventData e) { over = true; Sfx.Play("ui_hover", 0.22f); }
+            public void OnPointerExit(PointerEventData e) => over = false;
+            void OnDisable() { over = false; k = 0; if (Back) Back.color = new Color(1, 1, 1, 0); }
+
+            void Update()
+            {
+                k = Mathf.MoveTowards(k, over ? 1f : 0f, Clock.Dt * 8f);
+                if (Back) Back.color = new Color(1, 1, 1, 0.065f * k * k * (3 - 2 * k));
+            }
+        }
+
+        static void HoverRow(RectTransform row)
+        {
+            var back = Panel(row, "row_back", new Color(1, 1, 1, 0), true, true);
+            back.rectTransform.Stretch();
+            back.rectTransform.offsetMin = new Vector2(-12, -4);
+            back.rectTransform.offsetMax = new Vector2(12, 4);
+            back.transform.SetAsFirstSibling();
+            row.gameObject.AddComponent<RowHover>().Back = back;
+        }
+
         public static Button Button(Transform parent, string label, Action onClick, Color? bg = null, Color? fg = null,
             float fontSize = 30, string font = null, string name = null)
         {
@@ -442,8 +474,12 @@ namespace AlibiCo
             var row = Rect(parent, "slider_" + label);
             var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
             t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.4f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            HoverRow(row);
             var sl = Rect(row, "slider");
-            sl.Place(new Vector2(0.42f, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0, 26));
+            sl.Place(new Vector2(0.42f, 0.5f), new Vector2(0.84f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0, 26));
+            var readout = Text(row, "", Art.SansBold, 24, Pal.Lamp, TextAlignmentOptions.Right, "readout");
+            readout.rectTransform.Place(new Vector2(0.86f, 0), new Vector2(1, 1), new Vector2(1, 0.5f), Vector2.zero, Vector2.zero);
+            readout.textWrappingMode = TextWrappingModes.NoWrap;
             var bg = Panel(sl, "bg", Pal.Hex("3A434C"), true, true);
             bg.rectTransform.Stretch();
             var fillArea = Rect(sl, "fillArea");
@@ -461,13 +497,15 @@ namespace AlibiCo
             s.minValue = 0;
             s.maxValue = 1;
             s.value = value;
-            s.onValueChanged.AddListener(v => onChange?.Invoke(v));
+            readout.text = Mathf.RoundToInt(value * 100) + "%";
+            s.onValueChanged.AddListener(v => { readout.text = Mathf.RoundToInt(v * 100) + "%"; onChange?.Invoke(v); });
             return s;
         }
 
         public static Toggle Toggle(Transform parent, string label, bool value, Action<bool> onChange)
         {
             var row = Rect(parent, "toggle_" + label);
+            HoverRow(row);
             var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
             t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.75f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
             var box = Panel(row, "box", Pal.Hex("1E252C"), true, true);
@@ -491,7 +529,9 @@ namespace AlibiCo
             tg.targetGraphic = box;
             tg.graphic = check;
             tg.isOn = value;
-            tg.onValueChanged.AddListener(v => { Sfx.Play("ui_click", 0.5f); onChange?.Invoke(v); });
+            // Off is an empty box, on a lit one with a tick: told apart by shape as well as colour.
+            tick.gameObject.SetActive(value);
+            tg.onValueChanged.AddListener(v => { tick.gameObject.SetActive(v); Sfx.Play("ui_click", 0.5f); onChange?.Invoke(v); });
             return tg;
         }
 
@@ -502,6 +542,7 @@ namespace AlibiCo
         public static Slider Notches(Transform parent, string label, string[] names, int index, Action<int> onChange)
         {
             var row = Rect(parent, "notches_" + label);
+            HoverRow(row);
             var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
             t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.4f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
             var area = Rect(row, "area");
@@ -510,13 +551,19 @@ namespace AlibiCo
             int n = names.Length;
             float inset = 0.5f / n;
             var sl = Rect(area, "slider");
-            sl.Place(new Vector2(inset, 1), new Vector2(1 - inset, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(0, 26));
+            // A thin track (the slider resets its fill to the track's full height, so the track is the bar).
+            sl.Place(new Vector2(inset, 1), new Vector2(1 - inset, 1), new Vector2(0.5f, 1), new Vector2(0, -13), new Vector2(0, 12));
+            var hitArea = Rect(sl, "hit");   // a taller, invisible target than the thin bar
+            hitArea.Stretch();
+            hitArea.offsetMin = new Vector2(-10, -14);
+            hitArea.offsetMax = new Vector2(10, 14);
+            hitArea.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0);
             var bg = Panel(sl, "bg", Pal.Hex("3A434C"), true, true);
-            bg.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(24, 12));
+            bg.rectTransform.Stretch();
             var fillArea = Rect(sl, "fillArea");
             fillArea.Stretch();
             var fill = Panel(fillArea, "fill", Pal.Lamp, true, true);
-            fill.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0, 12));
+            fill.rectTransform.Stretch();
             var dots = new Image[n];
             for (int i = 0; i < n; i++)
             {
@@ -571,6 +618,7 @@ namespace AlibiCo
         public static RectTransform Stepper(Transform parent, string label, string[] choices, int index, Action<int> onChange)
         {
             var row = Rect(parent, "stepper_" + label);
+            HoverRow(row);
             var t = Text(row, label, Art.Sans, 28, Pal.Paper, TextAlignmentOptions.Left);
             t.rectTransform.Place(new Vector2(0, 0), new Vector2(0.4f, 1), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
             var box = Panel(row, "box", Pal.Hex("2A3138"), true, true);
@@ -580,6 +628,10 @@ namespace AlibiCo
             value.rectTransform.Stretch();
             value.rectTransform.offsetMin = new Vector2(52, 0);
             value.rectTransform.offsetMax = new Vector2(-52, 0);
+            value.textWrappingMode = TextWrappingModes.NoWrap;   // one line, a size smaller if it must
+            value.enableAutoSizing = true;
+            value.fontSizeMax = value.fontSize;
+            value.fontSizeMin = value.fontSize * 0.7f;
             int i = Mathf.Clamp(index, 0, choices.Length - 1);
             void Show() => value.text = choices[i];
             void Step(int d)

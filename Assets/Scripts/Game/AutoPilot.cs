@@ -2278,6 +2278,9 @@ namespace AlibiCo
                 root.Screens.ShowSettings();
                 yield return Wait(0.8f);
                 yield return Shot("settings");
+                var layout = root.Screens.SettingsLayoutReport(out int rows);
+                if (layout.Count == 0) Debug.Log($"[Settings] layout: {rows} rows clear at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSize}");
+                else Debug.LogError($"[AutoPilot] FAIL settings layout at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}: {string.Join("; ", layout)}");
                 root.Screens.CloseTopOverlay();
                 yield return Wait(0.5f);
                 root.ShowSelect();

@@ -311,7 +311,7 @@ namespace AlibiCo
 
         public static string ResolutionLabel(string choice)
         {
-            if (choice == "desktop") { var d = DesktopSize; return $"Desktop ({d.x} × {d.y})"; }
+            if (choice == "desktop") { var d = DesktopSize; return $"Desktop · {d.x} × {d.y}"; }
             return choice.Replace("x", " × ");
         }
 

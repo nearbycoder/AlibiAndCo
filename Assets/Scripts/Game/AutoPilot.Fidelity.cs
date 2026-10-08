@@ -167,5 +167,67 @@ namespace AlibiCo
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
         }
+
+        public void RunScreensTour(string outDir)
+        {
+            dir = outDir;
+            capture = Application.platform != RuntimePlatform.WebGLPlayer;
+            Directory.CreateDirectory(dir);
+            Application.logMessageReceived += OnLog;
+            StartCoroutine(ScreensTour());
+        }
+
+        /// <summary>
+        /// -alibiScreensTour [dir]: the menus at the window's size and text size, quickly: Settings over the title
+        /// (with its layout check), then case 1's pause menu with the controls list, Settings over it, and the
+        /// pause menu caught opening, a few frames apart.
+        /// </summary>
+        IEnumerator ScreensTour()
+        {
+            var root = GameRoot.I;
+            bool ok = true;
+            void Layout(string when)
+            {
+                var found = root.Screens.SettingsLayoutReport(out int rows);
+                if (found.Count == 0) Debug.Log($"[Settings] layout {when}: {rows} rows clear at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSize}");
+                else { Debug.LogError($"[AutoPilot] FAIL settings layout {when} at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}: {string.Join("; ", found)}"); ok = false; }
+            }
+            root.ShowTitle(true);
+            yield return Wait(3.5f);
+            root.Screens.ShowSettings();
+            yield return Wait(0.8f);
+            yield return Shot("settings_title");
+            Layout("over the title");
+            root.Screens.CloseTopOverlay();
+            yield return Wait(0.5f);
+            root.StartCase(Cases.All[0], false, true);
+            yield return Wait(3f);
+            // The pause menu opening, caught every few frames.
+            root.SetPaused(true);
+            for (int i = 0; i < 4; i++)
+            {
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"{++shot:00}_pause_opening_{i}.png"));
+                yield return new WaitForSecondsRealtime(0.07f);
+            }
+            yield return Wait(0.8f);
+            yield return Shot("pause");
+            var controls = root.Screens.ControlsLayoutReport();
+            if (controls.Count == 0) Debug.Log($"[Controls] list fits at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSize}");
+            else { Debug.LogError($"[AutoPilot] FAIL controls list at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}: {string.Join("; ", controls)}"); ok = false; }
+            root.Screens.ShowSettings();
+            yield return Wait(0.8f);
+            yield return Shot("settings_pause");
+            Layout("over the pause menu");
+            root.Screens.CloseTopOverlay();
+            yield return Wait(0.5f);
+            root.SetPaused(false);
+            yield return Wait(0.5f);
+            if (errors > 0) ok = false;
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} screens tour at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSize}");
+            Debug.Log($"[AutoPilot] done: screens tour, {errors} errors");
+            yield return Wait(0.5f);
+            Application.Quit(ok ? 0 : 1);
+        }
     }
 }
