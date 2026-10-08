@@ -1618,3 +1618,90 @@ Owner decisions this round adds:
   the desk out for a 32:9 screen would be a bigger job.
 - **Same moment as… sits on every pinned, unstruck card's panel**, records and statements alike, whether or not
   a link would help; showing it only when it could work would give the answer away.
+
+## Round 12 scope (8 Oct 2026, branch `improvements-12`)
+
+Baseline on `e91f07b` (main = origin/main): the Linux build is clean (`Logs/r12/build-base.log`) and a fresh
+autoplay at 1920×1080 inside `Tools/nested.sh` (`Captures/r12-base/`) was read screen by screen. This round's
+focus is AAA polish and a graphics fidelity setting. What stood out:
+
+- **There's no graphics setting at all.** Every machine gets the one look: 4× MSAA with SMAA, soft lamp and
+  window shadows (4096 and 2048), screen-space ambient occlusion, bloom, film grain and colour grading. A weak
+  GPU can't trade any of it for frame rate, and a strong one can't ask for more.
+- **The settings panel is a flat list.** Ten rows in one column with no grouping; the volume sliders don't
+  say their level; an unchecked box still shows a faint dark tick, so off and on are told apart by colour
+  alone; *Erase all progress* sits among the everyday options; and only buttons react to the pointer (the
+  rows, boxes and sliders don't light or click), so a pad or keys player steering the cursor can't see what
+  they're on.
+- **Menus pop.** Every panel (pause, settings, case files, the intro, the closed file, confirmations) only
+  fades in over a third of a second; nothing moves, so the paper and the dark menus feel pasted on rather
+  than set down.
+- **The pause menu's controls list is cramped.** Twelve two-line entries in 19-pixel type (auto-sized down
+  to 12 at larger text sizes), key and meaning stacked, so the list reads as a wall.
+
+I'll build these in this order; screenshots go to `docs/media/improvements/round12/`.
+
+### R12-1. Graphics Fidelity: Low, Medium, High, Ultra
+
+One **Graphics fidelity** slider in Settings with four notches, saved with the other settings (automated runs
+keep it in memory) and applied live. **High** is today's look exactly and stays the default. **Low** is for weak
+GPUs: FXAA instead of MSAA, hard lamp shadows at a lower resolution, no window shadows, no ambient occlusion,
+bloom or grain, half the dust. **Medium**: 2× MSAA with SMAA, soft low-quality shadows, half-resolution ambient
+occlusion, quarter-resolution bloom. **Ultra** goes past today: the picture supersampled 1.5× (capped at 4K's
+pixel count, so a 4K window isn't drawn at 6K), high-sample occlusion with finer normals, high-quality bloom
+filtering, high-quality soft shadows and a 4096 window shadow map, 16× anisotropic filtering, and twice the dust
+and particle bursts. The board's text is never rendered below the window's size at any step. A line under the
+slider says what the chosen step does. `-alibiFidelity n` sets it for a run; `-alibiFidelityBench [dir]` holds the
+title wall and a busy board (case 3, all named cards pinned) still and, at each step, takes a screenshot of that
+same moment and measures frame times with vsync off, writing a table.
+
+**Acceptance:** four steps that each change what the log says they change; screenshots of the same frame at every
+step show the difference (Ultra visibly crisper than High, Low plainer but readable); frame times per step (mean,
+median, 95th percentile, load noted) with Low at least as fast as High; High's screenshot matches today's look; the
+choice survives a restart (prefs, scratch folder) and the slider can be set with the mouse, keys and pad.
+**Verify:** the bench at 1920×1080 and 2560×1440 inside `Tools/nested.sh`; a restart in a scratch config; the
+mouse, keys and pad tests set the slider through the settings panel and check `Fidelity.Level`.
+
+### R12-2. Settings, sorted
+
+The settings panel in two columns with headed sections (Sound, Picture, Reading, Play), each volume showing its
+percentage, boxes that read off and on by shape as well as colour (an empty box, a filled box with a tick), the
+row under the pointer lit with a hover tick sound, and *Erase all progress* set apart at the foot. It fits at every
+supported size (1280×720 with Large text, 1024×768 with Larger).
+
+**Acceptance:** screenshots at 1920×1080, 1280×720 (Large) and 1024×768 (Larger) with nothing clipped or overlapping
+(a new autoplay check measures the panel's rows against each other and the panel); the mouse test's click on
+*Plain lettering* still lands; the keys and pad tests reach the fidelity slider.
+**Verify:** autoplay and the input suites inside `Tools/nested.sh`, screenshots.
+
+### R12-3. Menus that settle
+
+Every menu panel eases in (rising a few pixels and growing from 97% while it fades) and eases out a little faster,
+with Reduced motion keeping the plain fade. Buttons, toggles, sliders and steppers share one press feel: a dip on
+press and the same click.
+
+**Acceptance:** frame captures mid-transition show the movement; with Reduced motion, none; every self-test still
+passes (they click buttons as soon as panels appear, so a slow or misplaced panel would fail them).
+**Verify:** a short recording or frame grabs of the pause menu opening, autoplay and the input suites.
+
+### R12-4. Controls you can scan
+
+The pause menu's controls list as a two-column table: the keys in a bold column on the left, what they do beside
+them on one line each, in a larger size, for the mouse, keys, pad and touch lists.
+
+**Acceptance:** at 1920×1080, 1280×720 (Large) and 1024×768 (Larger) every row is on one line and nothing runs out
+of the card; the pad and keys tests' check that the list names that pad's buttons still passes.
+**Verify:** screenshots, the pad, keys and touch tests.
+
+### R12-5. The browser build, checked again
+
+Rebuild the web build and run every `webtest.mjs` check in Chromium and Firefox with the load noted, plus the
+fidelity bench in the browser (the URP settings it reaches by name must work under IL2CPP too).
+
+**Acceptance:** 0 console errors, every check PASS, size under 60 MB compressed, a frame rate per fidelity step.
+**Verify:** `node Tools/webtest.mjs --engine chromium,firefox`.
+
+Not in this round: the hardware and owner items (Windows, signing, hosting, the licence, releases, WebKit, a real
+controller, tablet or Steam Deck, the sound by ear, colour-blind or dyslexic players, a font such as Atkinson
+Hyperlegible, weak hardware itself: Low is measured on this machine's Radeon 8060S, not on an old GPU), and the
+owner's open calls listed in round 11.
