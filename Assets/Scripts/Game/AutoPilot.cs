@@ -926,6 +926,8 @@ namespace AlibiCo
             yield return PadTap(GamepadButton.RightShoulder);
             if (!PadCursor.Targets().Any(p => (p - PadCursor.I.Position).magnitude < 2f)) Fail("RB on the closed panel didn't land on a button");
             yield return DrawerByHand("pad", p => PadClick(p), () => PadTap(GamepadButton.East), Fail);
+            // 8b. Link in two clicks with A; B cancels.
+            yield return PanelLink("pad", p => PadClick(p), () => PadTap(GamepadButton.East), p => PadMoveTo(p), Fail);
 
             // 9. Moving the real mouse hands control back.
             PadCursor.IgnoreRealMouse = false;
@@ -941,7 +943,7 @@ namespace AlibiCo
                 }
             }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, the docket drawer, mouse takes over)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad test (stick, RB jump, A-drag, A pin, B send back, Y notebook, B close, X hint, Start pause, A confront, incident drag, the docket drawer, link in two clicks, mouse takes over)");
             Debug.Log($"[AutoPilot] done: pad test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -1141,6 +1143,9 @@ namespace AlibiCo
             if (root.Flow != Flow.Closed) Fail("the incident drag didn't close the case");
             if (s.Board.Mistakes != 0) Fail($"{s.Board.Mistakes} badges lost");
 
+            // 8b. Link in two clicks by taps; a tap on nothing (the frame above the board) cancels.
+            yield return PanelLink("touch", p => TouchTap(p), () => TouchTap(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.985f)), null, Fail);
+
             // 9. Moving the real mouse hands control back.
             PadCursor.IgnoreRealMouse = false;
             yield return Wait(0.8f);
@@ -1153,7 +1158,7 @@ namespace AlibiCo
                 if (PadCursor.Active) Fail("moving the mouse didn't hand control back");
             }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (tap pin, finger drag, hold to read, panel, Back to the tray, Notes, Hint, Menu, Resume, confront, incident drag, mouse takes over)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} touch test (tap pin, finger drag, hold to read, panel, Back to the tray, Notes, Hint, Menu, Resume, confront, incident drag, link in two clicks, mouse takes over)");
             Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -1634,6 +1639,8 @@ namespace AlibiCo
 
             // 8. On to the docket drawer, with Enter and Backspace.
             yield return DrawerByHand("keys", p => KeyClick(p), () => KeyTap(Key.Backspace), Fail);
+            // 8b. Link in two clicks with Enter; Backspace cancels.
+            yield return PanelLink("keys", p => KeyClick(p), () => KeyTap(Key.Backspace), p => KeyMoveTo(p), Fail);
 
             // 9. Moving the real mouse hands control back.
             PadCursor.IgnoreRealMouse = false;
@@ -1646,7 +1653,7 @@ namespace AlibiCo
                 if (PadCursor.Active) Fail("moving the mouse didn't hand control back");
             }
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} keys test (arrows, Q/E jumps, Enter-held drag, Enter pin, Backspace send back, Tab notebook, Backspace close, H hint, Esc pause, Enter confront, incident drag, the docket drawer, mouse takes over)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} keys test (arrows, Q/E jumps, Enter-held drag, Enter pin, Backspace send back, Tab notebook, Backspace close, H hint, Esc pause, Enter confront, incident drag, the docket drawer, link in two clicks, mouse takes over)");
             Debug.Log($"[AutoPilot] done: keys test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
@@ -1663,6 +1670,17 @@ namespace AlibiCo
         }
 
         static Vector2 Screen(Vector3 world) => Stage.I.Cam.WorldToScreenPoint(world);
+
+        /// <summary>A right-click where the mouse already is.</summary>
+        IEnumerator RightClick()
+        {
+            var p = Mouse.current.position.ReadValue();
+            MouseTo(p, false, true);
+            yield return null;
+            yield return null;
+            MouseTo(p);
+            yield return Wait(0.25f);
+        }
 
         /// <summary>A point on the card that isn't covered by its neighbours (tray cards overlap left to right).</summary>
         static Vector2 Grab(CardView v) => v.Compact ? Screen(v.transform.position)
@@ -1730,6 +1748,99 @@ namespace AlibiCo
         /// and neither costs a badge. A card held over its twin until the LINK tag shows links them
         /// and corrects the clock.
         /// </summary>
+        /// <summary>
+        /// Case 2 played in code up to its first link: the trusted card pinned, the wrong clock's card
+        /// (its twin) back in the tray. Hands both to <paramref name="found"/>.
+        /// </summary>
+        IEnumerator Case2AtLink(System.Action<string> fail, System.Action<CardDef, CardDef> found)
+        {
+            var root = GameRoot.I;
+            root.StartCase(Cases.All[1], false);
+            yield return Wait(3f);
+            var s = root.Session;
+            var board = s.Board;
+            Move link = null;
+            for (int guard = 0; guard < 12 && link == null; guard++)
+            {
+                foreach (var id in board.TrayCards.Where(x => !x.IsUnknown).Select(x => x.Id).ToList()) s.AutoPin(id);
+                yield return Wait(1f);
+                var path = Solver.ShortestSolution(Solver.Shadow(board));
+                if (path == null || path.Count == 0) break;
+                if (path[0].Kind == "link") { link = path[0]; break; }
+                s.Confront(s.ViewOf(path[0].A));
+                yield return Wait(3f);
+            }
+            if (link == null) { fail("case 2's solution never reached a link"); yield break; }
+            var ca = s.Case.CardById[link.A];
+            var cb = s.Case.CardById[link.B];
+            var trusted = board.IsTrusted(ca.Clock) ? ca : cb;
+            var twin = trusted == ca ? cb : ca;
+            if (!board.Pinned.Contains(trusted.Id)) s.AutoPin(trusted.Id);
+            if (board.Pinned.Contains(twin.Id)) s.Unpin(s.ViewOf(twin.Id));
+            yield return Wait(1.5f);
+            found(trusted, twin);
+        }
+
+        /// <summary>
+        /// Link in two clicks, with whatever pointer the test drives: a pinned card's panel, Same moment
+        /// as…, a cancel (no badge, nothing linked), then Same moment as… again and a click on the twin in
+        /// the tray, which must correct the clock and pin it. <paramref name="point"/> rests the pointer
+        /// on a spot without clicking (null for touch, which has no hover) to check the LINK tag.
+        /// </summary>
+        IEnumerator PanelLink(string how, System.Func<Vector2, IEnumerator> click, System.Func<IEnumerator> cancel,
+            System.Func<Vector2, IEnumerator> point, System.Action<string> fail)
+        {
+            var root = GameRoot.I;
+            CardDef trusted = null, twin = null;
+            yield return Case2AtLink(why => fail($"{how} panel link: {why}"), (a, b) => { trusted = a; twin = b; });
+            if (trusted == null) yield break;
+            var s = root.Session;
+            var board = s.Board;
+            int lost = board.Mistakes;
+            bool picking = false;
+            IEnumerator Choose()
+            {
+                picking = false;
+                yield return click(Screen(s.ViewOf(trusted.Id).transform.position));
+                yield return Wait(0.6f);
+                var btn = root.Screens.LinkButtonScreen();
+                if (btn == null) { fail($"{how} panel link: no Same moment as… on {trusted.Id}'s panel"); yield break; }
+                yield return click(btn.Value);
+                yield return Wait(0.5f);
+                picking = s.LinkPicking && s.LinkFrom != null && s.LinkFrom.Id == trusted.Id;
+                if (!picking) fail($"{how} panel link: Same moment as… didn't start a link from {trusted.Id} (picking {s.LinkPicking})");
+            }
+            yield return Choose();
+            if (!picking) yield break;
+            // The strip fades the old tip out before the new one comes in.
+            for (float t = 0; t < 2.5f && !root.Screens.HelpShown.Contains("Same moment as"); t += Clock.Dt) yield return null;
+            yield return Shot(how + "_link_picking");
+            string tip = root.Screens.HelpShown;
+            if (!tip.Contains("Same moment as")) fail($"{how} panel link: the controls strip doesn't say what to do next: {tip.Replace("\n", " / ")}");
+            yield return cancel();
+            yield return Wait(0.5f);
+            if (s.LinkPicking || board.Mistakes != lost || GameRoot.Paused || board.Calibrated.Contains(twin.Clock))
+                fail($"{how} panel link: cancelling (picking {s.LinkPicking}, mistakes {board.Mistakes}, paused {GameRoot.Paused})");
+            else Debug.Log($"[AutoPilot] {how} panel link: cancelled with no badge lost and nothing linked");
+            yield return Choose();
+            if (!picking) yield break;
+            var target = TrayPoint(s.ViewOf(twin.Id));
+            if (point != null)
+            {
+                yield return point(target);
+                float t = 0;
+                while (root.Screens.LinkTagScreen == null && t < 2f) { t += Clock.Dt; yield return null; }
+                if (root.Screens.LinkTagScreen == null) fail($"{how} panel link: no LINK tag with the pointer on {twin.Id}");
+                else yield return Shot(how + "_link_target");
+            }
+            yield return click(target);
+            yield return Wait(2.5f);
+            if (!board.Calibrated.Contains(twin.Clock) || board.Mistakes != lost || s.LinkPicking || !board.Pinned.Contains(twin.Id))
+                fail($"{how} panel link: {trusted.Id} then {twin.Id} (calibrated {board.Calibrated.Contains(twin.Clock)}, mistakes {board.Mistakes}, picking {s.LinkPicking}, pinned {board.Pinned.Contains(twin.Id)})");
+            else Debug.Log($"[AutoPilot] PASS {how} panel link: {trusted.Id}, Same moment as…, {twin.Id} corrected {twin.Clock} and pinned it; no badge lost");
+            yield return Shot(how + "_link_done");
+        }
+
         IEnumerator LinkByHand(System.Action<string> fail)
         {
             var root = GameRoot.I;
@@ -1949,8 +2060,11 @@ namespace AlibiCo
                 why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
             // 7. Case 2: drops that land on another card don't link by accident; a held one does.
             yield return LinkByHand(why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
+            // 8. Link in two clicks: the panel's Same moment as…, a right-click to cancel, then the twin.
+            yield return PanelLink("mouse", p => Click(p), () => RightClick(), p => { MouseTo(p); return Wait(0.3f); },
+                why => { Debug.LogError("[AutoPilot] FAIL input: " + why); ok = false; });
             if (errors > 0) ok = false;
-            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, plain lettering, hint withholds Unaided, click, UI button, incident drag, the docket drawer, no accidental links)");
+            Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} input test (drag, hover, right-click, text size rebuild, plain lettering, hint withholds Unaided, click, UI button, incident drag, the docket drawer, no accidental links, link in two clicks)");
             Debug.Log($"[AutoPilot] done: input test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);

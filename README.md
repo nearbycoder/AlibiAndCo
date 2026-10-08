@@ -55,7 +55,8 @@ ago splits open with a minute to spare. Then drag the incident card into the onl
 | **Hover** the town map | Zoom in on Wrenhaven |
 | **Hover** the memo on the desk | Hold it up to read it larger; the next memo waits until you let go (click it for the next) |
 | **Hold a card on another card** until it says **LINK**, then drop it | **Link**: "these are the same moment, seen on two clocks" |
-| **Click** a pinned statement | Open its panel: **Confront** the witness, or send it back |
+| **Click** a pinned card | Open its panel: **Confront** the witness, **Same moment as…**, or send it back |
+| **Same moment as…**, then **click** the other card | **Link** in two clicks, no drag needed (right-click or **Esc** cancels) |
 | **Right-click** a pinned card | Send it back to the tray |
 | **Drag the incident card** | Preview where the crime fits; drop it on a line to accuse |
 | **Tab** (or *Notes*) | The notebook: where the case stands, what each clock does, every memo and reply (scroll for older notes) |
@@ -71,7 +72,7 @@ touchscreen:
 |---|---|
 | **Left stick** (D-pad for fine steps) | Move the cursor |
 | **LB / RB** | Jump to the previous / next card (or button, in menus) |
-| **A** | Click: pin a card, open a statement, press a button. **Hold A and steer** to drag |
+| **A** | Click: pin a card, open a pinned card's panel, press a button. **Hold A and steer** to drag. To link without a drag: **A** on a pinned card, **Same moment as…**, then **A** on the other (**B** cancels) |
 | **B** | Send a pinned card back to the tray; back or close in menus |
 | **X** / **Y** | Ask Connie for a hint / the notebook (the **right stick** or **D-pad** scrolls its notes) |
 | **Start** | Pause and resume |
@@ -86,7 +87,7 @@ Or with the keyboard alone:
 |---|---|
 | **Arrow keys** | Move the cursor (slow at first, faster the longer they're held) |
 | **Q / E** | Jump to the previous / next card (or button, in menus) |
-| **Enter** | Click: pin a card, open a statement, press a button. **Hold Enter and steer** with the arrows to drag |
+| **Enter** | Click: pin a card, open a pinned card's panel, press a button. **Hold Enter and steer** with the arrows to drag. To link without a drag: **Enter** on a pinned card, **Same moment as…**, then **Enter** on the other (**Backspace** cancels) |
 | **Backspace** | Send a pinned card back to the tray; back or close in menus |
 | **Tab**, **H**, **Space**, **Esc** | The notebook, a hint, the next memo, pause (as above) |
 | **Up / Down**, **Page Up / Page Down** | Scroll the notebook's notes while it's open |
@@ -95,7 +96,8 @@ Or with a touchscreen, in the browser build:
 
 | Touch | Action |
 |---|---|
-| **Tap** a card | Pin it; on a pinned card, open its panel (**Confront**, **Back to the tray**) |
+| **Tap** a card | Pin it; on a pinned card, open its panel (**Confront**, **Same moment as…**, **Back to the tray**) |
+| **Same moment as…**, then **tap** the other card | **Link** without a drag (tap an empty spot to cancel) |
 | **Drag** a card | Pin it, link it (hold it on the other card until it says **LINK**), or drag the incident card to accuse |
 | **Press and hold** a card | Read it in full (lift your finger and nothing is clicked) |
 | **Press and hold** the memo | Hold it up to read it larger |
@@ -115,7 +117,8 @@ size of a tablet or larger; phones aren't a target.
   error is found, and every card stamped by it slides to its true time. A wrong link costs a badge.
   A link only arms once the dragged card has rested on the other one for about half a second and
   the **LINK** tag shows, so a card that merely lands on another on its way to a lane (or back to
-  the tray) is pinned or returned as usual, not linked.
+  the tray) is pinned or returned as usual, not linked. Without a drag: click a pinned card, choose
+  **Same moment as…**, then click the other card.
 - **Unknown-person cards** (a cash receipt, a figure in a photo) show candidate faces. Each face
   is crossed out when that person's paper trail rules them out. When one is left, the card flies
   to their line.

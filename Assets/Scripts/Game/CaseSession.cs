@@ -52,6 +52,7 @@ namespace AlibiCo
 
         // interaction
         CardView hover, pressed, dragging, selected, linkTarget, inspecting;
+        CardView linkFrom;   // "Same moment as…": the card waiting for the player to click its other half
         // A link arms only after the dragged card has been held over the same card for a moment, so
         // a drop that merely lands on another card (pinning anywhere on a lane, or tossing a card back
         // into the tray) never costs a badge by accident.
@@ -480,8 +481,8 @@ namespace AlibiCo
                 v.SetConflict(established.Contains(v.Id) && !Board.Struck.Contains(v.Id));
                 GlowKind g = GlowKind.None;
                 if (conflictCards.Contains(v.Id)) g = GlowKind.Conflict;
-                if (v == selected) g = GlowKind.Selected;
-                if (v == linkTarget) g = GlowKind.LinkTarget;
+                if (v == selected || (linkFrom != null && Primary(v) == linkFrom)) g = GlowKind.Selected;
+                if (v == linkTarget || (v == hover && PickTarget != null)) g = GlowKind.LinkTarget;
                 if (v == hover && g == GlowKind.None && v != dragging) g = GlowKind.Hover;
                 v.SetGlow(g);
             }
@@ -546,7 +547,8 @@ namespace AlibiCo
             {
                 pressed = hit;
                 pressScreen = mp;
-                if (hit == null)
+                if (hit == null && linkFrom != null) CancelLinkPick();
+                else if (hit == null)
                 {
                     Deselect();
                     // A finger may be resting on the memo to read it: it moves on when the finger lifts, unless it was held.
@@ -560,6 +562,7 @@ namespace AlibiCo
                 bool read = PadCursor.TakeHeldToRead();
                 if (!read && !Memos.HeldUp) Memos.Skip();
             }
+            if (mouse.rightButton.wasPressedThisFrame && linkFrom != null) { CancelLinkPick(); return; }
             if (mouse.rightButton.wasPressedThisFrame && !overUi && hit != null)
             {
                 var p = Primary(hit);
@@ -754,6 +757,7 @@ namespace AlibiCo
         void Click(CardView v, Vector2 mp)
         {
             if (Solved) return;
+            if (linkFrom != null) { PickLink(v); return; }
             if (v.IsIncident)
             {
                 Memos.Post(MemoKind.Notice, "THE INCIDENT", "Drag this card onto the one line it fits. If it fits more than one, or none, keep working.");
@@ -802,12 +806,66 @@ namespace AlibiCo
         public string InspectingId => inspectingId;
 
         /// <summary>A link is armed: the dragged card will be linked to this one if it's dropped now.</summary>
-        public CardView LinkTarget => dragging != null ? linkTarget : null;
+        public CardView LinkTarget => dragging != null ? linkTarget : PickTarget;
+
+        // ------------------------------------------------------------------ link in two clicks
+
+        /// <summary>Waiting for the other half of a link chosen from a card's panel.</summary>
+        public bool LinkPicking => linkFrom != null;
+        public CardView LinkFrom => linkFrom;
+
+        /// <summary>The card under the pointer that a click would link to, while picking.</summary>
+        CardView PickTarget => linkFrom != null && dragging == null && hover != null && CanPick(Primary(hover)) ? Primary(hover) : null;
+
+        bool CanPick(CardView v) => v != null && !v.IsIncident && v != linkFrom && Board.Unlocked.Contains(v.Id) && !Board.Struck.Contains(v.Id);
+
+        /// <summary>
+        /// "Same moment as…" on a card's panel: the next card clicked is linked to this one, as if it had
+        /// been dragged there and held until LINK. For the pad, the keys, a finger, or anyone for whom a
+        /// drag-and-hold is hard.
+        /// </summary>
+        public void BeginLinkPick(CardView v)
+        {
+            v = Primary(v);
+            if (v == null || v.IsIncident || Solved || !Board.Pinned.Contains(v.Id) || Board.Struck.Contains(v.Id)) return;
+            Deselect();
+            linkFrom = v;
+            Sfx.Play("paper_touch", 0.4f, 1.1f);
+            UpdateGlows();
+        }
+
+        public void CancelLinkPick()
+        {
+            if (linkFrom == null) return;
+            linkFrom = null;
+            Sfx.Play("paper_drop", 0.25f);
+            UpdateGlows();
+        }
+
+        void PickLink(CardView v)
+        {
+            var from = linkFrom;
+            v = Primary(v);
+            if (v == from || v == null) { CancelLinkPick(); return; }
+            if (!CanPick(v))
+            {
+                linkFrom = null;
+                Sfx.Play("nope", 0.5f);
+                Memos.Post(MemoKind.Notice, "NO LINK", v.IsIncident ? "The incident card isn't a moment to link. Pick a card that saw the same moment."
+                    : $"“{v.Def.Title}” was struck off. Pick a card that's still on the board.");
+                UpdateGlows();
+                return;
+            }
+            linkFrom = null;
+            // The picked card goes first: if it's still in the tray, a good link pins it, as a drag would.
+            LinkCards(v, from);
+        }
 
         // ------------------------------------------------------------------ drag
 
         void StartDrag(CardView v, Vector2 mp)
         {
+            CancelLinkPick();
             Deselect();
             HideInspector();
             dragging = v;
@@ -1214,6 +1272,11 @@ namespace AlibiCo
             if (Solved || Board == null) return null;
             var using_ = PadCursor.Using;
             bool pad = using_ == PadCursor.Pointer.Pad, keys = using_ == PadCursor.Pointer.Keys, touch = using_ == PadCursor.Pointer.Touch;
+            if (linkFrom != null)
+                return $"Same moment as “{linkFrom.Def.Title}”?   " + (touch ? "<b>Tap</b> the card that saw it   ·   tap an empty spot to cancel"
+                     : pad ? "<b>[A]</b> on the card that saw it   ·   <b>[B]</b> cancels"
+                     : keys ? "<b>Enter</b> on the card that saw it   ·   <b>Backspace</b> cancels"
+                           : "<b>Click</b> the card that saw it   ·   <b>right-click</b> or <b>Esc</b> cancels");
             if (!SaveData.Learned("pin") && Board.TrayCards.Any())
                 return touch ? "<b>Drag</b> a card onto the board, or <b>tap</b> it   ·   <b>press and hold</b> any card to read it in full"
                      : pad ? "<b>[A]</b> on a card pins it   ·   hold <b>[A]</b> and steer to drag   ·   <b>[LB] [RB]</b> jump between cards"
@@ -1225,9 +1288,10 @@ namespace AlibiCo
                      : keys ? "Move onto a statement in the red, <b>Enter</b>, then <b>Confront</b> the witness"
                            : "<b>Click</b> a statement in the red, then <b>Confront</b> the witness";
             if (!SaveData.Learned("link") && Board.UnlockedCards.Any(c => !Board.IsTrusted(c.Clock)))
-                return pad ? "One moment on two clocks? Hold <b>[A]</b> on one card, steer it <b>onto the other</b> and wait for <b>LINK</b>"
-                     : keys ? "One moment on two clocks? Hold <b>Enter</b> on one card, steer it <b>onto the other</b> and wait for <b>LINK</b>"
-                           : "One moment on two clocks? Drag one card <b>onto the other</b> and hold it there until it says <b>LINK</b>";
+                return touch ? "One moment on two clocks? <b>Tap</b> a pinned card, <b>Same moment as…</b>, then tap the other"
+                     : pad ? "One moment on two clocks? <b>[A]</b> on a pinned card, <b>Same moment as…</b>, then <b>[A]</b> on the other"
+                     : keys ? "One moment on two clocks? <b>Enter</b> on a pinned card, <b>Same moment as…</b>, then <b>Enter</b> on the other"
+                           : "One moment on two clocks? Drag one card <b>onto the other</b> until it says <b>LINK</b>, or click it: <b>Same moment as…</b>";
             if (!SaveData.Learned("accuse") && Board.CheckAccusation(Case.Incident.Culprit).Ok)
                 return pad ? "Hold <b>[A]</b> on the <b>incident card</b> (top left) and drop it on the one line it fits"
                      : keys ? "Hold <b>Enter</b> on the <b>incident card</b> (top left) and steer it onto the one line it fits"
@@ -1277,7 +1341,7 @@ namespace AlibiCo
                 }
                 else
                 {
-                    Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other and hold it there until it says LINK.");
+                    Memos.Post(MemoKind.Connie, null, $"“{a.Title}” and “{b.Title}” are the same moment. Drag one onto the other until it says LINK (or click one: Same moment as…).");
                     PointAt(new[] { a.Id, b.Id });
                 }
             }

@@ -15,7 +15,7 @@ namespace AlibiCo
         CaseSession hudSession;
         RectTransform actionsPanel;
         TextMeshProUGUI actionsTitle, actionsInfo;
-        Button actionsConfront, actionsUnpin;
+        Button actionsConfront, actionsUnpin, actionsLink;
         CardView actionsCard;
         Notebook notebook;
         CanvasGroup helpGroup;
@@ -70,6 +70,7 @@ namespace AlibiCo
             if (notebook != null && notebook.Open) { notebook.Hide(); return true; }
             if (settings != null && settings.gameObject.activeSelf && settings.alpha > 0.5f) { Hide(settings); return true; }
             if (actions != null && actions.gameObject.activeSelf) { CaseSession.Current?.Deselect(); return true; }
+            if (CaseSession.Current != null && CaseSession.Current.LinkPicking) { CaseSession.Current.CancelLinkPick(); return true; }
             return false;
         }
 
@@ -870,6 +871,13 @@ namespace AlibiCo
                 if (s != null && actionsCard != null) s.Unpin(actionsCard);
             }, Pal.Hex("2B3540"), Cream, 20);
             ((RectTransform)actionsUnpin.transform).Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(18, 16), new Vector2(-36, 46));
+            // Link in two clicks: this card, then the one that saw the same moment.
+            actionsLink = UiKit.Button(actionsPanel, "Same moment as…", () =>
+            {
+                var s = CaseSession.Current;
+                if (s != null && actionsCard != null) s.BeginLinkPick(actionsCard);
+            }, Pal.Hex("1F3A52"), Pal.Hex("D8ECFF"), 20);
+            ((RectTransform)actionsLink.transform).Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(18, 70), new Vector2(-36, 46));
         }
 
         void ShowActions(CardView v, Vector2 screen)
@@ -890,9 +898,11 @@ namespace AlibiCo
             UiKit.SetInteractable(actionsConfront, canConfront);
             actionsConfront.GetComponentInChildren<TextMeshProUGUI>().text = "Confront " + ShortName(def.Title);
             actionsUnpin.gameObject.SetActive(pinned);
-            float h = 70 + 50 + (actionsConfront.gameObject.activeSelf ? 60 : 0) + (pinned ? 54 : 0);
+            bool link = pinned && !s.Board.Struck.Contains(def.Id);
+            actionsLink.gameObject.SetActive(link);
+            float h = 70 + 50 + (actionsConfront.gameObject.activeSelf ? 60 : 0) + (pinned ? 54 : 0) + (link ? 54 : 0);
             actionsPanel.sizeDelta = new Vector2(400, h);
-            ((RectTransform)actionsConfront.transform).anchoredPosition = new Vector2(18, pinned ? 76 : 16);
+            ((RectTransform)actionsConfront.transform).anchoredPosition = new Vector2(18, (pinned ? 60 : 0) + (link ? 54 : 0) + 16);
             PositionActions(screen);
             actions.gameObject.SetActive(true);
             UiKit.Fade(actions, true, 0.15f);
@@ -929,12 +939,21 @@ namespace AlibiCo
             return (Vector2)((corners[0] + corners[2]) / 2);
         }
 
+        /// <summary>Screen position of the panel's Same moment as… button, if showing (for the input tests).</summary>
+        public Vector2? LinkButtonScreen()
+        {
+            if (actions == null || !actions.gameObject.activeSelf || actionsLink == null || !actionsLink.gameObject.activeInHierarchy) return null;
+            var corners = new Vector3[4];
+            ((RectTransform)actionsLink.transform).GetWorldCorners(corners);
+            return (Vector2)((corners[0] + corners[2]) / 2);
+        }
+
         /// <summary>Screen centres of the selected card's action buttons (for the pad's jumps), if shown.</summary>
         public List<Vector2> ActionButtonsScreen()
         {
             var r = new List<Vector2>();
             if (actions == null || !actions.gameObject.activeSelf || actions.alpha < 0.5f) return r;
-            foreach (var b in new[] { actionsConfront, actionsUnpin })
+            foreach (var b in new[] { actionsConfront, actionsLink, actionsUnpin })
             {
                 if (b == null || !b.gameObject.activeInHierarchy) continue;
                 var corners = new Vector3[4];
@@ -1004,7 +1023,7 @@ namespace AlibiCo
             {
                 ("Arrow keys", "move the cursor (hold to speed up)"),
                 ("Q  ·  E", "jump to the previous / next card"),
-                ("Enter on a card", "pin it; on a pinned statement, Confront"),
+                ("Enter on a card", "pin it; on a pinned card: Confront, link"),
                 ("Hold Enter and steer", "drag: onto a line, onto a card to link"),
                 ("Backspace", "send a pinned card back; back in menus"),
                 ("Hold Enter on the incident", "accuse: steer it to the one line it fits"),
@@ -1015,7 +1034,7 @@ namespace AlibiCo
             {
                 ("Left stick  ·  D-pad", "move the cursor (D-pad for fine steps)"),
                 ("[LB]  [RB]", "jump to the previous / next card"),
-                ("[A] on a card", "pin it; on a pinned statement, Confront"),
+                ("[A] on a card", "pin it; on a pinned card: Confront, link"),
                 ("Hold [A] and steer", "drag: onto a line, onto a card to link"),
                 ("[B]", "send a pinned card back; back in menus"),
                 ("Hold [A] on the incident", "accuse: drop it on the one line it fits"),
@@ -1027,7 +1046,7 @@ namespace AlibiCo
                 ("Drag a card to the board", "pin it (or just tap it)"),
                 ("Press and hold a card", "read it in full; see the walk"),
                 ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
-                ("Tap a pinned card", "its panel: Confront, or back to the tray"),
+                ("Tap a pinned card", "Confront, Same moment as… (link), or back"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
                 ("Press and hold the memo", "hold it up to read; tap it for the next"),
@@ -1036,7 +1055,7 @@ namespace AlibiCo
                 ("Drag a card to the board", "pin it (or just click it)"),
                 ("Hover a card", "read it in full; see the walk"),
                 ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
-                ("Click a pinned statement", "Confront, or send it back"),
+                ("Click a pinned card", "Confront, Same moment as… (link), or back"),
                 ("Right-click a pinned card", "back to the tray"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hover the town map", "zoom in on Wrenhaven"),
