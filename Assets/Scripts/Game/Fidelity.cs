@@ -126,8 +126,10 @@ namespace AlibiCo
                 }
                 notes.Add(level == 0 ? "AO off" : level == 1 ? "AO half-res" : level == 2 ? "AO" : "AO high");
             }
-            QualitySettings.anisotropicFiltering = level switch { 0 => AnisotropicFiltering.Disable, 3 => AnisotropicFiltering.ForceEnable, _ => AnisotropicFiltering.Enable };
-            if (level == 3) Texture.SetGlobalAnisotropicFilteringLimits(8, 16);
+            // The project forces anisotropic filtering on (High); Ultra raises its floor, Medium leaves it to each texture.
+            QualitySettings.anisotropicFiltering = level switch { 0 => AnisotropicFiltering.Disable, 1 => AnisotropicFiltering.Enable, _ => AnisotropicFiltering.ForceEnable };
+            // Forced on, every texture gets at least 9× (Unity's own floor); Ultra gives every texture 16×.
+            Texture.SetGlobalAnisotropicFilteringLimits(level == 3 ? 16 : 9, 16);
             stage?.ApplyFidelity(level);
             Debug.Log($"[Fidelity] {Names[level]}: {string.Join(", ", notes)}{(stage != null ? ", " + stage.FidelityNote : "")}");
         }
