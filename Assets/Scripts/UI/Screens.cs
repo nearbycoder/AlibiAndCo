@@ -992,7 +992,7 @@ namespace AlibiCo
             shade.rectTransform.Stretch();
             var panel = UiKit.Panel(pause.transform, "panel", new Color(0.08f, 0.09f, 0.11f, 0.96f));
             UiKit.DropShadow(panel.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-280, 0), new Vector2(520, 620));
+            panel.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-345, 0), new Vector2(520, 620));
             BuildControlsCard(pause.transform);
             var t = UiKit.Text(panel.transform, "Paused", Art.Display, 66, Cream, TextAlignmentOptions.Center);
             t.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(0, 90));
@@ -1017,67 +1017,89 @@ namespace AlibiCo
         public string HelpShown => (helpKeys != null ? helpKeys.text : "") + "\n" + (helpGroup != null && helpGroup.alpha > 0.05f ? helpText.text : "");
         public string ControlsShown => controlsBody != null ? controlsBody.text : "";
 
+        /// <summary>The controls list for every pointer in turn, measured (the screens tour); then the current one again.</summary>
+        public List<string> ControlsLayoutReportAll()
+        {
+            var found = new List<string>();
+            foreach (var p in new[] { PadCursor.Pointer.Mouse, PadCursor.Pointer.Keys, PadCursor.Pointer.Pad, PadCursor.Pointer.Touch })
+            {
+                if (controlsBody == null) break;
+                controlsBody.text = ControlsText(p);
+                foreach (var f in ControlsLayoutReport()) found.Add($"{p}: {f}");
+            }
+            if (controlsBody != null) controlsBody.text = ControlsText(controlsShown);
+            return found;
+        }
+
         /// <summary>The pause menu's controls list fits its card at a readable size (empty when it does).</summary>
         public List<string> ControlsLayoutReport()
         {
             var found = new List<string>();
             if (controlsBody == null) { found.Add("no controls list"); return found; }
             controlsBody.ForceMeshUpdate();
-            if (controlsBody.isTextOverflowing) found.Add("the list runs out of its card");
+            var box = controlsBody.rectTransform.rect;
+            int controlsRows = controlsBody.text.Split('\n').Length;   // each row should be one line
+            if (controlsBody.textBounds.size.y > box.height + 2 || controlsBody.textBounds.size.x > box.width + 2) found.Add("the list runs out of its card");
+            if (controlsBody.textInfo.lineCount > controlsRows) found.Add($"{controlsBody.textInfo.lineCount - controlsRows} of its {controlsRows} rows wrap to a second line");
+            if (controlsBody.fontSize < 15) found.Add($"the list shrank to {controlsBody.fontSize:0.#} px");
             Debug.Log($"[Controls] list at {controlsBody.fontSize:0.#} px (of {controlsBody.fontSizeMax:0.#}), {controlsBody.textInfo.lineCount} lines, card scale {controlsBody.canvas.scaleFactor:0.##}");
             return found;
         }
 
+        /// <summary>
+        /// The controls list as a two-column table: the keys in bold, what they do beside them on the same line
+        /// (an indent keeps the meanings in one column). Each meaning is kept short enough for one line.
+        /// </summary>
         static string ControlsText(PadCursor.Pointer pointer)
         {
             var rows = pointer == PadCursor.Pointer.Keys ? new[]
             {
-                ("Arrow keys", "move the cursor (hold to speed up)"),
+                ("Arrow keys", "move the cursor (hold: faster)"),
                 ("Q  ·  E", "jump to the previous / next card"),
-                ("Enter on a card", "pin it; on a pinned card: Confront, link"),
-                ("Hold Enter and steer", "drag: onto a line, onto a card to link"),
-                ("Backspace", "send a pinned card back; back in menus"),
-                ("Hold Enter on the incident", "accuse: steer it to the one line it fits"),
+                ("Enter on a card", "pin it; on a pinned one, its panel"),
+                ("Hold Enter and steer", "drag to a line, or onto a card"),
+                ("Backspace", "send a card back; back in menus"),
+                ("Hold Enter on the incident", "accuse: steer it to its line"),
                 ("Tab  ·  H", "notebook  ·  Connie's hint"),
                 ("Space  ·  Esc", "next memo  ·  pause, resume"),
-                ("Move the mouse", "hands control back to the mouse"),
+                ("Move the mouse", "hands control back to it"),
             } : pointer == PadCursor.Pointer.Pad ? new[]
             {
-                ("Left stick  ·  D-pad", "move the cursor (D-pad for fine steps)"),
+                ("Left stick  ·  D-pad", "move the cursor (D-pad: fine steps)"),
                 ("[LB]  [RB]", "jump to the previous / next card"),
-                ("[A] on a card", "pin it; on a pinned card: Confront, link"),
-                ("Hold [A] and steer", "drag: onto a line, onto a card to link"),
-                ("[B]", "send a pinned card back; back in menus"),
-                ("Hold [A] on the incident", "accuse: drop it on the one line it fits"),
+                ("[A] on a card", "pin it; on a pinned one, its panel"),
+                ("Hold [A] and steer", "drag to a line, or onto a card"),
+                ("[B]", "send a card back; back in menus"),
+                ("Hold [A] on the incident", "accuse: drop it on its line"),
                 ("[Y]  ·  [X]", "notebook  ·  Connie's hint"),
                 ("[Start]", "pause, resume"),
-                ("Move the mouse", "hands control back to the mouse"),
+                ("Move the mouse", "hands control back to it"),
             } : pointer == PadCursor.Pointer.Touch ? new[]
             {
                 ("Drag a card to the board", "pin it (or just tap it)"),
                 ("Press and hold a card", "read it in full; see the walk"),
-                ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
-                ("Tap a pinned card", "Confront, Same moment as… (link), or back"),
+                ("Hold a card on a card", "link, once it says LINK"),
+                ("Tap a pinned card", "Confront, Same moment as…, back"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
-                ("Press and hold the memo", "hold it up to read; tap it for the next"),
+                ("Press and hold the memo", "hold it up; tap for the next"),
             } : new[]
             {
                 ("Drag a card to the board", "pin it (or just click it)"),
                 ("Hover a card", "read it in full; see the walk"),
-                ("Hold a card on a card", "link, once it says LINK: one moment, two clocks"),
-                ("Click a pinned card", "Confront, Same moment as… (link), or back"),
+                ("Hold a card on a card", "link, once it says LINK"),
+                ("Click a pinned card", "Confront, Same moment as…, back"),
                 ("Right-click a pinned card", "back to the tray"),
                 ("Drag the incident card", "accuse: the one line it fits"),
                 ("Hover the town map", "zoom in on Wrenhaven"),
-                ("Hover the memo", "hold it up to read; click it for the next"),
+                ("Hover the memo", "hold it up; click for the next"),
                 ("Tab  ·  H or F1", "notebook  ·  Connie's hint"),
                 ("Space", "finish a memo, then the next"),
                 ("F11  ·  F12", "fullscreen  ·  screenshot"),
                 ("Arrows, Q / E, Enter", "play with the keyboard alone"),
             };
             var sb = new System.Text.StringBuilder();
-            foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b>\n<color=#B9AE98>").Append(v).Append("</color>\n");
+            foreach (var (k, v) in rows) sb.Append("<b>").Append(k).Append("</b><indent=46%><color=#B9AE98>").Append(v).Append("</color></indent>\n");
             return PadCursor.Label(sb.ToString().TrimEnd());
         }
 
@@ -1085,16 +1107,16 @@ namespace AlibiCo
         {
             var card = UiKit.Panel(parent, "controls", new Color(0.08f, 0.09f, 0.11f, 0.96f));
             UiKit.DropShadow(card.rectTransform, 36f, 0.6f, new Vector2(0, -16));
-            card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(290, 0), new Vector2(500, 620));
+            card.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(285, 0), new Vector2(660, 620));
             var head = UiKit.Text(card.transform, "Controls", Art.Display, 44, Cream, TextAlignmentOptions.Center);
             head.rectTransform.Place(new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, -40), new Vector2(0, 64));
-            var body = UiKit.Text(card.transform, ControlsText(PadCursor.Pointer.Mouse), Art.Sans, 19, Cream, TextAlignmentOptions.TopLeft);
+            var body = UiKit.Text(card.transform, ControlsText(PadCursor.Pointer.Mouse), Art.Sans, 21, Cream, TextAlignmentOptions.TopLeft);
             controlsBody = body;
-            body.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -36), new Vector2(-70, -140));
-            body.lineSpacing = 2;
+            body.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -40), new Vector2(-80, -150));
+            body.paragraphSpacing = 10;
             body.enableAutoSizing = true;
-            body.fontSizeMin = 12;
-            body.fontSizeMax = 19;
+            body.fontSizeMin = 13;
+            body.fontSizeMax = body.fontSize;
         }
 
         public void ShowSettings()

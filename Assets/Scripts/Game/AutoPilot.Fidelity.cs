@@ -212,7 +212,7 @@ namespace AlibiCo
             }
             yield return Wait(0.8f);
             yield return Shot("pause");
-            var controls = root.Screens.ControlsLayoutReport();
+            var controls = root.Screens.ControlsLayoutReportAll();
             if (controls.Count == 0) Debug.Log($"[Controls] list fits at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}, text size {Settings.TextSize}");
             else { Debug.LogError($"[AutoPilot] FAIL controls list at {UnityEngine.Screen.width}x{UnityEngine.Screen.height}: {string.Join("; ", controls)}"); ok = false; }
             root.Screens.ShowSettings();
