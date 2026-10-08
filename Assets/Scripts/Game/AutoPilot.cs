@@ -872,9 +872,10 @@ namespace AlibiCo
                 if (btn == null) { Fail($"no Confront button for {id}"); continue; }
                 if (id == "a_claim") yield return Shot("pad_actions");
                 yield return PadMoveTo(btn.Value);
+                var beforeTap = ConfrontState(s, id, btn);
                 yield return PadTap(GamepadButton.South);
                 yield return Wait(2.6f);
-                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it");
+                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it. Before the tap: {beforeTap}. After: {ConfrontState(s, id, root.Screens.ConfrontButtonScreen())}");
                 foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
                 {
                     yield return PadMoveTo(TrayPoint(s.ViewOf(nid)));
@@ -1215,6 +1216,18 @@ namespace AlibiCo
             Debug.Log($"[AutoPilot] done: touch test, {errors} errors");
             yield return Wait(0.5f);
             Application.Quit(ok ? 0 : 1);
+        }
+
+        /// <summary>What the board and the pointer were doing when a confrontation by hand didn't land (for a flaky run's log).</summary>
+        static string ConfrontState(CaseSession s, string id, Vector2? button)
+        {
+            var b = s.Board;
+            bool can = b.CanConfront(id, out var why);
+            var screens = GameRoot.I.Screens;
+            return $"can confront {can}{(can ? "" : " (" + why + ")")}; conflicts [{string.Join(", ", b.EstablishedConflicts.Select(k => k.A.Card.Id + "/" + k.B.Card.Id))}]; " +
+                   $"tray [{string.Join(",", b.TrayCards.Select(x => x.Id))}]; struck [{string.Join(",", b.Struck)}]; selected {(s.Selected ? s.Selected.Id : "none")}; " +
+                   $"panel buttons {screens.ActionButtonsScreen().Count}; button {button}; cursor {(PadCursor.I != null ? PadCursor.I.Position.ToString() : "-")} ({PadCursor.Using}); " +
+                   $"memo held {s.Memos.HeldUp}; {s.DebugState}; {Clock.Dt * 1000:0} ms a frame";
         }
 
         // ------------------------------------------------------------------ memos
@@ -1567,9 +1580,11 @@ namespace AlibiCo
                 var btn = root.Screens.ConfrontButtonScreen();
                 if (btn == null) { Fail($"no Confront button for {id}"); continue; }
                 if (id == "a_claim") yield return Shot("keys_actions");
-                yield return KeyClick(btn.Value);
+                yield return KeyMoveTo(btn.Value);
+                var beforeTap = ConfrontState(s, id, btn);
+                yield return KeyTap(Key.Enter);
                 yield return Wait(2.6f);
-                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it");
+                if (!s.Board.Struck.Contains(id)) Fail($"confronting {id} didn't strike it. Before the tap: {beforeTap}. After: {ConfrontState(s, id, root.Screens.ConfrontButtonScreen())}");
                 foreach (var nid in s.Board.TrayCards.Select(x => x.Id).ToList())
                 {
                     yield return KeyClick(TrayPoint(s.ViewOf(nid)));
