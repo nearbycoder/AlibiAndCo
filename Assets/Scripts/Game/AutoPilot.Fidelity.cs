@@ -202,14 +202,43 @@ namespace AlibiCo
             yield return Wait(0.5f);
             root.StartCase(Cases.All[0], false, true);
             yield return Wait(3f);
-            // The pause menu opening, caught every few frames.
+            // The pause menu opening: its panel's offset and scale every frame for half a second, and a few frames caught.
             root.SetPaused(true);
-            for (int i = 0; i < 4; i++)
+            var pausePanel = UiKit.Root.Find("Pause/panel");
+            var series = new StringBuilder();
+            float t0 = Time.realtimeSinceStartup;
+            int caught = 0;
+            while (Time.realtimeSinceStartup - t0 < 0.5f)
             {
                 yield return new WaitForEndOfFrame();
-                ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"{++shot:00}_pause_opening_{i}.png"));
-                yield return new WaitForSecondsRealtime(0.07f);
+                if (pausePanel != null && pausePanel.TryGetComponent<UiKit.Settle>(out var st))
+                    series.Append($" {(Time.realtimeSinceStartup - t0) * 1000:0}ms:{st.Offset:0.0}px/{st.Scale:0.000}");
+                if (caught < 4 && Time.realtimeSinceStartup - t0 > caught * 0.06f)
+                    ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"{++shot:00}_pause_opening_{caught++}.png"));
             }
+            Debug.Log($"[Settle] pause panel (offset/scale, reduced motion {Settings.ReducedMotion}):{series}");
+            // With Reduced motion the panel only fades: it's in place from the first frame.
+            root.SetPaused(false);
+            yield return Wait(0.6f);
+            Settings.ReducedMotion = true;
+            root.SetPaused(true);
+            var still = new StringBuilder();
+            bool moved = false;
+            t0 = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - t0 < 0.3f)
+            {
+                yield return new WaitForEndOfFrame();
+                if (pausePanel != null && pausePanel.TryGetComponent<UiKit.Settle>(out var st))
+                {
+                    still.Append($" {st.Offset:0.0}px/{st.Scale:0.000}");
+                    moved |= Mathf.Abs(st.Offset) > 0.01f || Mathf.Abs(st.Scale - 1) > 0.0001f;
+                }
+            }
+            Debug.Log($"[Settle] pause panel with reduced motion:{still}");
+            if (moved) { Debug.LogError("[AutoPilot] FAIL screens tour: with Reduced motion the pause panel still moved"); ok = false; }
+            if (series.ToString().Split(' ').Count(x => x.Contains("px/") && !x.Contains(":0.0px/1.000")) < 2) { Debug.LogError("[AutoPilot] FAIL screens tour: the pause panel didn't settle in"); ok = false; }
+            Settings.ReducedMotion = false;
+            yield return Wait(0.6f);
             yield return Wait(0.8f);
             yield return Shot("pause");
             var controls = root.Screens.ControlsLayoutReportAll();

@@ -55,6 +55,7 @@ namespace AlibiCo
                 var r = rt.rect.size;
                 if (r.x <= 0 || r.y <= 0) return;
                 float s = Mathf.Min(1f, (c.x - 2 * Margin) / r.x, (c.y - 2 * MarginY) / r.y);
+                if (TryGetComponent<Settle>(out var settle)) s *= settle.Scale;   // a panel easing in or out
                 rt.localScale = new Vector3(s, s, 1);
             }
         }
@@ -414,6 +415,38 @@ namespace AlibiCo
             }
         }
 
+        /// <summary>
+        /// The press feel buttons have, for the other controls: the target (a toggle's box, a slider's handle, a
+        /// notch's name) lifts a little under the pointer and dips while held.
+        /// </summary>
+        public sealed class PressDip : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
+        {
+            public Transform Target;
+            public float HoverScale = 1.06f, DownScale = 0.92f;
+            bool over, down;
+
+            public void OnPointerEnter(PointerEventData e) => over = true;
+            public void OnPointerExit(PointerEventData e) { over = false; down = false; }
+            public void OnPointerDown(PointerEventData e) => down = true;
+            public void OnPointerUp(PointerEventData e) => down = false;
+            void OnDisable() { over = down = false; if (Target) Target.localScale = Vector3.one; }
+
+            void Update()
+            {
+                if (!Target) return;
+                float goal = down ? DownScale : over ? HoverScale : 1f;
+                Target.localScale = Vector3.Lerp(Target.localScale, Vector3.one * goal, 1 - Mathf.Exp(-Clock.Dt * 20f));
+            }
+        }
+
+        static void Dip(Component on, Transform target, float hover = 1.06f, float press = 0.92f)
+        {
+            var d = on.gameObject.AddComponent<PressDip>();
+            d.Target = target;
+            d.HoverScale = hover;
+            d.DownScale = press;
+        }
+
         static void HoverRow(RectTransform row)
         {
             var back = Panel(row, "row_back", new Color(1, 1, 1, 0), true, true);
@@ -497,8 +530,16 @@ namespace AlibiCo
             s.minValue = 0;
             s.maxValue = 1;
             s.value = value;
+            Dip(s, handle.transform, 1.1f, 0.94f);
             readout.text = Mathf.RoundToInt(value * 100) + "%";
-            s.onValueChanged.AddListener(v => { readout.text = Mathf.RoundToInt(v * 100) + "%"; onChange?.Invoke(v); });
+            int decile = Mathf.RoundToInt(value * 10);
+            s.onValueChanged.AddListener(v =>
+            {
+                readout.text = Mathf.RoundToInt(v * 100) + "%";
+                int d = Mathf.RoundToInt(v * 10);
+                if (d != decile) { decile = d; Sfx.Play("ui_hover", 0.25f); }   // a soft tick every tenth
+                onChange?.Invoke(v);
+            });
             return s;
         }
 
@@ -526,6 +567,7 @@ namespace AlibiCo
             tickImg.color = Pal.Hex("1E1A14");
             tickImg.raycastTarget = false;
             var tg = row.gameObject.AddComponent<Toggle>();
+            Dip(tg, box.transform);
             tg.targetGraphic = box;
             tg.graphic = check;
             tg.isOn = value;
@@ -589,6 +631,7 @@ namespace AlibiCo
                 var b = hit.gameObject.AddComponent<Button>();
                 b.transition = Selectable.Transition.None;
                 b.onClick.AddListener(() => { if (s != null) s.value = k; });
+                Dip(b, hit, 1.08f, 0.92f);
                 labels[i] = Text(hit, names[i], Art.SansBold, 19, Pal.Paper, TextAlignmentOptions.Center, "label");
                 labels[i].rectTransform.Stretch();
                 labels[i].characterSpacing = 1.5f;
@@ -608,6 +651,7 @@ namespace AlibiCo
                     dots[i].color = i <= v ? Pal.Hex("8A6A2E") : Pal.Hex("1E252C");
                 }
             }
+            Dip(s, handle.transform, 1.1f, 0.94f);
             s.SetValueWithoutNotify(Mathf.Clamp(index, 0, n - 1));
             Paint((int)s.value);
             s.onValueChanged.AddListener(v => { Paint((int)v); Sfx.Play("ui_click", 0.5f); onChange?.Invoke((int)v); });
@@ -647,6 +691,53 @@ namespace AlibiCo
             ((RectTransform)next.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-4, 0), new Vector2(44, 38));
             Show();
             return row;
+        }
+
+        /// <summary>
+        /// A panel being set down: it rises a few pixels and grows from 96% as its menu fades in, and sinks back a
+        /// little as it fades out. The movement is an offset added on top of wherever the panel is placed, so
+        /// layout code can keep placing it as usual. Reduced motion keeps the plain fade.
+        /// </summary>
+        public sealed class Settle : MonoBehaviour
+        {
+            public float Scale = 1f;
+            /// <summary>How far below its place the panel is right now (the screens tour logs it).</summary>
+            public float Offset => applied.y;
+            Vector2 applied;
+            bool fits;
+
+            void Awake() => fits = TryGetComponent<FitToCanvas>(out _);
+
+            public void Play(bool show, float time)
+            {
+                if (Settings.ReducedMotion) { Tween.Kill((this, "settle")); Set(0, 1); return; }
+                float y0 = show ? -22f : applied.y, s0 = show ? 0.96f : Scale;
+                float y1 = show ? 0f : -8f, s1 = show ? 1f : 0.985f;
+                Set(y0, s0);
+                Tween.Run((this, "settle"), time, k => { if (this) Set(Mathf.LerpUnclamped(y0, y1, k), Mathf.LerpUnclamped(s0, s1, k)); },
+                    show ? Ease.OutCubic : Ease.InCubic, () => { if (this && !show) Set(0, 1); });
+            }
+
+            void Set(float dy, float scale)
+            {
+                var rt = (RectTransform)transform;
+                rt.anchoredPosition += new Vector2(0, dy) - applied;
+                applied = new Vector2(0, dy);
+                Scale = scale;
+                if (!fits) rt.localScale = new Vector3(scale, scale, 1);
+            }
+        }
+
+        /// <summary>Every panel of a menu group (not its full-screen shade or the panels' shadows) settles in or out.</summary>
+        public static void SettleGroup(CanvasGroup g, bool show, float time)
+        {
+            if (g == null) return;
+            foreach (Transform child in g.transform)
+            {
+                if (child.name == "shade" || child.name.EndsWith("_shadow") || !(child is RectTransform)) continue;
+                if (!child.TryGetComponent<Settle>(out var m)) m = child.gameObject.AddComponent<Settle>();
+                m.Play(show, time);
+            }
         }
 
         /// <summary>Fade a CanvasGroup in or out.</summary>

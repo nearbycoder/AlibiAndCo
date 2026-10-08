@@ -46,8 +46,20 @@ namespace AlibiCo
             return g;
         }
 
-        void Show(CanvasGroup g) => UiKit.Fade(g, true, 0.35f);
-        void Hide(CanvasGroup g) { if (g != null && g.gameObject.activeSelf) UiKit.Fade(g, false, 0.25f); }
+        /// <summary>A menu fades in and its panels settle (the HUD only fades: it belongs to the board).</summary>
+        void Show(CanvasGroup g)
+        {
+            bool wasHidden = g != null && (!g.gameObject.activeSelf || g.alpha < 0.5f);
+            UiKit.Fade(g, true, 0.35f);
+            if (g != hud && wasHidden) UiKit.SettleGroup(g, true, 0.38f);
+        }
+
+        void Hide(CanvasGroup g)
+        {
+            if (g == null || !g.gameObject.activeSelf) return;
+            UiKit.Fade(g, false, 0.22f);
+            if (g != hud) UiKit.SettleGroup(g, false, 0.22f);
+        }
 
         void HideAllMenus()
         {

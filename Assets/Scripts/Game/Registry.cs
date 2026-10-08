@@ -195,7 +195,13 @@ namespace AlibiCo
         public static float Master { get => PlayerPrefs.GetFloat("vol_master", 0.85f); set { PlayerPrefs.SetFloat("vol_master", value); Apply(); } }
         public static float Music { get => PlayerPrefs.GetFloat("vol_music", 0.7f); set { PlayerPrefs.SetFloat("vol_music", value); Apply(); } }
         public static float Effects { get => PlayerPrefs.GetFloat("vol_sfx", 0.85f); set { PlayerPrefs.SetFloat("vol_sfx", value); Apply(); } }
-        public static bool ReducedMotion { get => PlayerPrefs.GetInt("reduced_motion", 0) == 1; set => PlayerPrefs.SetInt("reduced_motion", value ? 1 : 0); }
+        /// <summary>Automated runs keep a change in memory (the screens tour switches it), never in the prefs.</summary>
+        public static bool ReducedMotion
+        {
+            get => SaveData.Volatile ? reducedForRun : PlayerPrefs.GetInt("reduced_motion", 0) == 1;
+            set { if (SaveData.Volatile) reducedForRun = value; else PlayerPrefs.SetInt("reduced_motion", value ? 1 : 0); }
+        }
+        static bool reducedForRun;
         public static bool Fullscreen
         {
             get => Screen.fullScreen;
@@ -249,7 +255,7 @@ namespace AlibiCo
         public static int TextSizeOverride = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { TextSizeOverride = FidelityOverride = -1; fidelityForRun = AlibiCo.Fidelity.Default; PlainTextFlag = plainForRun = false; }   // see Art.ResetStatics
+        static void ResetStatics() { TextSizeOverride = FidelityOverride = -1; fidelityForRun = AlibiCo.Fidelity.Default; PlainTextFlag = plainForRun = reducedForRun = false; }   // see Art.ResetStatics
 
         // ------------------------------------------------------------------ graphics fidelity
 
