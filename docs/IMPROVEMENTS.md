@@ -1339,8 +1339,8 @@ how the game teaches and how witnesses answer:
 - **The queue can show a question that's already been answered.** In the baseline capture of case 2,
   the Lantern's clock had just been corrected, but the slip on the desk still asked "Who's wrong, or
   whose clock is?", because it was still working through the queue.
-- **The memo slip is small on small screens.** At 1280×720 the slip is about 230 pixels wide, and a long
-  note is shrunk to fit it. Chips have a hover card to read them up close; memos have nothing.
+- **The memo slip is small on small screens.** At 1280×720 the slip is about 200 pixels wide (204
+  measured by the memo test; this line first said about 230, an estimate), and a long note is shrunk to fit it. Chips have a hover card to read them up close; memos have nothing.
 - **The wrong-link lesson nudges in case 3** (round 9's open item): it always suggests "a bulletin, a
   bell, a power cut", and case 3's answer is a power dip.
 
@@ -1406,3 +1406,68 @@ on the Linux desktop, and the owner's open calls (the background frame rate, pau
 link hold, advertising touch, how many boards to keep, Nintendo's confirm button, hints tagging cards,
 late dockets in the run). A setting for memo pace was considered and left out: holding the slip up does
 the same job without another row in Settings.
+
+## Round 10 results (7–8 Oct 2026)
+
+Every item landed on `improvements-10`. Screenshots are in `docs/media/improvements/round10/` (`r10-1-*` the
+MORE tag, `r10-2-*` a memo held up, `r10-3-*` the wrong-link lesson). R10-3 went in before R10-2 (it was
+small, and R10-2 was the riskier one). Each was built and tested on its own: R10-2's work was stashed
+while R10-3 was built, tested and committed.
+
+| # | Item | Commit | Verified by | Result |
+|---|---|---|---|---|
+| R10-1 | Time to read the memos | 741d32c | 3 new EditMode tests (`ReadingTests`). New `-alibiMemoTest`: three memos posted at once stayed 3.04 s (33 characters) and 13.00 s (215 characters; the old rule gave 5.62 s), in order; the tag read "2 MORE · CLICK IT", "1 MORE · CLICK IT", then nothing; the first Space finished the typing and the second showed the next memo; with case 1's cards pinned and five memos waiting, Bram's statement was confronted at once, and the question about his matches, still waiting, was passed over (it's still in the notebook). The pad, keys and touch tests check the tag: "[A] ON IT" (Xbox), "[✕] ON IT" (PlayStation), "SPACE", "TAP IT" | Met |
+| R10-2 | A memo up close | efe7e64 | `-alibiMemoTest` hovers the slip with the mouse: body text 16.9–17.0 → 30.4 px per em (1.80×) at 1920×1080 and 13.0 → 23.3 px (1.79×) at 1280×720 with Large text, the slip (204×196 px at rest there, 358×343 held) inside the window; held for 15.6 s, past its 12.6 s reading time, and nothing replaced it; a click on it showed the next, still held; pointer away, it went back at its old size. A finger held 1.2 s on it held it up and lifting the finger didn't move on; a tap did. Also at 1280×800 | Met. The pause menu's controls list names it for the mouse and touch |
+| R10-3 | The wrong-link lesson without the nudge | 902aabc | The EditMode wrong-link tests (every wrong pair in cases 2–5, clocks unmended and mended, and a month of dockets) now fail if a line names a kind of event (bulletin, bell, power, cut, broadcast, radio, news, chime, flicker, dip, siren, whistle, gun), card titles and clock names aside. Autoplay's case 3 wrong link checks the new line, at 1920×1080 and 1280×720 with Large text | Met. The line fits the 720p slip whole (round 9's was cut off at "a bullet") |
+| R10-4 | Browser build, checked again | — (no code) | `node Tools/webtest.mjs --engine chromium,firefox`, every run (autoplay, pad, keys, share, reload, focus, touch, touchreal) on a fresh build with every round 10 commit | Met. All 16 runs PASS with 0 console errors; autoplay 10/10 (5 cases, 5 dockets) at 59–60 fps in Chromium and 60 in Firefox; 26.6 MB; loads 1.2–1.4 s in Chromium (2.8 s for the first, cold load) and 1.5–1.6 s in Firefox, at a load average that fell from about 9 to 1 during the run. The memo test doesn't run in the browser; the touch runs cover the changed tap path there |
+
+EditMode tests: 73/73 (70 before the round). The validator proves cases 1–5 airtight with 60 pin orders
+each, and `--docket 365` from 7 October 2026 is all airtight (worst day 5 of 40 variations); no case or
+generator changed. On the final code, inside `Tools/nested.sh`: autoplay 10/10 (5 cases, 5 dockets) at
+1920×1080, at 1280×720 with Large text and in plain lettering; the mouse, Xbox pad, keys and touch tests at
+1920×1080 (on the R10-2 build, whose only later change is the controls list's wording) and at 1280×800; the
+PlayStation pad at 1280×800 and the Nintendo pad at 1920×1080; the hint tour, the boards test and the focus
+test (52–54 fps with focus, 10 away); the memo test at 1920×1080 and 1280×800 (and at 1280×720 with Large
+text on the R10-2 build): all PASS, 0 errors. The scripted suite runs waited for a load average under 24
+(they started at 6.5–23.7); the memo-test runs I started by hand during development began at 19–28. The real
+`alibi_save.json` and `prefs` were byte-identical before and after the round (Unity's test runner rewrote
+its own `TestResults.xml` next to them, as in earlier rounds).
+
+Found along the way:
+
+- **A press that lands late, again.** On the final build, two input runs failed at the same step: the
+  PlayStation pad test at 1920×1080 (A on Confront didn't strike Agnes's statement within 2.6 s) and the
+  keys test at 1920×1080 (the same for Clem and Bram; the board shows Clem's statement was struck later, by
+  the next step's press). Every later step failed as a result (18 errors each). The same code had passed
+  these tests on the R10-1 and R10-2 builds, and six reruns (keys and PlayStation, three each, at load
+  averages of 6.5–22) all passed. Nothing this round changed is on that path, so I take it to be the same
+  family as round 8's unexplained keys failure (a simulated press that doesn't land), but the cause is not
+  known: 2 failures in 15 pad and keys runs this round. The tests now log the board, the selection, the
+  panel, the cursor, the memo and the frame time before and after the press (756f648), so the next one can
+  be told apart.
+- **The first MORE tag hid under the board's frame.** It sat as a tab on the slip's top edge, and the
+  frame, which is nearer the camera, covered it. It's now a label on the slip's heading row, and the heading
+  gives way to it.
+- **"red ?" broke across two lines** on the 720p slip, leaving a stray "?" at the start of a line. A
+  non-breaking space keeps them together.
+- **Space used to skip a memo still typing outright.** Its "finish typing" set the old 2.2 s wait as
+  already used up, so the next memo replaced it on the next frame. Now the first press finishes the typing
+  and the slip stays; the second shows the next one.
+
+Not done, and why:
+
+- **The pace with real readers.** 17 characters a second (about 185 words a minute) and the held-up size
+  were chosen by measurement, not with players; slow readers can hold the slip up as long as they like,
+  which is the safety net. The self-tests, which play far faster than a person, saw up to 8 memos waiting
+  (the tag counts them, and Space or a click moves on).
+- **The late-press flake's cause**: not reproduced in six reruns.
+- **Owner and hardware items** (Windows, signing, hosting, the licence, releases, WebKit, a real
+  controller, tablet or Steam Deck, focus on macOS or Windows, a real click on Copy result on Linux, the
+  sound by ear, colour-blind or dyslexic players, a font such as Atkinson Hyperlegible): unchanged.
+
+Owner decisions this round adds:
+
+- **Memo pace.** The reading speed (`Logic.Reading.CharsPerSecond`, 17) and the cap (16 s) are one-line
+  changes. A Settings row for it was left out because holding the slip up does the same job.
+- **Hovering the memo enlarges it over the board's lower-left corner.** It only happens after the pointer
+  rests on the slip for a fifth of a second (0.3 s for a finger) and ends as soon as it leaves.

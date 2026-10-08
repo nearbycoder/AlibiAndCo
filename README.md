@@ -423,14 +423,15 @@ changes since then aren't released yet.
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
-  8060S (`node Tools/webtest.mjs`, last run in improvement round 9). In both, autoplay plays all five
+  8060S (`node Tools/webtest.mjs`, last run in improvement round 10). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
   errors; the simulated-gamepad, keyboard-only and touch tests pass; real touch events sent through
   the browser (a tap, a finger drag, a held finger and a tap on a HUD button) reach the game; a real
   mouse click on Copy result puts the line on the page's clipboard; the case timer stands still while
   the page is in the background, where the game drops from about 60 frames a second to 10 or fewer;
-  and progress survives a page reload. It's 26.6 MB. In round 9 it loaded from localhost in 1.1–1.7
-  seconds and autoplay ran at 60 fps in both browsers, on a quiet machine (load average under 4). It hasn't been tried in Safari: Playwright's
+  and progress survives a page reload. It's 26.6 MB. In round 10 it loaded from localhost in 1.2–1.6
+  seconds (2.8 for Chromium's first, cold load) and autoplay ran at 59–60 fps in both browsers, at a
+  load average of 1–9. It hasn't been tried in Safari: Playwright's
   WebKit build needs Ubuntu libraries this machine doesn't have. It also hasn't been tried on a real tablet or phone, or with a
   person watching, and its sound wasn't checked. There's no Quit button or resolution picker in the
   browser, where the page sets the size.
@@ -502,6 +503,12 @@ changes since then aren't released yet.
   is left in a decorative face or runs out of its box, and the mouse test switches it mid-case. Its
   face (DejaVu Sans, already shipped as the fallback) and sizes were chosen by measurement; nobody
   with dyslexia or low vision has tried it.
+- **Memo pacing was set by hand.** When several memos arrive at once, each stays about 17 characters a
+  second of reading time (about 185 words a minute), checked in game time by `-alibiMemoTest`, and holding
+  the slip up (hover it, or rest a finger on it) keeps it as long as you like at about 1.8 times the size.
+  Neither the pace nor the size has been tried with players. Someone who plays quickly will see the MORE
+  tag count up after a burst of moves (the self-tests saw up to 8 waiting); Space or a click moves on.
+  Holding the slip up hasn't been tried in the browser build (the touch runs there cover the tap).
 - **Colour-blind players were simulated, not consulted.** Contradictions carry a dark warning
   triangle as well as the red glow, and the locks differ by icon and word. That was checked on
   protanopia, deuteranopia and tritanopia simulations of the board, not with colour-blind players.
