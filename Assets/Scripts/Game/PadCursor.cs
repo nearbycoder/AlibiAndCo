@@ -23,6 +23,9 @@ namespace AlibiCo
     {
         public enum Pointer { Mouse, Pad, Keys, Touch }
 
+        /// <summary>The most game time one frame's cursor movement may cover (stick, D-pad and arrows), in seconds.</summary>
+        public const float MaxMoveStep = 1f / 30f;
+
         public static PadCursor I { get; private set; }
         /// <summary>The pad or the keyboard is the active pointer (the cursor is drawn).</summary>
         public static bool Active => I != null && I.active;
@@ -119,6 +122,9 @@ namespace AlibiCo
             if (!active) { UpdateCursor(); return; }
 
             float dt = Clock.Dt;
+            // One frame never moves the cursor more than a thirtieth of a second's worth: when the game runs
+            // slowly (a busy or weak machine) it crawls a little rather than jumping past a small button.
+            float moveDt = Mathf.Min(dt, MaxMoveStep);
             var root = GameRoot.I;
             bool left = false;
             // With the notebook open there's nothing to point at but the page: the right stick, the
@@ -134,7 +140,7 @@ namespace AlibiCo
                 if (mag > 0)
                 {
                     float speed = Screen.height * Mathf.Lerp(0.18f, 1.25f, mag * mag);
-                    pos += stick.normalized * speed * dt;
+                    pos += stick.normalized * speed * moveDt;
                 }
                 var dpad = pad.dpad.ReadValue();
                 if (notebook != null)
@@ -142,7 +148,7 @@ namespace AlibiCo
                     float y = Mathf.Abs(pad.rightStick.ReadValue().y) > 0.15f ? pad.rightStick.ReadValue().y : dpad.y;
                     scroll -= y;
                 }
-                else if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * dt;
+                else if (dpad.sqrMagnitude > 0.1f) pos += dpad.normalized * Screen.height * 0.25f * moveDt;
 
                 if (pad.rightShoulder.wasPressedThisFrame) Jump(+1);
                 if (pad.leftShoulder.wasPressedThisFrame) Jump(-1);
@@ -168,7 +174,7 @@ namespace AlibiCo
                 {
                     arrowsTime += dt;
                     float speed = Screen.height * Mathf.Lerp(0.2f, 1.1f, Mathf.Clamp01((arrowsTime - 0.15f) / 0.9f));
-                    pos += arrows.normalized * speed * dt;
+                    pos += arrows.normalized * speed * moveDt;
                 }
                 if (kb.eKey.wasPressedThisFrame) Jump(+1);
                 if (kb.qKey.wasPressedThisFrame) Jump(-1);

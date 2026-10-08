@@ -723,9 +723,9 @@ namespace AlibiCo
             for (int i = 0; i < 900; i++)
             {
                 var d = target - PadCursor.I.Position;
-                // Close enough: 3 px, or one frame of the cursor's slowest speed when the frame rate is
-                // low (at ~11 fps a single frame moves it ~20 px, and a 3 px target is never hit).
-                if (d.magnitude < Mathf.Max(3f, UnityEngine.Screen.height * 0.25f * Clock.Dt)) break;
+                // Close enough: 3 px, or one frame of the cursor's slowest speed (a frame's step is capped
+                // at PadCursor.MaxMoveStep, so even at ~10 fps that's under 10 px).
+                if (d.magnitude < Mathf.Max(3f, UnityEngine.Screen.height * 0.25f * Mathf.Min(Clock.Dt, PadCursor.MaxMoveStep))) break;
                 var stick = Vector2.ClampMagnitude(d / (UnityEngine.Screen.height * 0.12f), 1f);
                 if (stick.magnitude < 0.3f) stick = stick.normalized * 0.3f;
                 PadState(stick, held);
@@ -734,6 +734,14 @@ namespace AlibiCo
             PadState(Vector2.zero, held);
             yield return null;
             yield return null;
+            StoppedShort("pad", target);
+        }
+
+        /// <summary>A cursor that stops more than 8 px from where a test aims it is logged (with the frame time), so a missed press can be read.</summary>
+        static void StoppedShort(string how, Vector2 target)
+        {
+            float d = (target - PadCursor.I.Position).magnitude;
+            if (d > 8f) Debug.Log($"[Press] {how} cursor stopped {d:0} px from ({target.x:0}, {target.y:0}), frame {Clock.Dt * 1000f:0} ms");
         }
 
         IEnumerator PadTap(GamepadButton b)
@@ -1531,7 +1539,7 @@ namespace AlibiCo
             {
                 var d = target - PadCursor.I.Position;
                 // One frame of the slowest speed, so a low frame rate can't make the target unreachable.
-                float tol = Mathf.Max(4f, UnityEngine.Screen.height * 0.2f * Clock.Dt * 1.2f);
+                float tol = Mathf.Max(4f, UnityEngine.Screen.height * 0.2f * Mathf.Min(Clock.Dt, PadCursor.MaxMoveStep) * 1.2f);
                 if (d.magnitude < tol) break;
                 held.Clear();
                 if (enter) held.Add(Key.Enter);
@@ -1544,6 +1552,7 @@ namespace AlibiCo
             if (enter) Keys(Key.Enter); else Keys();
             yield return null;
             yield return null;
+            StoppedShort("keys", target);
         }
 
         IEnumerator KeyTap(Key k)
