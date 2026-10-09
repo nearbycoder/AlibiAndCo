@@ -25,7 +25,7 @@ namespace AlibiCo
         VideoRecorder rec;
         Vector2 mouse;
         int misses, maxCases;
-        bool trailer, shownUnknown;
+        bool trailer, shownUnknown, linkedByPanel;
         StreamWriter markers;
         string stillsDir;
 
@@ -172,7 +172,7 @@ namespace AlibiCo
             yield return Wait(0.15f);
         }
 
-        IEnumerator Drag(Vector2 from, Vector2 to, float hold = 0f, string still = null)
+        IEnumerator Drag(Vector2 from, Vector2 to, float hold = 0f, string still = null, System.Func<bool> armed = null)
         {
             yield return MoveTo(from);
             yield return Wait(0.18f);
@@ -183,6 +183,9 @@ namespace AlibiCo
             if (hold > 0) yield return Wait(hold);
             yield return MoveTo(to, true, 1.6f);
             yield return Wait(0.18f);
+            // A link arms only once the card has rested on the other one (CaseSession.LinkArmSeconds).
+            for (float t = 0; armed != null && !armed() && t < 1.5f; t += Clock.Dt) yield return null;
+            if (armed != null) yield return Wait(0.35f);   // the LINK tag on screen for a beat
             Send(mouse, false);
             yield return Wait(0.25f);
         }
@@ -193,6 +196,9 @@ namespace AlibiCo
         }
 
         static Vector2 ScreenOf(Vector3 world) => Stage.I.Cam.WorldToScreenPoint(world);
+
+        /// <summary>A spot on the desk below the board, clear of the cards, the memo and the map.</summary>
+        static Vector2 Desk => new Vector2(Screen.width * 0.6f, Screen.height * 0.16f);
 
         /// <summary>
         /// A point on the card that's on screen and where this card is the topmost one under the
@@ -301,12 +307,38 @@ namespace AlibiCo
                 yield return Wait(last ? 4f : 0.8f);
                 if (last) Still("case-files-final");
             }
+            if (trailer && Cases.DocketUnlocked) yield return PlayDocket(root);
             Mark("end");
             rec.End();
             markers?.Close();
             Debug.Log($"[Showcase] done: {rec.Frames} frames ({rec.Seconds:0.0}s), {misses} missed gestures");
             yield return null;
             Application.Quit(0);
+        }
+
+        /// <summary>Trailer only: the Daily Docket button, the week's drawer, and today's docket played to its close.</summary>
+        IEnumerator PlayDocket(GameRoot root)
+        {
+            var c = Cases.TodaysDocket;
+            if (c == null) { Debug.LogWarning("[Showcase] no docket today"); yield break; }
+            Mark("docket-drawer");
+            var btn = root.Screens.ButtonScreen("btn_docket");
+            if (btn != null) yield return Click(btn.Value); else Miss("btn_docket");
+            yield return Wait(2.4f);
+            Still("docket-drawer");
+            var row = root.Screens.ButtonScreen("docket_" + Cases.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            if (row != null) yield return Click(row.Value); else { Miss("today's docket row"); root.ShowIntro(c); }
+            yield return Wait(0.6f);
+            if (root.Flow != Flow.Intro) { Miss("docket intro"); root.ShowIntro(c); }
+            Mark("intro " + c.Id);
+            yield return Wait(4.5f);
+            Still("docket-intro");
+            yield return Press("Open the board", () => root.StartCase(c, false));
+            yield return PlayCase(root, c);
+            yield return Wait(3f);
+            Mark("docket-closed");
+            Still("docket-closed");
+            yield return Wait(3f);
         }
 
         IEnumerator PlayCase(GameRoot root, CaseDef c)
@@ -329,7 +361,8 @@ namespace AlibiCo
                 if (path == null) { Debug.LogError($"[Showcase] {c.Id}: no solution from here"); yield break; }
                 if (path.Count == 0) break;
                 var m = path[0];
-                if (m.Kind == "link") yield return Link(s, m.A, m.B);
+                bool panel = trailer && c.Id == "case3" && !linkedByPanel;
+                if (m.Kind == "link") { yield return Link(s, m.A, m.B, panel); linkedByPanel |= panel; }
                 else yield return Confront(root, s, m.A);
                 yield return Wait(1.2f);
                 yield return PinTray(s);
@@ -357,6 +390,18 @@ namespace AlibiCo
                     yield return Wait(2.6f);
                     Still("case1-hover-route");
                     yield return Wait(0.6f);
+                }
+                // Hover Connie's memo: it's held up off the desk, larger, until the pointer leaves it.
+                if (s.Memos.Showing != null)
+                {
+                    var slip = s.Memos.ScreenRect(out _);
+                    Mark("memo-held");
+                    yield return MoveTo(slip.center);
+                    yield return Wait(2.6f);
+                    Still("case1-memo-held");
+                    yield return Wait(0.6f);
+                    yield return MoveTo(new Vector2(Screen.width * 0.62f, Screen.height * 0.5f));
+                    yield return Wait(0.8f);
                 }
             }
             else if (id == "case2" && phase == "pinned")
@@ -387,7 +432,7 @@ namespace AlibiCo
             {
                 Mark("pause");
                 yield return PressKey(Key.Escape);
-                yield return Wait(1.4f);
+                yield return Wait(2.6f);
                 Still("case3-pause");
                 Mark("settings");
                 yield return Press("Settings", root.Screens.ShowSettings);
@@ -414,28 +459,46 @@ namespace AlibiCo
             }
             else if (id == "case3" && phase == "pinned")
             {
+                // Ask Connie twice: a nudge first, then the cards to look at, which wear a CONNIE tag.
+                yield return MoveTo(Desk);
+                yield return ReadMemos(s);
+                Mark("hint");
+                yield return PressKey(Key.H);
+                yield return Wait(1.8f);
+                yield return PressKey(Key.H);
+                yield return Wait(0.3f);
+                yield return ReadMemos(s);
+                yield return Wait(1.6f);
+                if (!s.TaggedViews.Any()) Debug.LogWarning("[Showcase] the hint tagged no cards");
+                Still("case3-hint");
+                yield return Wait(1.0f);
+
                 // Two cards that aren't one moment: Connie says so, and it costs a badge.
                 if (s.Board.Pinned.Contains("n_kiosk") && s.Board.Pinned.Contains("x_coast"))
                 {
+                    yield return ReadMemos(s);
                     Mark("wrong-link");
                     var a = s.ViewOf("n_kiosk");
                     var b = s.ViewOf("x_coast");
                     int before = s.Board.Mistakes;
                     yield return MoveTo(ScreenOf(a.transform.position));
                     yield return Wait(0.6f);
-                    yield return Drag(ScreenOf(a.transform.position), ScreenOf(b.transform.position), 0.4f);
+                    yield return Drag(ScreenOf(a.transform.position), ScreenOf(b.transform.position), 0.4f, null, () => s.LinkTarget == b);
                     if (s.Board.Mistakes == before) { Miss("wrong link"); s.AutoLink("n_kiosk", "x_coast"); }
-                    yield return MoveTo(mouse + new Vector2(0, -Screen.height * 0.16f));
-                    yield return Wait(1.6f);
+                    yield return MoveTo(Desk);
+                    yield return Wait(0.3f);
+                    yield return ReadMemos(s);
+                    yield return Wait(1.3f);
                     Still("case3-wrong-link");
                     yield return Wait(1.6f);
                 }
-                Mark("hint");
-                yield return PressKey(Key.H);
-                yield return Wait(2.6f);
-                Still("case3-hint");
-                yield return Wait(1.0f);
             }
+        }
+
+        /// <summary>Space through any memos waiting, so the next one lands on the desk at once.</summary>
+        IEnumerator ReadMemos(CaseSession s)
+        {
+            for (int i = 0; i < 8 && s.Memos.Waiting > 0; i++) { yield return PressKey(Key.Space); yield return Wait(0.15f); }
         }
 
         /// <summary>Drag each tray card to its own lane, near its printed time.</summary>
@@ -537,18 +600,34 @@ namespace AlibiCo
             yield return Wait(3.4f);
         }
 
-        IEnumerator Link(CaseSession s, string a, string b)
+        IEnumerator Link(CaseSession s, string a, string b, bool viaPanel = false)
         {
             foreach (var id in new[] { a, b })
                 if (!s.Board.Pinned.Contains(id)) { yield return PinTray(s); if (!s.Board.Pinned.Contains(id)) s.AutoPin(id); }
             yield return Wait(0.5f);
             var va = s.ViewOf(a);
             var vb = s.ViewOf(b);
-            Mark($"link {a} {b}");
+            Mark($"link {a} {b}{(viaPanel ? " panel" : "")}");
             yield return MoveTo(ScreenOf(va.transform.position));
             yield return Wait(1.0f);
             string before = s.Board.StateKey();
-            yield return Drag(ScreenOf(va.transform.position), ScreenOf(vb.transform.position), 0.5f);
+            if (viaPanel)
+            {
+                // Without a drag: click the card, Same moment as…, then click the other card.
+                yield return Click(ScreenOf(va.transform.position));
+                yield return Wait(0.8f);
+                var btn = GameRoot.I.Screens.LinkButtonScreen();
+                if (btn != null)
+                {
+                    yield return Click(btn.Value);
+                    yield return Wait(0.5f);
+                    yield return MoveTo(ScreenOf(vb.transform.position));
+                    yield return Wait(0.7f);
+                    yield return Click(ScreenOf(vb.transform.position));
+                }
+                else Miss("Same moment as… " + a);
+            }
+            else yield return Drag(ScreenOf(va.transform.position), ScreenOf(vb.transform.position), 0.5f, null, () => s.LinkTarget == vb);
             yield return Wait(0.5f);
             if (s.Board.StateKey() == before) { Miss($"link {a}+{b}"); s.AutoLink(a, b); }
             yield return MoveTo(mouse + new Vector2(0, -Screen.height * 0.18f));

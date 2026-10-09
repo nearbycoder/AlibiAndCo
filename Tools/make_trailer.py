@@ -112,8 +112,8 @@ def edit(m):
 
     # One beat per feature.
     t_intro = m.t("intro case1")
-    S.append(shot(t_intro - 1.6, 6.2, "WRENHAVEN · AUTUMN 1986",
-                  "Three crimes. One cork board.", "You're the “& Co.” at a retired inspector's two-desk agency."))
+    S.append(shot(t_intro - 1.6, 5.4, "WRENHAVEN · AUTUMN 1986",
+                  "Five crimes. One cork board.", "You're the “& Co.” at a retired inspector's two-desk agency."))
     t_drag = m.t("drag ", after=c1)
     S.append(shot(t_drag - 0.2, 4.6, "PIN THE EVIDENCE", "Drag each card onto its person's line.", None, pos="top"))
     t_conf = m.t("conflict 1", after=c1)
@@ -123,6 +123,9 @@ def edit(m):
     t_hov = m.t("hover ", after=c1)
     S.append(shot(t_hov + 0.1, 3.9, "INSPECT ANYTHING", "Hover a card to read it and trace the walk.",
                   "Every route is measured on the town map."))
+    t_memo = m.t("memo-held", after=c1)
+    S.append(shot(t_memo + 0.3, 3.6, "CONNIE'S MEMOS", "Your mentor teaches each idea as it comes up.",
+                  "Hover a memo to hold it up and read it."))
     t_cf = m.t("confront a_claim", after=c1)
     S.append(shot(t_cf + 1.4, (m.t("struck a_claim") + 2.4) - (t_cf + 1.4), "CONFRONT",
                   "Confront a statement in the red.", "Paper never lies. People do, though a lie isn't guilt."))
@@ -131,24 +134,25 @@ def edit(m):
                   "Confront the truth and it stands firm.", "Wrong calls cost a badge."))
     t_l1 = m.t("link t_", after=c2)
     S.append(shot(t_l1 + 0.9, (m.t("clock ", after=c2) + 3.6) - (t_l1 + 0.9), "LINK THE CLOCKS",
-                  "Same moment, two clocks? Link them.", "Catch a clock that runs slow, and every card it timed slides."))
+                  "Same moment, two clocks? Link them.", "Hold one card on the other until it says LINK."))
     t_map = m.t("map", after=c2)
-    S.append(shot(t_map + 0.2, 3.6, "THE TOWN", "Wrenhaven, street by street.",
+    S.append(shot(t_map + 0.2, 3.3, "THE TOWN", "Wrenhaven, street by street.",
                   "Walking times come from the map itself."))
     # Case 3's twist stays off screen: the unknown photo is shown while two faces remain, and the
     # camera beat ends before that photo flies to its owner's line (about 0.4 s after the link lands).
     t_unk = m.t("unknown u_photo", after=c3) if m.has("unknown u_photo") else m.t("struck c_peng") + 1.2
     S.append(shot(t_unk + 0.3, 3.9, "UNKNOWN FACES", "Who's the figure in the photograph?",
                   "Every suspect the records rule out is crossed off, until one face fits.", pos="top"))
+    # Case 3's camera link is made without a drag: the card's panel, Same moment as…, then the other card.
     t_cam = m.t("link t_", after=c3)
-    S.append(shot(t_cam + 0.6, (m.t("clock camera", after=c3) + 0.45) - (t_cam + 0.6), "CAMERAS LIE TOO",
-                  "A press camera's date-back runs fast.", "Link it to the power cut, and every photograph moves."))
+    S.append(shot(t_cam + 1.8, (m.t("clock camera", after=c3) + 0.45) - (t_cam + 1.8), "CAMERAS LIE TOO",
+                  "A press camera's date-back runs fast.", "Click the power cut, choose Same moment as…, then the photo."))
     t_wl = m.t("wrong-link", after=c3)
     S.append(shot(t_wl + 0.4, 4.6, "NOT THE SAME MOMENT", "Guess wrong and Connie notices.",
                   "Three badges a case. Mistakes cost one."))
     t_hint = m.t("hint", after=c3)
-    S.append(shot(t_hint - 0.1, 3.6, "ASK CONNIE", "Stuck? Ask for a hint.",
-                  "Typed memos point you at the next step, never the answer."))
+    S.append(shot(t_hint + 0.2, 4.6, "ASK CONNIE", "Stuck? Ask for a hint.",
+                  "Ask again and she tags the cards the next step needs."))
     t_nb = m.t("notebook", after=c2)
     S.append(shot(t_nb + 0.1, 3.9, "THE NOTEBOOK", "Every memo, question and clock, kept.",
                   "Press Tab to see where the case stands."))
@@ -159,27 +163,33 @@ def edit(m):
     S.append(shot(t_rec + 0.4, 4.6, "THE RECONSTRUCTION", "Pin it, and the night replays.",
                   "A pawn walks the culprit's route across town.", pos="top"))
     t_cl = m.t("flow Closed", after=c1)
-    S.append(shot(t_cl + 0.2, 4.4, "CASE CLOSED", "Rated, timed, and on the front page.", None))
+    S.append(shot(t_cl + 0.2, 4.4, "CASE CLOSED", "Rated, timed, and on the front page.",
+                  "Three seals to earn: Clean, Unaided and Swift."))
+    t_dk = m.t("docket-drawer")
+    S.append(shot(t_dk + 1.0, 3.8, "THE DAILY DOCKET", "A new case every day.",
+                  "Generated, proven airtight, and kept in the drawer for a week."))
+    t_pause = m.t("pause", after=c3)
+    S.append(shot(t_pause + 0.7, 2.9, "PAUSE", "Every control, listed.", "Mouse, keyboard or gamepad.", pos="top"))
     t_set = m.t("settings", after=c3)
-    S.append(shot(t_set + 0.4, 3.3, "YOUR DESK, YOUR WAY", "Text size, reduced motion, resolution, volume.", None))
+    S.append(shot(t_set + 0.6, 3.6, "GRAPHICS FIDELITY", "Low, Medium, High or Ultra, applied live.",
+                  "Plus text size, plain lettering and reduced motion.", pos="top"))
     t_fin = m.t("case-files-final")
-    S.append(shot(t_fin + 0.6, 3.6, "THREE HANDCRAFTED CASES", "Proven airtight by a solver.",
+    S.append(shot(t_fin + 0.6, 3.6, "FIVE HANDCRAFTED CASES", "Proven airtight by a solver.",
                   "Exactly one answer each. No guesswork, no wrong accusation."))
 
     # Escalation montage: quick dissolves, no captions, the reveal cue underneath.
     mont = [
-        (m.t("struck c_claim", after=c1) + 0.2, 1.3),
         (m.t("clock ", after=c2) + 0.5, 1.5),
         (m.t("struck m_claim", after=c2) + 0.2, 1.2),
-        (m.t("struck c_peng", after=c3) + 0.2, 1.3),
         (m.t("struck n_claim", after=c3) + 0.2, 1.4),
         (m.t("pin-incident case2") + 0.1, 1.5),
         (m.t("open marlow", after=c2) - 0.1, 1.4),
+        (m.t("docket-closed") - 2.0, 1.5),
         (m.t("flow Closed", after=c2) + 1.0, 1.9),
     ]
     for i, (s, d) in enumerate(mont):
         S.append(dict(shot(s, d, xf=0.5 if i == 0 else 0.12), montage=True))
-    S.append(dict(kind="end", dur=8.5, xf=0.8))
+    S.append(dict(kind="end", dur=7.0, xf=0.8))
     return S
 
 
@@ -322,7 +332,7 @@ def card_frames(out_dir, kind, dur, stills):
             tw = probe.textlength(tag, font=f_tag)
             d.text(((W - tw) / 2, 545 + (1 - a) * 12), tag, font=f_tag, fill=CREAM_DIM + (int(255 * a),))
             a2 = ease_out_cubic((t - 2.2) / 0.8)
-            facts = "THREE HANDCRAFTED CASES  ·  LINUX  ·  FREE ON GITHUB"
+            facts = "FIVE CASES  ·  A DAILY DOCKET  ·  LINUX"
             fw = tracked_width(probe, facts, f_small, 4)
             tracked(d, ((W - fw) / 2, 668), facts, f_small, LAMP + (int(255 * a2),), 4)
             a3 = ease_out_cubic((t - 2.9) / 0.8)
@@ -610,9 +620,12 @@ SCREENSHOTS = {
     "case2-open-marlow": "screenshot-alibi-breaks",       # the trailer moment: a corrected clock breaks an alibi
     "case2-map-zoom": "screenshot-town-map",              # walking times on the town map
     "case3-unknown-faces": "screenshot-unknown-faces",    # the twist mechanic: identity by elimination
-    "case3-hint": "screenshot-late-game",                 # the last case: four suspects, a town lane, a hint
+    "case3-hint": "screenshot-late-game",                 # case 3: four suspects, a town lane, a hint
     "case2-notebook": "screenshot-notebook",              # the UI: Connie's notebook
-    "case-files-final": "screenshot-case-files",          # progression: all three cases closed
+    "case-files-final": "screenshot-case-files",          # progression: three of the five cases closed
+    "case1-memo-held": "screenshot-memo-held",            # a memo held up to read
+    "case3-settings": "screenshot-settings",              # settings, with the graphics fidelity slider
+    "docket-drawer": "screenshot-docket",                 # the Daily Docket's drawer
 }
 
 
@@ -635,7 +648,9 @@ def main():
         only = argv[argv.index("--only") + 1]
         del argv[argv.index("--only"):argv.index("--only") + 2]
     cap = argv[0] if argv else os.path.join(ROOT, "Captures", "trailer")
-    work = os.environ.get("WORK") or tempfile.mkdtemp(prefix="alibi-trailer.")
+    # Work files (caption plates, card frames, the intermediate picture) stay in the git-ignored Captures/.
+    os.makedirs(os.path.join(ROOT, "Captures"), exist_ok=True)
+    work = os.environ.get("WORK") or tempfile.mkdtemp(prefix="trailer-work.", dir=os.path.join(ROOT, "Captures"))
     os.makedirs(work, exist_ok=True)
     try:
         os.makedirs(out_dir, exist_ok=True)
