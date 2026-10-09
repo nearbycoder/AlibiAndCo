@@ -157,8 +157,9 @@ async function check(engine) {
       r.problems.push(`${what}: the game didn't reach its title in ${TIMEOUT / 1000} s${why ? ` (the page says "${why}")` : ""}`);
       return null;
     }
+    const ms = Date.now() - t0;   // from the request to the title
     await sleep(3000);   // the title settles; errors at startup would show by now
-    return { ms: Date.now() - t0, step: /^\[Fidelity\] (\w+)/.exec(seen)[1] };
+    return { ms, step: /^\[Fidelity\] (\w+)/.exec(seen)[1] };
   }
   const stats = () => page.evaluate(() => {
     const res = performance.getEntriesByType("resource");
