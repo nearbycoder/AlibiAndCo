@@ -2,12 +2,25 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#0d0b0a">
+    <meta name="format-detection" content="telephone=no">
     <title>Alibi &amp; Co.</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0b0a; }
-      #unity-canvas { display: block; width: 100%; height: 100%; background: #0d0b0a; outline: none; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0b0a; overscroll-behavior: none; }
+      /* A phone mustn't scroll, zoom, select or offer callouts on the game: every touch belongs to it. */
+      html { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+      body { position: fixed; inset: 0; }
+      /* The picture keeps clear of the notch and the home indicator; on a touchscreen it also leaves room for the buttons. */
+      #game { position: fixed; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+              right: calc(env(safe-area-inset-right, 0px) + var(--rail, 0px)); }
+      html.touch-layout { --rail: 76px; }
+      #unity-canvas { display: block; width: 100%; height: 100%; background: #0d0b0a; outline: none; touch-action: none; }
       #loader { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center;
                 color: #e9dcc0; font: italic 28px Georgia, "Times New Roman", serif; letter-spacing: 1px; }
       #loader small { display: block; margin-top: 6px; font: 13px sans-serif; color: #9b8e78; font-style: normal; }
@@ -16,12 +29,47 @@
       #loader.failed { max-width: min(560px, 86vw); font-size: 22px; }
       #loader.failed small { font-size: 15px; line-height: 1.5; color: #c9bba0; }
       #loader.failed #bar { display: none; }
-      #warn { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 14px; background: rgba(40,30,26,.92); color: #e9dcc0;
-              font: 14px sans-serif; text-align: center; display: none; }
+      #loader button { margin-top: 18px; }
+      #warn { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(40,30,26,.92); color: #e9dcc0;
+              font: 14px sans-serif; text-align: center; display: none; z-index: 5; }
+
+      /* Touch controls: a column of thumb-sized buttons beside the picture, only on a touchscreen. */
+      #rail { position: fixed; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px); right: env(safe-area-inset-right, 0px);
+              width: 76px; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+              background: linear-gradient(90deg, #0d0b0a, #15110e); box-shadow: inset 1px 0 0 rgba(201,162,74,.18); z-index: 3; }
+      html.touch-layout #rail { display: flex; }
+      #rail button { display: none; }
+      html.touch #rail[data-state="title"] .t-title, html.touch #rail[data-state="back"] .t-back,
+      html.touch #rail[data-state^="board"] .t-board, html.touch #rail[data-state="board zoomed"] .t-zoomed,
+      html.touch.can-fullscreen #rail:not([data-state="none"]) .t-full { display: flex; }
+      button.tb { width: 64px; min-height: 56px; padding: 6px 0 5px; border: 1px solid rgba(233,220,192,.16); border-radius: 12px;
+                  background: rgba(43,53,64,.94); color: #f0e6cf; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+                  font: 600 12px/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .3px; box-shadow: 0 3px 8px rgba(0,0,0,.45);
+                  touch-action: manipulation; cursor: pointer; }
+      button.tb svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      button.tb.menu { background: rgba(142,43,43,.95); }
+      button.tb:active { transform: scale(.94); background: rgba(201,162,74,.9); color: #1b1612; }
+
+      /* Turn the phone: the desk is laid out for landscape. */
+      #rotate { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+                background: #0d0b0a; color: #e9dcc0; font: italic 24px Georgia, "Times New Roman", serif; text-align: center; z-index: 6; padding: 24px; }
+      #rotate small { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; color: #b8aa90; font-style: normal; max-width: 300px; }
+      #rotate svg { width: 84px; height: 84px; fill: none; stroke: #c9a24a; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; animation: turn 2.4s ease-in-out infinite; }
+      @keyframes turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+      @media (orientation: portrait) { html.touch-layout #rotate { display: flex; } }
     </style>
   </head>
   <body>
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="game"><canvas id="unity-canvas" tabindex="-1"></canvas></div>
+    <div id="rail" data-state="none" aria-label="Touch controls">
+      <button class="tb t-board menu" data-cmd="menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Menu</button>
+      <button class="tb t-back" data-cmd="back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+      <button class="tb t-board" data-cmd="notes" aria-label="Notes"><svg viewBox="0 0 24 24"><path d="M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6zM6 3v18M9 8h6M9 12h6"/></svg>Notes</button>
+      <button class="tb t-board" data-cmd="hint" aria-label="Hint"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20M11 8.5v3M11 14h.01"/></svg>Hint</button>
+      <button class="tb t-zoomed" data-cmd="fit" aria-label="Show the whole desk"><svg viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5M9 9l-4-4M15 9l4-4M9 15l-4 4M15 15l4 4"/></svg>Fit</button>
+      <button class="tb t-full" data-cmd="fullscreen" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Full</button>
+    </div>
+    <div id="rotate"><svg viewBox="0 0 48 48"><rect x="14" y="5" width="20" height="38" rx="3"/><path d="M21 38h6"/></svg>Turn your phone sideways<small>Alibi &amp; Co. is played in landscape: the cork board and the desk need the width.</small></div>
     <div id="loader">Alibi &amp; Co.<small id="status">Opening the case files…</small><div id="bar"><div id="fill"></div></div></div>
     <div id="warn"></div>
     <noscript><p style="color:#e9dcc0;font:18px sans-serif;text-align:center;margin-top:40vh">Alibi &amp; Co. needs JavaScript to run in the browser.</p></noscript>
@@ -31,20 +79,124 @@
       const canvas = document.querySelector("#unity-canvas");
       const loader = document.querySelector("#loader");
       const status = document.querySelector("#status");
-      function fail(title, detail) {
+      const root = document.documentElement;
+      function fail(title, detail, reload) {
         if (!loader.isConnected) document.body.appendChild(loader);
         loader.className = "failed";
         loader.firstChild.textContent = title;
         status.textContent = detail;
+        if (reload && !loader.querySelector("button")) {
+          const b = document.createElement("button");
+          b.className = "tb"; b.style.cssText = "display:inline-flex;width:auto;padding:10px 22px;font-size:15px";
+          b.textContent = "Reload"; b.onclick = () => location.reload();
+          loader.appendChild(b);
+        }
         window.alibiLoadError = title + " " + detail;
         console.error("[Page] " + window.alibiLoadError);
       }
-      function hasWebGL2() {
-        try { const c = document.createElement("canvas"); return !!(window.WebGL2RenderingContext && c.getContext("webgl2")); }
-        catch { return false; }
+      // A WebGL 2 check that also says whether the GPU takes ASTC textures (phones and tablets do), then
+      // gives its context back at once, so a phone doesn't hold a spare one for the whole visit.
+      function probeGL() {
+        try {
+          const gl = window.WebGL2RenderingContext && document.createElement("canvas").getContext("webgl2");
+          if (!gl) return null;
+          const out = { astc: !!gl.getExtension("WEBGL_compressed_texture_astc") };
+          const lose = gl.getExtension("WEBGL_lose_context");
+          if (lose) lose.loseContext();
+          return out;
+        } catch { return null; }
+      }
+
+      // ---- Touch-first: a coarse pointer and no fine one (a phone or tablet), or a real touch later on.
+      // The game's touch self-tests (?touchtest, ?touchreal) drive its own touch handling and its HUD on a
+      // desktop page, so they keep that page as it is, whatever pointer the test browser reports.
+      const touchSelfTest = /[?&]touch(test|real)\b/.test(location.search);
+      const touchFirst = !touchSelfTest && matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+      const compact = Math.min(screen.width, screen.height) < 500;   // phone-sized
+      let unity = null, touchUi = null;
+      function tellGame(method, value) { if (unity) try { unity.SendMessage("GameRoot", method, value); } catch { /* quitting */ } }
+      function setTouchUi(on) {
+        if (on && !root.classList.contains("touch-layout")) root.classList.add("touch-layout");   // once touched, the room for the buttons stays
+        if (touchUi === on) return;
+        touchUi = on;
+        root.classList.toggle("touch", on);
+        tellGame("TouchUi", on ? "1" : "0");
+      }
+      if (touchFirst) setTouchUi(true);
+      // Shown again by a finger; hidden as soon as a mouse, key or gamepad is used.
+      addEventListener("touchstart", (e) => { if (e.isTrusted !== false && !touchSelfTest) setTouchUi(true); }, { capture: true, passive: true });
+      addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" && (e.movementX || e.movementY)) setTouchUi(false); }, true);
+      addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") setTouchUi(false); }, true);
+      addEventListener("keydown", () => setTouchUi(false), true);
+      addEventListener("gamepadconnected", function poll() {
+        const pads = [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
+        if (pads.some((p) => p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.3))) setTouchUi(false);
+        if (pads.length) setTimeout(poll, 300);
+      });
+      // No page zoom from pinches or double taps (iOS ignores user-scalable=no); the game has its own pinch.
+      for (const ev of ["gesturestart", "gesturechange", "dblclick", "contextmenu"]) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (e) => { if (e.touches.length > 1 || e.target === document.body) e.preventDefault(); }, { passive: false });
+
+      // The buttons: what fits is the game's call (WebPage.Tell); a press goes to GameRoot.TouchCommand.
+      const rail = document.querySelector("#rail");
+      window.alibiTouchState = (state) => { rail.dataset.state = state; };
+      const fsEl = document.documentElement;
+      const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+      root.classList.toggle("can-fullscreen", canFullscreen);
+      for (const ev of ["touchstart", "touchmove", "touchend", "mousedown", "mouseup", "pointerdown", "pointerup"]) rail.addEventListener(ev, (e) => e.stopPropagation());
+      rail.addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-cmd]");
+        if (!b) return;
+        const cmd = b.dataset.cmd;
+        if (cmd === "fullscreen") {
+          const full = document.fullscreenElement || document.webkitFullscreenElement;
+          if (full) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else {
+            const p = (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl, { navigationUI: "hide" });
+            // Android lets a fullscreen page hold landscape.
+            Promise.resolve(p).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape")).catch(() => {});
+          }
+          return;
+        }
+        tellGame("TouchCommand", cmd);
+      });
+
+      // ---- Sound: browsers only let it start from a tap's end, a click or a key, not from a finger
+      // landing (Unity listens for touchstart). Every audio context the game makes is resumed on those.
+      const contexts = [];
+      for (const name of ["AudioContext", "webkitAudioContext"]) {
+        const A = window[name];
+        if (A) window[name] = new Proxy(A, { construct(t, a, nt) { const c = Reflect.construct(t, a, nt); contexts.push(c); return c; } });
+      }
+      const wake = () => { for (const c of contexts) if (c.state === "suspended") c.resume().catch(() => {}); };
+      for (const ev of ["touchend", "pointerup", "click", "keydown"]) addEventListener(ev, wake, true);
+
+      // ---- After a visit that ended while the game was on screen (a phone's browser closes a tab that
+      // runs out of memory and reloads it), start on the lightest settings and say so.
+      const RUNNING = "alibi-running";
+      let safeMode = false;
+      try { safeMode = !!localStorage.getItem(RUNNING); } catch { /* storage off */ }
+      const mark = (on) => { try { if (on) localStorage.setItem(RUNNING, String(Date.now())); else localStorage.removeItem(RUNNING); } catch { /* storage off */ } };
+      addEventListener("pagehide", () => mark(false));
+      document.addEventListener("visibilitychange", () => mark(document.visibilityState === "visible"));
+      function notice(msg, ms) {
+        const warn = document.querySelector("#warn");
+        warn.textContent = msg; warn.style.display = "block";
+        setTimeout(() => { warn.style.display = "none"; }, ms);
+      }
+
+      // The picture's resolution: on a phone or tablet, at most twice its CSS pixels and about 2.6 million
+      // pixels in all (a 3x phone's full resolution would triple the memory the frame needs); after an
+      // unexpected end, one to one.
+      function pixelRatio() {
+        if (safeMode) return 1;
+        if (!root.classList.contains("touch-layout")) return undefined;
+        const r = canvas.getBoundingClientRect();
+        const most = Math.sqrt(2.6e6 / Math.max(1, r.width * r.height));
+        return Math.max(1, Math.min(devicePixelRatio || 1, 2, most));
       }
     </script>
-    <script src="Build/WebGL.loader.js" onerror="fail('The game files didn\'t load.', 'Check your connection and reload the page.')"></script>
+    <script src="Build/WebGL.loader.js" onerror="fail('The game files didn\'t load.', 'Check your connection and reload the page.', true)"></script>
     <script>
       // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck, ?savecheck, ?focustest, ?touchtest, ?touchreal or ?fidelitybench become the player's
       // command-line flags. Nothing else in the address is passed on.
@@ -52,36 +204,60 @@
       const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", keystest: "-alibiKeysTest", sharecheck: "-alibiShareCheck", savecheck: "-alibiSaveCheck",
                       focustest: "-alibiFocusTest -alibiFocusReal", touchtest: "-alibiTouchTest", touchreal: "-alibiTouchTest -alibiTouchReal",
                       fidelitybench: "-alibiFidelityBench -alibiBenchSeconds 4" };
-      if (!hasWebGL2()) {
+      const args = Object.keys(flags).filter((k) => query.has(k)).flatMap((k) => flags[k].split(" "));
+      // What the page knows about the device (WebPage.ReadArgs): lighter defaults on a phone or tablet.
+      if (touchFirst) args.push("-alibiTouch");
+      if (compact) args.push("-alibiCompact");
+      if (safeMode) args.push("-alibiSafeMode");
+      const gl = probeGL();
+      // Phones and tablets get the build whose textures are ASTC, which they decode on the GPU (the
+      // desktop build's DXT textures would be unpacked to four times their size on the way in).
+      const astc = !!(gl && gl.astc && touchFirst);
+      const dataUrl = "Build/WebGL.data.unityweb";
+      if (!gl) {
         fail("This browser can't show the game.", "Alibi & Co. needs WebGL 2. Try a current Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on.");
       } else if (typeof createUnityInstance !== "function") {
-        fail("The game files didn't load.", "Check your connection and reload the page.");
-      } else createUnityInstance(canvas, {
-        arguments: Object.keys(flags).filter((k) => query.has(k)).flatMap((k) => flags[k].split(" ")),
-        dataUrl: "Build/WebGL.data.unityweb",
+        fail("The game files didn't load.", "Check your connection and reload the page.", true);
+      } else {
+        if (safeMode) notice("The game closed unexpectedly last time (a phone's browser does that when a tab runs short of memory), so it's starting on the lightest graphics. Settings has the rest.", 12000);
+        console.log(`[Device] ${touchFirst ? "touch-first" : "pointer-first"}${compact ? ", phone-sized" : ""}${safeMode ? ", safe mode" : ""}; textures ${astc ? "ASTC" : "DXT"}; pixel ratio ${pixelRatio() || devicePixelRatio}`);
+        mark(document.visibilityState === "visible");
+        // A tab that loses its GPU (a phone reclaiming memory) can't get the game's picture back.
+        canvas.addEventListener("webglcontextlost", () => {
+          fail("The game's picture was lost.", "The browser took back the graphics memory, which phones do when they run short. Your progress is saved: reload to carry on.", true);
+        });
+        createUnityInstance(canvas, {
+        arguments: args,
+        dataUrl: astc ? dataUrl.replace(/\.data/, "-astc.data") : dataUrl,
         frameworkUrl: "Build/WebGL.framework.js.unityweb",
         codeUrl: "Build/WebGL.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "AlibiAndCo",
         productName: "Alibi & Co.",
         productVersion: "0.1.0",
+        devicePixelRatio: pixelRatio(),
         // Progress and settings live in IndexedDB; without this they're lost when the page closes.
         autoSyncPersistentDataPath: true,
         // Unity's own notices go in the page instead of alert(): warnings in a strip, errors in place of the game.
         showBanner: (msg, type) => {
-          if (type === "error") { fail("Something went wrong.", msg); return; }
-          const warn = document.querySelector("#warn");
-          warn.textContent = msg; warn.style.display = "block";
-          setTimeout(() => { warn.style.display = "none"; }, 8000);
+          if (type === "error") {
+            if (/memory|alloc|RangeError|OOM/i.test(msg)) fail("The game ran out of memory.", "This browser tab couldn't give it enough. Close other tabs or apps and reload: it will start on the lightest graphics.", true);
+            else fail("Something went wrong.", msg, true);
+            return;
+          }
+          notice(msg, 8000);
         },
       }, (p) => {
         document.querySelector("#fill").style.width = Math.round(100 * p) + "%";
         status.textContent = p < 0.9 ? `Opening the case files… ${Math.round(100 * p)}%` : "Setting up the board…";
       })
-      .then((unity) => {
+      .then((instance) => {
         if (window.alibiLoadError) return;
+        unity = window.alibiGame = instance;
         loader.remove();
         canvas.focus();
+        if (touchUi !== null) tellGame("TouchUi", touchUi ? "1" : "0");
+        if (window.alibiTouchStateNow) rail.dataset.state = window.alibiTouchStateNow;
         // The case timer only runs while the page is visible and focused (GameRoot.PageAttention).
         // Once the player has quit (the self-tests do), there's nothing left to tell.
         let alive = true;
@@ -91,7 +267,11 @@
         document.addEventListener("visibilitychange", () => tell(document.visibilityState === "visible" && document.hasFocus()));
         if (!document.hasFocus()) tell(false);
       })
-      .catch((message) => { fail("The game couldn't start.", String(message) + " Reloading the page usually helps."); });
+      .catch((message) => {
+        if (/memory|alloc|RangeError|OOM/i.test(String(message))) fail("The game ran out of memory.", "This browser tab couldn't give it enough. Close other tabs or apps and reload: it will start on the lightest graphics.", true);
+        else fail("The game couldn't start.", String(message) + " Reloading the page usually helps.", true);
+      });
+      }
     </script>
   </body>
 </html>
