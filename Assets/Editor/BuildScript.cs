@@ -31,8 +31,12 @@ namespace AlibiCo.EditorTools
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/AlibiAndCo.exe", true);
 
         /// <summary>
-        /// The browser build (a go/no-go spike): Brotli-compressed with the JavaScript decompression
-        /// fallback, so it also runs from a server that doesn't send Content-Encoding headers.
+        /// The browser build: Brotli-compressed with the JavaScript decompression fallback, so it also
+        /// runs from a server that doesn't send Content-Encoding headers. It's built twice: once with
+        /// the textures as ASTC, for phones and tablets (whose GPUs take ASTC but not the desktop's DXT,
+        /// which they'd have to unpack to four times the size), and once as before. The ASTC build's
+        /// data file goes beside the other as WebGL-astc.data.unityweb, and the page picks one; the
+        /// code and loader are the same for both, which this checks.
         /// </summary>
         [MenuItem("Alibi & Co/Build WebGL Player")]
         public static void BuildWebGL()
@@ -41,14 +45,45 @@ namespace AlibiCo.EditorTools
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.template = "PROJECT:Alibi";   // Assets/WebGLTemplates/Alibi: full-window, saves synced to IndexedDB
-            Build(BuildTarget.WebGL, "Builds/WebGL", true);
+            // The texture format goes in with the build's options (setting EditorUserBuildSettings.webGLBuildSubtarget
+            // alone leaves a scripted build's textures as they were).
+            Build(BuildTarget.WebGL, "Builds/WebGL-astc", false, (int)WebGLTextureSubtarget.ASTC);
+            bool ok = lastOk;
+            if (ok)
+            {
+                Build(BuildTarget.WebGL, "Builds/WebGL", false);
+                ok = lastOk && PairWebGL("Builds/WebGL-astc/Build", "Builds/WebGL/Build");
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
-        static string Build(BuildTarget target, string path, bool exitWhenBatch)
+        /// <summary>Copies the ASTC build's data file in beside the main build's, once their code is known to match.</summary>
+        static bool PairWebGL(string astcDir, string mainDir)
+        {
+            // Unity names a build's files after its folder: WebGL-astc.wasm.unityweb beside WebGL.wasm.unityweb.
+            foreach (var f in new[] { "wasm.unityweb", "framework.js.unityweb", "loader.js" })
+            {
+                var a = Path.Combine(astcDir, "WebGL-astc." + f);
+                var b = Path.Combine(mainDir, "WebGL." + f);
+                if (!File.Exists(a) || !File.Exists(b) || !File.ReadAllBytes(a).SequenceEqual(File.ReadAllBytes(b)))
+                {
+                    Debug.LogError($"[Build] the ASTC and DXT builds' {f} files differ (or one is missing): the page can't share it between them");
+                    return false;
+                }
+            }
+            File.Copy(Path.Combine(astcDir, "WebGL-astc.data.unityweb"), Path.Combine(mainDir, "WebGL-astc.data.unityweb"), true);
+            Debug.Log($"[Build] paired: WebGL-astc.data.unityweb {new FileInfo(Path.Combine(mainDir, "WebGL-astc.data.unityweb")).Length / 1024} KB beside WebGL.data.unityweb {new FileInfo(Path.Combine(mainDir, "WebGL.data.unityweb")).Length / 1024} KB");
+            return true;
+        }
+
+        static bool lastOk;
+
+        static string Build(BuildTarget target, string path, bool exitWhenBatch, int subtarget = 0)
         {
             string Fail(string why)
             {
                 Debug.LogError("[Build] " + why);
+                lastOk = false;
                 if (Application.isBatchMode && exitWhenBatch) EditorApplication.Exit(1);
                 return why;
             }
@@ -63,8 +98,10 @@ namespace AlibiCo.EditorTools
                 locationPathName = path,
                 target = target,
                 options = BuildOptions.None,
+                subtarget = subtarget,
             });
             var s = report.summary;
+            lastOk = s.result == BuildResult.Succeeded;
             var msg = $"[Build] {s.result}: {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors, {s.totalTime.TotalSeconds:0}s -> {s.outputPath}";
             Debug.Log(msg);
             if (Application.isBatchMode && exitWhenBatch) EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);

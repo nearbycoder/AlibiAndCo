@@ -30,6 +30,8 @@ namespace AlibiCo
         public bool SealUnaided => !UsedHints;
         public bool SealSwift => Case.ParSeconds > 0 && Elapsed <= Case.ParSeconds;
         public bool InputLocked;
+        /// <summary>A card is being dragged (a second finger then doesn't zoom).</summary>
+        public bool Dragging => dragging != null;
         public event Action<CaseSession> SolvedEvent;
         public event Action BadgeLost;
         public Action<CardView, Vector2> ShowActions;   // card, screen position

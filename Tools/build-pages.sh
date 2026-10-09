@@ -24,6 +24,8 @@ if [ $build -eq 1 ]; then
   grep -h "\[Build\]" "$ROOT/Logs/build-pages.log" | tail -1
 fi
 [ -f "$SRC/index.html" ] && [ -d "$SRC/Build" ] || { echo "no WebGL build in $SRC" >&2; exit 1; }
+# The phones' and tablets' data file (ASTC textures), which Tools/unity.sh build-webgl puts beside the other.
+[ -f "$SRC/Build/WebGL-astc.data.unityweb" ] || { echo "no WebGL-astc.data.unityweb in $SRC/Build (rebuild with Tools/unity.sh build-webgl)" >&2; exit 1; }
 
 rm -rf "$OUT"
 mkdir -p "$OUT"

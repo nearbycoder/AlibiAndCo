@@ -18,9 +18,10 @@ namespace AlibiCo
         public static readonly string[] Names = { "Low", "Medium", "High", "Ultra" };
         /// <summary>
         /// The step a first launch starts at: High on the desktop; Medium in a browser, where the GPU is
-        /// unknown and the page shares it with everything else (the slider still reaches every step).
+        /// unknown and the page shares it with everything else; Low on a phone or tablet, whose browser
+        /// tab has far less memory to spend (the slider still reaches every step).
         /// </summary>
-        public static int Default => Application.platform == RuntimePlatform.WebGLPlayer ? 1 : 2;
+        public static int Default => Application.platform != RuntimePlatform.WebGLPlayer ? 2 : WebPage.TouchFirst ? 0 : 1;
 
         /// <summary>What each step does, in a line (the settings panel shows it under the slider).</summary>
         public static readonly string[] Blurbs =

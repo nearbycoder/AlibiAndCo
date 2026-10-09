@@ -482,7 +482,8 @@ namespace AlibiCo
                 pos += new Vector3(Mathf.PerlinNoise(t * 40, 0) - 0.5f, 0, Mathf.PerlinNoise(0, t * 40) - 0.5f) * a * 2;
                 if (shakeTime <= 0) shakeAmount = 0;
             }
-            cam.SetPositionAndRotation(pos, camBaseRot);
+            camRawPos = pos;
+            cam.SetPositionAndRotation(ZoomedPos(pos), camBaseRot);
             if (Application.isBatchMode && !Cam.targetTexture) Cam.aspect = LayoutAspect;
             UpdateLetterbox();
 
@@ -496,6 +497,73 @@ namespace AlibiCo
 
         Vector2 parallaxNow;
         float lampDim = 1f;
+
+        // ------------------------------------------------------------------ pinch zoom (touch)
+
+        /// <summary>How far two fingers may zoom into the board.</summary>
+        public const float MaxZoom = 2.6f;
+        /// <summary>1 is the whole desk; more is closer, toward ZoomFocus.</summary>
+        public float Zoom { get; private set; } = 1f;
+        public bool Zoomed => Zoom > 1.01f;
+        Vector3 camRawPos, zoomFocus, viewCentre;
+        bool zoomReady;
+
+        /// <summary>The point on the board the unzoomed camera looks at (where the zoom starts from).</summary>
+        void ZoomSetup()
+        {
+            if (zoomReady) return;
+            zoomReady = true;
+            var ray = new Ray(camBasePos, camBaseRot * Vector3.forward);
+            new Plane(Vector3.up, new Vector3(0, BoardHeight, 0)).Raycast(ray, out float d);
+            viewCentre = zoomFocus = ray.GetPoint(d);
+            camRawPos = camBasePos;
+        }
+
+        /// <summary>The camera moved in toward the focus by the zoom: the view shrinks around it, the angle stays.</summary>
+        Vector3 ZoomedPos(Vector3 raw)
+        {
+            if (Zoom <= 1.0001f) return raw;
+            ZoomSetup();
+            return zoomFocus + (raw - viewCentre) / Zoom;
+        }
+
+        /// <summary>
+        /// Two fingers moved: zoom by the change in their spread, keeping the board point that was under
+        /// their midpoint under it now (so the same gesture also pans). The view never leaves the desk.
+        /// </summary>
+        public void Pinch(Vector2 midBefore, Vector2 midNow, float spreadRatio)
+        {
+            ZoomSetup();
+            Tween.Kill((this, "zoom"));
+            var cam = Cam.transform;
+            MouseOnPlane(midBefore, BoardHeight, out var before);
+            Zoom = Mathf.Clamp(Zoom * spreadRatio, 1f, MaxZoom);
+            if (Zoom < 1.02f) Zoom = 1f;   // close enough to the whole desk: settle on it exactly
+            cam.position = ZoomedPos(camRawPos);
+            MouseOnPlane(midNow, BoardHeight, out var after);
+            zoomFocus += new Vector3(before.x - after.x, 0, before.z - after.z);
+            ClampFocus();
+            cam.position = ZoomedPos(camRawPos);
+        }
+
+        void ClampFocus()
+        {
+            float k = Zoom;
+            float x0 = View.xMin - (View.xMin - viewCentre.x) / k, x1 = View.xMax - (View.xMax - viewCentre.x) / k;
+            float z0 = View.yMin - (View.yMin - viewCentre.z) / k, z1 = View.yMax - (View.yMax - viewCentre.z) / k;
+            zoomFocus.x = Mathf.Clamp(zoomFocus.x, Mathf.Min(x0, x1), Mathf.Max(x0, x1));
+            zoomFocus.z = Mathf.Clamp(zoomFocus.z, Mathf.Min(z0, z1), Mathf.Max(z0, z1));
+        }
+
+        /// <summary>Back to the whole desk (the page's Fit button, or leaving the board).</summary>
+        public void ResetZoom()
+        {
+            if (!Zoomed || Tween.Running((this, "zoom"))) return;
+            float from = Zoom;
+            var focusFrom = zoomFocus;
+            Debug.Log($"[Touch] zoom {from:0.00}x back to the whole desk");
+            Tween.Run((this, "zoom"), 0.3f, k => { Zoom = Mathf.Lerp(from, 1f, k); zoomFocus = Vector3.Lerp(focusFrom, viewCentre, k); }, Ease.OutCubic);
+        }
         Camera bars;
         bool pictureLogged;
 

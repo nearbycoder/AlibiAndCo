@@ -136,7 +136,9 @@ namespace AlibiCo
             Size(UiKit.Button(btns, "Settings", () => ShowSettings(), Pal.Hex("232A31"), CreamDim, 28), 60);
             if (!Web) Size(UiKit.Button(btns, "Quit", () => root.Quit(), Pal.Hex("232A31"), CreamDim, 28), 60);
 
-            var foot = UiKit.Text(title.transform, (Web ? "Mouse, keyboard, gamepad or touch" : "Mouse, keyboard or gamepad") + "  ·  Esc or Start pauses  ·  F11 fullscreen  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
+            var foot = UiKit.Text(title.transform, (WebPage.TouchFirst ? "Tap to play  ·  pinch the board to zoom  ·  Menu and Back are on the right"
+                : (Web ? "Mouse, keyboard, gamepad or touch" : "Mouse, keyboard or gamepad") + "  ·  Esc or Start pauses  ·  F11 fullscreen")
+                + "  ·  All art, music and sound generated for this game", Art.Sans, 20, new Color(1, 1, 1, 0.35f), TextAlignmentOptions.Left);
             foot.rectTransform.Place(new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(150, 34), new Vector2(0, 30));
         }
 
@@ -822,12 +824,17 @@ namespace AlibiCo
         const string PadKeys = "<b>[Y]</b> notebook   ·   <b>[X]</b> hint   ·   <b>[B]</b> sends a card back   ·   <b>[Start]</b> menu and controls";
         const string KeyKeys = "<b>Tab</b> notebook   ·   <b>H</b> hint   ·   <b>Backspace</b> sends a card back   ·   <b>Esc</b> menu and controls";
         const string TouchKeys = "<b>Hint</b>, <b>Notes</b> and <b>Menu</b> are top right   ·   <b>tap</b> a pinned card to send it back   ·   <b>press and hold</b> to read a card";
+        // With the page's touch buttons beside the picture (WebPage.RailShown).
+        const string RailKeys = "<b>Hint</b>, <b>Notes</b> and <b>Menu</b> are on the right   ·   <b>tap</b> a pinned card to send it back   ·   <b>hold</b> to read   ·   <b>pinch</b> to zoom";
 
         void TickHelp()
         {
             string tip = hudSession != null && !hudSession.InputLocked && !NotebookOpen ? hudSession.CoachTip() : null;
             var using_ = PadCursor.Using;
-            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadCursor.Label(PadKeys) : using_ == PadCursor.Pointer.Touch ? TouchKeys : MouseKeys;
+            string keys = using_ == PadCursor.Pointer.Keys ? KeyKeys : using_ == PadCursor.Pointer.Pad ? PadCursor.Label(PadKeys)
+                : using_ == PadCursor.Pointer.Touch ? (WebPage.RailShown ? RailKeys : TouchKeys) : MouseKeys;
+            // The page's touch buttons stand in for the pill while they show.
+            if (hudPill != null && hudPill.gameObject.activeSelf == WebPage.RailShown) hudPill.gameObject.SetActive(!WebPage.RailShown);
             // The pause menu's controls list follows whatever the player picks up while it's open
             // (and, for a pad, whose button names it prints).
             if (controlsBody != null && pause != null && pause.gameObject.activeSelf && (using_ != controlsShown || PadCursor.PadFamily != controlsFamily))
@@ -1093,7 +1100,8 @@ namespace AlibiCo
                 ("Hold a card on a card", "link, once it says LINK"),
                 ("Tap a pinned card", "Confront, Same moment as…, back"),
                 ("Drag the incident card", "accuse: the one line it fits"),
-                ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
+                WebPage.RailShown ? ("Hint  ·  Notes  ·  Menu", "the buttons on the right") : ("Hint  ·  Notes  ·  Menu", "the buttons at the top right"),
+                ("Pinch the board", "zoom in; two fingers pan"),
                 ("Press and hold the memo", "hold it up; tap for the next"),
             } : new[]
             {

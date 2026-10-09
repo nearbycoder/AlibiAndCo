@@ -18,6 +18,8 @@ namespace AlibiCo
     /// A touchscreen drives the same virtual mouse: the finger is the pointer and the left button,
     /// so a tap clicks and a drag drags. A press held still reads a card (the hover card) without
     /// clicking it, and nothing is hovered once the finger lifts. No cursor is drawn for touch.
+    /// A second finger on the board pinches: the first finger's press is let go without a click and
+    /// the two fingers zoom and pan the board (Stage.Pinch) until both have lifted.
     /// </summary>
     public sealed class PadCursor : MonoBehaviour
     {
@@ -56,6 +58,10 @@ namespace AlibiCo
         int touchFrames;
         Vector2 touchStart;
         int tapPhase;   // a tap that began and ended between two frames, replayed: 1 move there, 2 press, then release
+        bool pinching, quickTap;
+        int lastTouchId;
+        Vector2 pinchMid;
+        float pinchSpread;
         bool rightPulse;
         Vector2 arrowsHeld;
         float arrowsTime;
@@ -85,9 +91,20 @@ namespace AlibiCo
             if (realMouse == null || !realMouse.added) realMouse = InputSystem.devices.OfType<Mouse>().FirstOrDefault(m => m != virtualMouse);
 
             // A finger on any touchscreen: the touch pointer takes over (see UpdateTouch).
+            // A tap that came and went between two frames (a quick finger, or a slow frame) never shows
+            // as pressed or as released this frame; it shows as a new touch id with the finger already up.
             UnityEngine.InputSystem.Controls.TouchControl finger = null;
+            quickTap = false;
             foreach (var d in InputSystem.devices)
-                if (d is Touchscreen ts && (ts.primaryTouch.press.isPressed || ts.primaryTouch.press.wasReleasedThisFrame)) { finger = ts.primaryTouch; break; }
+            {
+                if (!(d is Touchscreen ts)) continue;
+                var pt = ts.primaryTouch;
+                int id = pt.touchId.ReadValue();
+                bool fresh = id != 0 && id != lastTouchId;
+                if (fresh) lastTouchId = id;
+                bool unseen = fresh && !pt.press.isPressed && !pt.press.wasReleasedThisFrame;
+                if (pt.press.isPressed || pt.press.wasReleasedThisFrame || unseen) { finger = pt; quickTap = unseen; break; }
+            }
             if (finger != null && !touch) { touch = true; keys = false; touchDown = false; SetActive(true); }
             if (touchQuiet > 0) touchQuiet -= Clock.Dt;
 
@@ -131,7 +148,7 @@ namespace AlibiCo
             // D-pad and the Up/Down arrows scroll its notes instead of moving the cursor.
             var notebook = root != null && root.Screens != null ? root.Screens.OpenNotebook : null;
             float scroll = 0;
-            if (touch) left = UpdateTouch(finger, dt);
+            if (touch) left = UpdatePinch() ? false : UpdateTouch(finger, dt);
             if (pad != null)
             {
                 var stick = pad.leftStick.ReadValue();
@@ -189,6 +206,54 @@ namespace AlibiCo
             UpdateCursor();
         }
 
+        /// <summary>
+        /// Two fingers down on the board: a pinch, which owns the touchscreen until every finger has
+        /// lifted. Returns true while it does (the virtual mouse stays released where it was).
+        /// </summary>
+        bool UpdatePinch()
+        {
+            int n = 0;
+            Vector2 a = default, b = default;
+            foreach (var d in InputSystem.devices)
+                if (d is Touchscreen ts)
+                    foreach (var t in ts.touches)
+                        if (t.press.isPressed) { if (n == 0) a = t.position.ReadValue(); else if (n == 1) b = t.position.ReadValue(); n++; }
+            if (pinching)
+            {
+                if (n == 0)
+                {
+                    pinching = false;
+                    touchQuiet = 0.6f;
+                    Debug.Log($"[Touch] pinch done at {(Stage.I != null ? Stage.I.Zoom : 1f):0.00}x");
+                    return true;
+                }
+                if (n >= 2)
+                {
+                    Vector2 mid = (a + b) / 2;
+                    float spread = Mathf.Max(1f, (a - b).magnitude);
+                    if (pinchSpread > 0 && Stage.I != null) Stage.I.Pinch(pinchMid, mid, spread / pinchSpread);
+                    pinchMid = mid;
+                    pinchSpread = spread;
+                }
+                else pinchSpread = 0;   // one finger left: wait for the other to come back or lift
+                return true;
+            }
+            // A second finger joins a press that hasn't started dragging anything.
+            if (n >= 2 && GameRoot.I != null && GameRoot.I.PinchAllowed)
+            {
+                pinching = true;
+                // The first finger's press ends here without a click: the board reads it as a held read.
+                heldToRead = touchDown || tapPhase != 0;
+                touchDown = false;
+                tapPhase = 0;
+                pinchMid = (a + b) / 2;
+                pinchSpread = Mathf.Max(1f, (a - b).magnitude);
+                Debug.Log("[Touch] pinch started");
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>The finger's position and press, a frame late on the way down so the game sees it arrive first.</summary>
         bool UpdateTouch(UnityEngine.InputSystem.Controls.TouchControl finger, float dt)
         {
@@ -229,7 +294,7 @@ namespace AlibiCo
                 }
                 return false;
             }
-            if (finger != null && finger.press.wasReleasedThisFrame)
+            if (finger != null && (finger.press.wasReleasedThisFrame || quickTap))
             {
                 // Down and up since the last frame: replay it as move, press, release.
                 pos = finger.position.ReadValue();
@@ -270,7 +335,7 @@ namespace AlibiCo
             else
             {
                 if (virtualMouse != null && virtualMouse.added) Send(false, false);
-                touch = touchDown = heldToRead = false;
+                touch = touchDown = heldToRead = pinching = false;
                 tapPhase = 0;
                 realMouse?.MakeCurrent();
                 Cursor.visible = true;

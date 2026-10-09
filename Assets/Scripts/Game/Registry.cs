@@ -243,11 +243,12 @@ namespace AlibiCo
 
         /// <summary>
         /// Index into TextSizeNames. Until the player picks one, small windows (under 900 px tall, such as
-        /// 720p laptops and handhelds) start at Large. Automated runs always use Normal so captures are comparable.
+        /// 720p laptops and handhelds) start at Large, and a phone's browser at Larger. Automated runs
+        /// always use Normal so captures are comparable.
         /// </summary>
         public static int TextSize
         {
-            get => Mathf.Clamp(TextSizeOverride >= 0 ? TextSizeOverride : SaveData.Volatile ? 0 : PlayerPrefs.GetInt("text_size", Screen.height < 900 ? 1 : 0), 0, TextScales.Length - 1);
+            get => Mathf.Clamp(TextSizeOverride >= 0 ? TextSizeOverride : SaveData.Volatile ? 0 : PlayerPrefs.GetInt("text_size", WebPage.Compact ? 2 : Screen.height < 900 ? 1 : 0), 0, TextScales.Length - 1);
             set { PlayerPrefs.SetInt("text_size", value); UiKit.ApplyScale(); GameRoot.I?.TextSizeChanged(); }
         }
 

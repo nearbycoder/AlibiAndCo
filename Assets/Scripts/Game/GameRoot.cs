@@ -38,6 +38,43 @@ namespace AlibiCo
         void OnApplicationPause(bool paused) => SetAttended(!paused && Application.isFocused, "application pause");
         /// <summary>From the web page (Assets/WebGLTemplates/Alibi): "1" when it's visible and focused, else "0".</summary>
         public void PageAttention(string on) => SetAttended(on == "1", "page focus");
+        /// <summary>From the web page: its touch buttons were shown ("1") or hidden ("0").</summary>
+        public void TouchUi(string on) => WebPage.SetRail(on == "1");
+
+        /// <summary>From the web page's touch buttons: "menu", "back", "notes", "hint" or "fit".</summary>
+        public void TouchCommand(string what)
+        {
+            Debug.Log("[Touch] button: " + what);
+            switch (what)
+            {
+                case "menu": if (Flow == Flow.Playing && !Paused && Session != null) SetPaused(true); else BackOrPause(); break;
+                case "back": BackOrPause(); break;
+                case "notes": PadNotebook(); break;
+                case "hint": PadHint(); break;
+                case "fit": Stage.ResetZoom(); break;
+            }
+        }
+
+        /// <summary>For Tools/mobile-check.mjs: log where a tap would reach each button and card.</summary>
+        public void LogTargets(string _) => Debug.Log("[Targets] " + WebPage.Targets());
+
+        /// <summary>Two fingers may zoom the board: a case is open, nothing is over it and no card is being dragged.</summary>
+        public bool PinchAllowed => Flow == Flow.Playing && !Paused && Session != null && !Session.Solved && !Session.Dragging
+                                    && !Screens.AnyOverlayOpen && !Screens.NotebookOpen && !UiKit.PointerOverUi();
+
+        /// <summary>Which of the page's touch buttons fit now (see WebPage.Tell).</summary>
+        string TouchState()
+        {
+            if (Flow == Flow.Boot) return "none";
+            if (Screens.AnyOverlayOpen || Screens.NotebookOpen || Paused) return "back";
+            switch (Flow)
+            {
+                case Flow.Title: return "title";
+                case Flow.Select: case Flow.Intro: return "back";
+                case Flow.Playing: return Session != null && !Session.Solved ? (Stage.Zoomed ? "board zoomed" : "board") : "none";
+                default: return "none";
+            }
+        }
 
         void SetAttended(bool on, string why)
         {
@@ -98,6 +135,9 @@ namespace AlibiCo
             foreach (var l in FindObjectsByType<Light>()) Destroy(l.gameObject);
 
             var args = Environment.GetCommandLineArgs();
+            WebPage.ReadArgs(args);
+            // After a visit that ended unexpectedly (likely out of memory), this launch starts on Low.
+            if (WebPage.SafeMode) Settings.FidelityOverride = 0;
             SaveData.UnlockAll = args.Contains("-alibiUnlockAll");
             Settings.PlainTextFlag = args.Contains("-alibiPlainText");
             int dateArg = Array.IndexOf(args, "-alibiDocketDate");
@@ -368,6 +408,9 @@ namespace AlibiCo
             CheckAspect();
             CheckTextSize();
             CheckDay();
+            // The board comes back to its full view once the case is over or the player leaves it.
+            if (Stage.Zoomed && (Flow != Flow.Playing || Session == null || Session.Solved)) Stage.ResetZoom();
+            WebPage.Tell(TouchState());
             var kb = Keyboard.current;
             if (kb == null) return;
             if (kb.escapeKey.wasPressedThisFrame) BackOrPause();
