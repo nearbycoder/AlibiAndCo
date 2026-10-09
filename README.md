@@ -25,22 +25,40 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 ## Play in your browser
 
 **[nearbycoder.github.io/AlibiAndCo](https://nearbycoder.github.io/AlibiAndCo/)**: today's game, all five
-cases and the Daily Docket, with nothing to install. It needs a browser with WebGL 2 (a current
-Chrome, Edge or Firefox; Safari is untested) and downloads about 27 MB the first time (the browser
-keeps a copy for later visits).
+cases and the Daily Docket, with nothing to install, on a computer, phone or tablet. It needs a
+browser with WebGL 2 (a current Chrome, Edge, Firefox or Safari) and downloads about 27 MB the first
+time on a computer, about 30 MB on a phone or tablet (the browser keeps a copy for later visits).
 
-- **Tested in** headless Chromium 151 and Firefox 157 on Linux (the dev machine's Radeon 8060S),
-  served from a `/AlibiAndCo/` folder with no special server headers, as GitHub Pages serves it:
-  it loads to the title with no console errors, a mouse-played session (Settings, then case 1's
-  board with two cards pinned) works, the graphics setting and the case in progress survive a
-  reload, and the sound waits for the first click. Not yet tried in Safari, on a phone or tablet,
-  or by a person at a real screen.
+- **On a phone or tablet:** play in landscape (in portrait the page asks you to turn the phone).
+  Tap to choose, drag a card up to the board or just tap it, press and hold a card to read it, and
+  pinch the board to zoom in (two fingers also pan). Beside the picture there's a column of
+  thumb-sized buttons: **Menu** (or **Back** in the menus), **Notes**, **Hint**, **Fit** (the
+  whole desk again, once you've zoomed) and **Full** screen where the browser has it (Android; not
+  iPhone Safari, where adding the page to the home screen gives it the whole screen). They appear
+  only on touchscreens and step aside as soon as a mouse, keyboard or gamepad is used. Phones and
+  tablets start on the **Low** graphics step and phones on **Larger** text (Settings has the rest);
+  the picture is drawn at up to twice the screen's points (about 2.6 million pixels at most), and
+  the textures come as ASTC, which their GPUs read directly. If the browser closes the tab while
+  you play (phones do when a tab runs short of memory), the next visit says so and starts on Low.
+  The sound starts with your first tap; on an iPhone it follows the silent switch.
 - **What's different from the desktop game:** progress and settings live in the browser's storage
-  for this site (separate from a desktop install, and gone if you clear the site's data); the first
-  visit starts at the **Medium** graphics step rather than High (Settings has all four); sound starts
-  with your first click or key, as browsers require; fullscreen (F11 or Settings) is up to the
-  browser; there's no Quit button, resolution picker or F12 screenshot. Touch works in the browser
-  build (tested with simulated and browser-sent touches only).
+  for this site (separate from a desktop install, and gone if you clear the site's data); a
+  computer's first visit starts at the **Medium** graphics step rather than High; sound starts
+  with your first click, key or tap, as browsers require; fullscreen (F11 or Settings) is up to the
+  browser; there's no Quit button, resolution picker or F12 screenshot.
+- **Tested in** headless browsers on Linux (the dev machine's Radeon 8060S), served from a
+  `/AlibiAndCo/` folder with no special server headers, as GitHub Pages serves it
+  (`Tools/check-pages.mjs`, `Tools/mobile-check.mjs`): Chromium 151 and Firefox 157 at 1920×1080
+  load to the title with no console errors, a mouse-played session works, the graphics setting
+  and the case in progress survive a reload, the sound waits for the first click, and the touch
+  buttons never appear; WebKit with iPhone 15 and iPad Pro 11 profiles and Chromium with a Pixel 7
+  profile play a session by touch (Case Files, case 1, a card dragged and one tapped onto the board,
+  a hold to read, a pinch to 2.6× and Fit, Notes, Hint and Menu from the buttons), the first tap
+  starts the sound, and portrait asks to be turned. At the title the game's WebGL memory went from 235
+  to 89 MB on the iPhone profile, 336 to 129 MB on the iPad and 281 to 86 MB on the Pixel; its wasm
+  heap stays about 206 MB (247 MB after a played session). Not yet tried on a real phone or
+  tablet, in Safari itself, or by a person's fingers: the notch and home-indicator margins, the
+  silent switch and how much memory iOS really allows a tab can only be seen on a device.
 
 ## Trailer
 
