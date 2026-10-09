@@ -381,7 +381,8 @@ namespace AlibiCo
                 if (nb != null && kb.pageUpKey.wasPressedThisFrame) nb.Scroll(0, -1);
             }
             if (kb.f11Key.wasPressedThisFrame) Settings.Fullscreen = !Settings.Fullscreen;
-            if (kb.f12Key.wasPressedThisFrame) Capture(null);
+            // A browser has no folder to drop a screenshot in (and F12 is its developer tools).
+            if (kb.f12Key.wasPressedThisFrame && Application.platform != RuntimePlatform.WebGLPlayer) Capture(null);
         }
 
         /// <summary>Esc / Start: close the top overlay, else pause or resume, else back to the title.</summary>

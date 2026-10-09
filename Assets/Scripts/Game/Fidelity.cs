@@ -16,7 +16,11 @@ namespace AlibiCo
     public static class Fidelity
     {
         public static readonly string[] Names = { "Low", "Medium", "High", "Ultra" };
-        public const int Default = 2;
+        /// <summary>
+        /// The step a first launch starts at: High on the desktop; Medium in a browser, where the GPU is
+        /// unknown and the page shares it with everything else (the slider still reaches every step).
+        /// </summary>
+        public static int Default => Application.platform == RuntimePlatform.WebGLPlayer ? 1 : 2;
 
         /// <summary>What each step does, in a line (the settings panel shows it under the slider).</summary>
         public static readonly string[] Blurbs =

@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
     <title>Alibi &amp; Co.</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0b0a; }
       #unity-canvas { display: block; width: 100%; height: 100%; background: #0d0b0a; outline: none; }
@@ -12,21 +13,49 @@
       #loader small { display: block; margin-top: 6px; font: 13px sans-serif; color: #9b8e78; font-style: normal; }
       #bar { width: 260px; height: 3px; margin: 18px auto 0; background: #3b312a; }
       #fill { width: 0; height: 100%; background: #c9a24a; transition: width .2s; }
+      #loader.failed { max-width: min(560px, 86vw); font-size: 22px; }
+      #loader.failed small { font-size: 15px; line-height: 1.5; color: #c9bba0; }
+      #loader.failed #bar { display: none; }
+      #warn { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 14px; background: rgba(40,30,26,.92); color: #e9dcc0;
+              font: 14px sans-serif; text-align: center; display: none; }
     </style>
   </head>
   <body>
     <canvas id="unity-canvas" tabindex="-1"></canvas>
-    <div id="loader">Alibi &amp; Co.<small>Opening the case files…</small><div id="bar"><div id="fill"></div></div></div>
-    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <div id="loader">Alibi &amp; Co.<small id="status">Opening the case files…</small><div id="bar"><div id="fill"></div></div></div>
+    <div id="warn"></div>
+    <noscript><p style="color:#e9dcc0;font:18px sans-serif;text-align:center;margin-top:40vh">Alibi &amp; Co. needs JavaScript to run in the browser.</p></noscript>
     <script>
+      // Everything below is static: the page works from any folder (GitHub Pages serves it under /AlibiAndCo/),
+      // needs no special server headers, and decompresses the Brotli build itself if the server doesn't.
       const canvas = document.querySelector("#unity-canvas");
+      const loader = document.querySelector("#loader");
+      const status = document.querySelector("#status");
+      function fail(title, detail) {
+        if (!loader.isConnected) document.body.appendChild(loader);
+        loader.className = "failed";
+        loader.firstChild.textContent = title;
+        status.textContent = detail;
+        window.alibiLoadError = title + " " + detail;
+      }
+      function hasWebGL2() {
+        try { const c = document.createElement("canvas"); return !!(window.WebGL2RenderingContext && c.getContext("webgl2")); }
+        catch { return false; }
+      }
+    </script>
+    <script src="Build/{{{ LOADER_FILENAME }}}" onerror="fail('The game files didn\'t load.', 'Check your connection and reload the page.')"></script>
+    <script>
       // Self-tests only (Tools/webtest.mjs): ?autoplay, ?padtest, ?keystest, ?sharecheck, ?savecheck, ?focustest, ?touchtest, ?touchreal or ?fidelitybench become the player's
       // command-line flags. Nothing else in the address is passed on.
       const query = new URLSearchParams(location.search);
       const flags = { autoplay: "-alibiAutoplay", padtest: "-alibiPadTest", keystest: "-alibiKeysTest", sharecheck: "-alibiShareCheck", savecheck: "-alibiSaveCheck",
                       focustest: "-alibiFocusTest -alibiFocusReal", touchtest: "-alibiTouchTest", touchreal: "-alibiTouchTest -alibiTouchReal",
                       fidelitybench: "-alibiFidelityBench -alibiBenchSeconds 4" };
-      createUnityInstance(canvas, {
+      if (!hasWebGL2()) {
+        fail("This browser can't show the game.", "Alibi & Co. needs WebGL 2. Try a current Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on.");
+      } else if (typeof createUnityInstance !== "function") {
+        fail("The game files didn't load.", "Check your connection and reload the page.");
+      } else createUnityInstance(canvas, {
         arguments: Object.keys(flags).filter((k) => query.has(k)).flatMap((k) => flags[k].split(" ")),
         dataUrl: "Build/{{{ DATA_FILENAME }}}",
         frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
@@ -42,9 +71,20 @@
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
         // Progress and settings live in IndexedDB; without this they're lost when the page closes.
         autoSyncPersistentDataPath: true,
-      }, (p) => { document.querySelector("#fill").style.width = Math.round(100 * p) + "%"; })
+        // Unity's own notices go in the page instead of alert(): warnings in a strip, errors in place of the game.
+        showBanner: (msg, type) => {
+          if (type === "error") { fail("Something went wrong.", msg); return; }
+          const warn = document.querySelector("#warn");
+          warn.textContent = msg; warn.style.display = "block";
+          setTimeout(() => { warn.style.display = "none"; }, 8000);
+        },
+      }, (p) => {
+        document.querySelector("#fill").style.width = Math.round(100 * p) + "%";
+        status.textContent = p < 0.9 ? `Opening the case files… ${Math.round(100 * p)}%` : "Setting up the board…";
+      })
       .then((unity) => {
-        document.querySelector("#loader").remove();
+        if (window.alibiLoadError) return;
+        loader.remove();
         canvas.focus();
         // The case timer only runs while the page is visible and focused (GameRoot.PageAttention).
         // Once the player has quit (the self-tests do), there's nothing left to tell.
@@ -55,7 +95,7 @@
         document.addEventListener("visibilitychange", () => tell(document.visibilityState === "visible" && document.hasFocus()));
         if (!document.hasFocus()) tell(false);
       })
-      .catch((message) => { document.querySelector("#loader").textContent = message; });
+      .catch((message) => { fail("The game couldn't start.", String(message) + " Reloading the page usually helps."); });
     </script>
   </body>
 </html>

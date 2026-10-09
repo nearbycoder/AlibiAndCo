@@ -1107,7 +1107,7 @@ namespace AlibiCo
                 ("Hover the memo", "hold it up; click for the next"),
                 ("Tab  ·  H or F1", "notebook  ·  Connie's hint"),
                 ("Space", "finish a memo, then the next"),
-                ("F11  ·  F12", "fullscreen  ·  screenshot"),
+                Web ? ("F11", "fullscreen") : ("F11  ·  F12", "fullscreen  ·  screenshot"),
                 ("Arrows, Q / E, Enter", "play with the keyboard alone"),
             };
             var sb = new System.Text.StringBuilder();
