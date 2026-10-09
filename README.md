@@ -14,12 +14,33 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 [![Blender 4.5](https://img.shields.io/badge/art-Blender%204.5-e87d0d?logo=blender&logoColor=white)](#rebuilding-the-generated-assets)
 [![Audio: synthesized](https://img.shields.io/badge/audio-100%25%20synthesized-c9a24a)](#rebuilding-the-generated-assets)
 
+[**Play in your browser**](https://nearbycoder.github.io/AlibiAndCo/) (all five cases; [notes](#play-in-your-browser)) ·
 [**Download for Linux**](https://github.com/nearbycoder/AlibiAndCo/releases/latest) (v0.1.0: the first three cases; [why](#play-it)) ·
 [Watch the trailer](docs/media/alibi-and-co-trailer.mp4) ·
 [How to play](#how-to-play) ·
 [Build from source](#build-from-source)
 
 </div>
+
+## Play in your browser
+
+**[nearbycoder.github.io/AlibiAndCo](https://nearbycoder.github.io/AlibiAndCo/)**: today's game, all five
+cases and the Daily Docket, with nothing to install. It needs a browser with WebGL 2 (a current
+Chrome, Edge or Firefox; Safari is untested) and downloads about 27 MB the first time (the browser
+keeps a copy for later visits).
+
+- **Tested in** headless Chromium 151 and Firefox 157 on Linux (the dev machine's Radeon 8060S),
+  served from a `/AlibiAndCo/` folder with no special server headers, as GitHub Pages serves it:
+  it loads to the title with no console errors, a mouse-played session (Settings, then case 1's
+  board with two cards pinned) works, the graphics setting and the case in progress survive a
+  reload, and the sound waits for the first click. Not yet tried in Safari, on a phone or tablet,
+  or by a person at a real screen.
+- **What's different from the desktop game:** progress and settings live in the browser's storage
+  for this site (separate from a desktop install, and gone if you clear the site's data); the first
+  visit starts at the **Medium** graphics step rather than High (Settings has all four); sound starts
+  with your first click or key, as browsers require; fullscreen (F11 or Settings) is up to the
+  browser; there's no Quit button, resolution picker or F12 screenshot. Touch works in the browser
+  build (tested with simulated and browser-sent touches only).
 
 ## Trailer
 
@@ -290,9 +311,9 @@ On a Wayland desktop, if the window doesn't appear, start it with `./AlibiAndCo.
 Archives made with `Tools/package.sh` (see below) also include `AlibiAndCo.sh`, which adds
 `-force-wayland` by itself on a Wayland desktop. The v0.1.0 zip predates it.
 
-A browser build also works (`Tools/unity.sh build-webgl`, about 27 MB compressed). Serve
-`Builds/WebGL/` over HTTP (for example `python3 -m http.server` inside it) and open `index.html`.
-It isn't hosted anywhere yet.
+There's also a [browser version](#play-in-your-browser). To make it yourself, `Tools/build-pages.sh`
+builds it into `Builds/Pages/` (about 27 MB) as a static site that plays from any folder; serve that
+over HTTP (for example `python3 -m http.server` inside it) and open `index.html`.
 
 There are no published Windows or macOS builds yet. A macOS build can be made from source on Linux
 (`Tools/unity.sh build-mac`), but it hasn't been run on a Mac. Windows needs Unity's Windows Build
@@ -313,6 +334,7 @@ Tools/unity.sh                  # or open the project in the Editor
 Tools/unity.sh build-mac        # Builds/macOS/AlibiAndCo.app: Universal (Intel + Apple Silicon), Mono
 Tools/unity.sh build-windows    # Builds/Windows/AlibiAndCo.exe (needs Windows Build Support installed)
 Tools/unity.sh build-webgl      # Builds/WebGL: browser build (Assets/WebGLTemplates/Alibi page)
+Tools/build-pages.sh            # the same, laid out for GitHub Pages in Builds/Pages/ (with .nojekyll)
 Tools/package.sh [--no-build] [version] [linux] [mac] [windows] [webgl]
                                 # build, then zip into Builds/Release/ with SHA256SUMS (nothing is uploaded)
 ```
@@ -344,6 +366,7 @@ put a copy in `~/.local/share/ptt-unity-libs/`, which `Tools/unity.sh` adds to t
 | `Tools/play.sh [-alibiClockAt yyyy-MM-ddTHH:mm:ss] -alibiMidnightTest [outdir]` | Leaves today's docket in progress, opens the docket drawer and waits for midnight (within 20 minutes; `-alibiClockAt` starts the game's clock at a chosen moment), then checks the drawer redrew itself for the new day and that Continue resumes yesterday's docket. |
 | `Tools/play.sh -alibiClipboardCheck -alibiShareCheck [outdir]` | Solves today's docket, clicks Copy result and holds the line on the system clipboard for 8 seconds, so a script can read it from outside. Without `-alibiClipboardCheck`, automated runs never touch the system clipboard. |
 | `XDG_CONFIG_HOME=<scratch> Tools/play.sh -alibiSaveCheck [outdir]` | Loads the save the way a normal launch does (falling back to the backup if the main file is unreadable), logs what came back, captures the title and case files, saves once and quits. It refuses to run against the real save folder. |
+| `node Tools/check-pages.mjs <url> [--engine chromium,firefox] [--play]` | Checks the browser build where it's served (the GitHub Pages site, or `Builds/Pages/` served locally under `/AlibiAndCo/`): exits 0 only if the plain page reaches the title with no console errors or failed requests. `--play` adds a real-mouse session at 1920×1080 in a fresh profile: the sound must wait for the first click, Settings > Low (and fullscreen on and off), case 1's board with two cards pinned, then a reload that must come back on Low with the case in the save. Logs and screenshots go to `Logs/pages/check/`. Needs `playwright-core` (Chromium) and/or `puppeteer-core` (Firefox), as below. |
 | `node Tools/webtest.mjs [--engine chromium,firefox,webkit] [--only autoplay,pad,keys,share,reload,focus,touch,touchreal]` | Serves `Builds/WebGL/` locally and, in headless browsers, runs autoplay (`?autoplay`, then reads back the copied docket result), the pad and keyboard tests (`?padtest`, `?keystest`), Copy result with a real click (`?sharecheck`), a reload check that the save persists (`?savecheck`), the focus check with the page sent to the background (`?focustest`), and the touch tests: simulated inside the game (`?touchtest`) and with real touches sent through the browser (`?touchreal`: a tap, a drag, a held finger on a card and on the memo, a HUD button, and a link by three taps). It logs load time, frame rate and console errors. It needs `playwright-core` and/or `puppeteer-core` from elsewhere (see the script's header); they aren't dependencies of this repo. |
 | `Tools/nested.sh [--size WxH] [play.sh args]` | Runs the game, or any self-test above, inside a private nested KWin (`kwin_wayland --virtual`, with its own Wayland socket, D-Bus session and config folder, closed afterwards, along with anything the session woke up, such as `ksecretd` or a desktop portal: whatever still carries the session's bus address, config folder or socket is stopped). The window is certainly on screen there, so it runs at its real frame rate: on the development machine the self-tests ran at 52–56 fps inside it against about 11 on the shared desktop, where the compositor throttles a covered window. It can't go fullscreen on the real desktop, the real pointer can't reach it, and the player's prefs land in a scratch folder. It needs KDE's KWin. |
 | `Tools/record.sh [out.mp4] [cases]` | Records the game playing itself at a locked 30 fps and rebuilds the soundtrack offline from a per-frame voice log. |
@@ -473,8 +496,9 @@ changes since then aren't released yet. Twelve rounds of improvements have lande
 4 October 2026; what each one set out to do, what it changed and how it was checked are in
 [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
 
-- **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
-  build yet. macOS and browser builds can be made from source (below), but neither is published.
+- **Linux and the browser** for now. The release has a Linux x86_64 build; the browser version is
+  served from GitHub Pages (see [Play in your browser](#play-in-your-browser)). There's no Windows or
+  macOS build yet; a macOS build can be made from source (below), but it isn't published.
 - **The browser build was tested in headless Chromium and Firefox**, on the dev machine's Radeon
   8060S (`node Tools/webtest.mjs`, last run in improvement round 12). In both, autoplay plays all five
   cases and the Daily Dockets (one opened from the docket drawer) to CASE CLOSED with no console
