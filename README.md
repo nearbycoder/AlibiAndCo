@@ -14,7 +14,7 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 [![Blender 4.5](https://img.shields.io/badge/art-Blender%204.5-e87d0d?logo=blender&logoColor=white)](#rebuilding-the-generated-assets)
 [![Audio: synthesized](https://img.shields.io/badge/audio-100%25%20synthesized-c9a24a)](#rebuilding-the-generated-assets)
 
-[**Download for Linux**](https://github.com/nearbycoder/AlibiAndCo/releases/latest) ·
+[**Download for Linux**](https://github.com/nearbycoder/AlibiAndCo/releases/latest) (v0.1.0: the first three cases; [why](#play-it)) ·
 [Watch the trailer](docs/media/alibi-and-co-trailer.mp4) ·
 [How to play](#how-to-play) ·
 [Build from source](#build-from-source)
@@ -23,10 +23,13 @@ A cozy-noir deduction game about physically assembling a timeline, and then brea
 
 ## Trailer
 
-[![Watch the feature trailer (1:50, H.264 MP4)](docs/media/trailer-poster.jpg)](docs/media/alibi-and-co-trailer.mp4)
+[![Watch the feature trailer (1:58, H.264 MP4)](docs/media/trailer-poster.jpg)](docs/media/alibi-and-co-trailer.mp4)
 
-*Click the poster to open the trailer (1:50, 1080p, sound on). It's also attached to the
-[v0.1.0 release](https://github.com/nearbycoder/AlibiAndCo/releases/tag/v0.1.0) as a direct download.*
+*Click the poster to open the trailer (1:58, 1080p, sound on). Every shot is the game playing
+itself at the **Ultra** graphics step, recorded frame by frame, with its own music and sound and no
+narration. The copy attached to the
+[v0.1.0 release](https://github.com/nearbycoder/AlibiAndCo/releases/tag/v0.1.0) is the earlier cut from
+4 October, made before cases 4 and 5, the Daily Docket and the other changes since.*
 
 ## About
 
@@ -155,7 +158,7 @@ firm and cost you a badge. Being lied to isn't the same as finding the culprit.
 **Identity by elimination.** Who's the figure in the oilskin? Unknown-person cards cross out
 candidate faces live as the records rule people out.
 
-![Case 3: an unknown figure in a press photo, with candidate faces being crossed out](docs/media/screenshot-unknown-faces.jpg)
+![Case 3: an unknown figure in a press photo, with the four faces it could be; each is crossed out as the records rule that person out](docs/media/screenshot-unknown-faces.jpg)
 
 **Connie, the notebook and hints.** Short typed memos from your mentor teach each idea the first
 time it comes up. The notebook (Tab) keeps every question, witness reply, clock and alibi status.
@@ -197,14 +200,18 @@ the board's labels and the memo slips (windows under 900 pixels tall start at La
 lettering**, which sets the memos, statements, records, notebook, case files and epilogues in a
 plain sans (DejaVu Sans) instead of the typewriter, handwriting and Courier, for anyone who finds
 those hard to read, while titles, times and buttons keep their faces; fullscreen;
-reduced motion; and an optional case timer, sorted into Sound, Picture, Reading and Play. Progress and settings save automatically, and every
+reduced motion; and an optional case timer. They're laid out in two headed columns (Sound and Picture;
+Reading, Play and Progress, which has *Erase all progress* and asks first), and each change applies at
+once. Menus rise and grow into place in about a third of a second; with reduced motion they simply
+appear. Progress and settings save automatically, and every
 case and docket keeps its own board: leave case 4 half-solved, play today's docket, and case 4 is
 still there, pins, badges and timer, when you open its file again (*Continue* on the title picks up
 the board you played last).
 
 **Controls when you need them.** A single line on the board's frame shows the gesture that matters
-right now (pin, confront, link, accuse), and each tip retires once you've used it. The full
-controls list is in the pause menu. A link doesn't need a drag at all: click a pinned card and choose
+right now (pin, confront, link, accuse), and each tip retires once you've used it. The pause menu
+has the full controls list, as a two-column table for whichever you're using: the mouse, the keys, a pad
+(with its own button names) or a finger. A link doesn't need a drag at all: click a pinned card and choose
 **Same moment as…**, then click the card that saw the same moment (handy with a pad, the keys or a finger).
 A link only happens when you mean it: a dragged card has to
 rest on the other card until a **LINK** tag appears, so a card that just lands on another on its
@@ -243,21 +250,42 @@ last seven days' dockets stay in the drawer.
 
 ## Screenshots
 
+All at the Ultra graphics step, 1920×1080, from the trailer capture.
+
 | | |
 |---|---|
-| ![Title screen: the polaroid wall](docs/media/screenshot-title.jpg) | ![Case file 1, typed up, with the Gazette's front page](docs/media/screenshot-case-file.jpg) |
+| ![Title screen: the polaroid wall](docs/media/screenshot-title.jpg) | ![Case file 1, typed up, before the board opens](docs/media/screenshot-case-file.jpg) |
 | ![The town map zoomed in, with walking times](docs/media/screenshot-town-map.jpg) | ![The notebook in case 2](docs/media/screenshot-notebook.jpg) |
-| ![Case 3 in progress: four suspects, a town lane and one of Connie's memos](docs/media/screenshot-late-game.jpg) | ![The case files with all three cases closed](docs/media/screenshot-case-files.jpg) |
+| ![Case 3: four suspects, a town lane, and Connie's hint with CONNIE tags on the cards it names](docs/media/screenshot-late-game.jpg) | ![Connie's memo held up off the desk to read, in case 1](docs/media/screenshot-memo-held.jpg) |
+| ![Settings in two columns: volumes, resolution, fullscreen and the graphics fidelity slider; text size, plain lettering, reduced motion and the case timer](docs/media/screenshot-settings.jpg) | ![The Daily Docket's drawer: this week's dockets](docs/media/screenshot-docket.jpg) |
+| ![The case files: three of the five cases closed, with their seals, and the Daily Docket](docs/media/screenshot-case-files.jpg) | |
 
 ## Play it
+
+> **The published release is older than this README.** `v0.1.0` (4 October 2026) has the first three
+> cases and none of the changes since: cases 4 and 5, the Daily Docket, gamepad, keyboard-only and touch
+> play, the seals, plain lettering, the graphics fidelity steps and the rest. To play the game this page
+> describes, [build it from source](#build-from-source).
 
 1. Download `AlibiAndCo-v0.1.0-linux-x86_64.zip` from the
    [latest release](https://github.com/nearbycoder/AlibiAndCo/releases/latest).
 2. Unzip it anywhere and run `./AlibiAndCo.x86_64`.
 
-It needs 64-bit Linux and a GPU with Vulkan or OpenGL 4.5 support. On a Wayland desktop, if the
-window doesn't appear, start it with `./AlibiAndCo.x86_64 -force-wayland` (Unity's native Wayland
-backend). Progress and settings are stored in `~/.config/unity3d/AlibiAndCo/`.
+On a Wayland desktop, if the window doesn't appear, start it with `./AlibiAndCo.x86_64 -force-wayland`
+(Unity's native Wayland backend). Progress and settings are stored in `~/.config/unity3d/AlibiAndCo/`.
+
+### System requirements
+
+- **OS:** 64-bit Linux (x86_64). Built and tested on CachyOS with KDE Plasma (Wayland); other distributions
+  haven't been tried.
+- **Graphics:** a GPU with OpenGL 4.5. On the development machine the player runs on OpenGL Core
+  (Mesa, AMD Radeon 8060S, an integrated GPU); Vulkan and other GPUs haven't been tried. On that GPU a
+  busy board at 1920×1080 takes 1.7 ms a frame on Low and 8.1 ms on Ultra (see
+  [Graphics fidelity](#features)).
+- **Screen:** landscape, 1280×720 or larger (1920×1080 is the reference; autoplay also checks 1024×768 and
+  3440×1440, see [Status and known issues](#status-and-known-issues)).
+- **Disk:** about 135 MB unpacked (a build of today's game).
+- **Input:** a mouse, a keyboard alone, or a gamepad (touch in the browser build).
 
 Archives made with `Tools/package.sh` (see below) also include `AlibiAndCo.sh`, which adds
 `-force-wayland` by itself on a Wayland desktop. The v0.1.0 zip predates it.
@@ -360,13 +388,19 @@ python3 -m venv .venv && .venv/bin/pip install -r Tools/requirements.txt
 
 ```sh
 Tools/capture_trailer.sh                       # the game plays itself in trailer mode -> Captures/trailer/
-.venv/bin/python Tools/make_trailer.py         # -> docs/media/alibi-and-co-trailer.mp4, trailer-poster.jpg, teaser.webp
+.venv/bin/python Tools/make_trailer.py         # -> docs/media/alibi-and-co-trailer.mp4, trailer-poster.jpg,
+                                               #    teaser.webp and the README's screenshot-*.jpg
 ```
 
-The capture plays the first three cases (the trailer's cut) with scripted mouse and keyboard input, stages the beats the
-solver never plays (a witness standing firm, a wrong link, a hint, the notebook, the settings),
-logs a frame-numbered marker per beat and saves cursor-free stills. `make_trailer.py` cuts the
-trailer from those markers, so every shot is a named beat rather than a timestamp.
+The capture runs the built game inside a private nested KWin (`Tools/nested.sh`) at the Ultra graphics step
+(`FIDELITY=0`–`3` picks another) with the game's clock stepped one frame at a time, so it's smooth however
+busy the machine is. It plays the first three cases (the trailer's cut) and the Daily Docket for a fixed day
+(`DOCKET=yyyy-MM-dd`, 8 October 2026 by default) with scripted mouse and keyboard input, stages the beats
+the solver never plays (a hovered route, a memo held up, a witness standing firm, a link made through
+*Same moment as…*, a wrong link, a hint, the notebook, the pause menu and the settings), logs a
+frame-numbered marker per beat and saves cursor-free stills. `make_trailer.py` cuts the trailer from
+those markers, so every shot is a named beat rather than a timestamp; its work files go in
+`Captures/trailer-work.*` (deleted afterwards unless `KEEP_WORK=1`).
 
 ## Project structure
 
@@ -435,7 +469,9 @@ There are no stock assets, samples or third-party models in the project.
 
 *Alibi & Co.* is a complete, small game: five cases, start to finish, plus a generated Daily
 Docket. The released version is **0.1.0** (three cases). Cases 4 and 5, the Docket and the other
-changes since then aren't released yet.
+changes since then aren't released yet. Twelve rounds of improvements have landed since the launch on
+4 October 2026; what each one set out to do, what it changed and how it was checked are in
+[`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
 
 - **Linux only** for now. The release has a Linux x86_64 build, with no Windows, macOS or web
   build yet. macOS and browser builds can be made from source (below), but neither is published.
@@ -515,6 +551,10 @@ changes since then aren't released yet.
   sandboxed so it couldn't open a single input device, the thread was just as busy, running or in
   `epoll_wait`. The game already uses only the Input System, so it has no switch left for that thread;
   whether other machines show it is untested.
+- **After a wrong link, the dragged card's full text can stay open.** In the trailer captures, once a
+  link was refused (case 3, a drag from the kiosk receipt onto the coastguard log), the receipt's hover
+  card stayed on screen for several seconds afterwards with the pointer resting on the desk, in each of
+  three captures. It was seen in the recordings, not looked into; it doesn't change the board.
 - **The link guard was checked by simulated input.** The mouse test drops cards onto other cards in
   one quick movement (a quarter of a second) and checks they pin or go back without linking, then
   holds one until the LINK tag shows and checks it links. The half-second hold was chosen by hand,
@@ -554,7 +594,7 @@ changes since then aren't released yet.
   buttons.
 - **Graphics fidelity was measured on one machine.** Every step was photographed at the same frozen moment and timed
   with vsync off on the development machine's Radeon 8060S, an integrated GPU (`-alibiFidelityBench`; the full table
-  is in `docs/IMPROVEMENTS.md`, round 12). On a busy board at 1920×1080: Low 1.7 ms a frame, Medium 2.6, High 3.4,
+  is in [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md), round 12). On a busy board at 1920×1080: Low 1.7 ms a frame, Medium 2.6, High 3.4,
   Ultra 8.1; at 2560×1440, 2.5, 4.0, 5.6 and 14.3. In Chromium every step held 60 fps; in Firefox, measured while the
   GPU was busy with other work, Ultra's board dropped to about 42. Low hasn't been tried on genuinely weak hardware,
   and no step has been tried on Windows, a Mac or a Steam Deck. High is the look the game always had, and the default.
