@@ -108,7 +108,10 @@
       }
 
       // ---- Touch-first: a coarse pointer and no fine one (a phone or tablet), or a real touch later on.
-      const touchFirst = matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+      // The game's touch self-tests (?touchtest, ?touchreal) drive its own touch handling and its HUD on a
+      // desktop page, so they keep that page as it is, whatever pointer the test browser reports.
+      const touchSelfTest = /[?&]touch(test|real)\b/.test(location.search);
+      const touchFirst = !touchSelfTest && matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
       const compact = Math.min(screen.width, screen.height) < 500;   // phone-sized
       let unity = null, touchUi = null;
       function tellGame(method, value) { if (unity) try { unity.SendMessage("GameRoot", method, value); } catch { /* quitting */ } }
@@ -121,7 +124,7 @@
       }
       if (touchFirst) setTouchUi(true);
       // Shown again by a finger; hidden as soon as a mouse, key or gamepad is used.
-      addEventListener("touchstart", (e) => { if (e.isTrusted !== false) setTouchUi(true); }, { capture: true, passive: true });
+      addEventListener("touchstart", (e) => { if (e.isTrusted !== false && !touchSelfTest) setTouchUi(true); }, { capture: true, passive: true });
       addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" && (e.movementX || e.movementY)) setTouchUi(false); }, true);
       addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") setTouchUi(false); }, true);
       addEventListener("keydown", () => setTouchUi(false), true);
