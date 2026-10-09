@@ -44,14 +44,29 @@ function load(names, hint) {
   throw new Error(hint);
 }
 
-// Counts the page's AudioContexts, so the check can see them held until the first input.
+// Notes, inside the page, every AudioContext's state changes and the time of the first trusted click,
+// key or touch, so the check can see the sound held until a player's first input. (Playwright's and
+// puppeteer's evaluate(), and Playwright's screenshot(), count as a user gesture, so --play does
+// neither before that click.)
 const AUDIO_PROBE = `(() => {
-  const made = window.alibiAudioContexts = [];
+  const t0 = performance.now();
+  const log = window.alibiAudio = { contexts: [], changes: [], firstInput: null };
+  const note = (c, i) => log.changes.push({ ctx: i, state: c.state, at: Math.round(performance.now() - t0) });
   for (const name of ["AudioContext", "webkitAudioContext"]) {
     const C = window[name];
     if (!C) continue;
-    window[name] = new Proxy(C, { construct(t, a, nt) { const c = Reflect.construct(t, a, nt); made.push(c); return c; } });
+    const resume = C.prototype.resume;
+    C.prototype.resume = function () { log.changes.push({ ctx: log.contexts.indexOf(this), call: "resume", state: this.state, at: Math.round(performance.now() - t0) }); return resume.apply(this, arguments); };
+    window[name] = new Proxy(C, { construct(t, a, nt) {
+      const c = Reflect.construct(t, a, nt);
+      const i = log.contexts.push(c) - 1;
+      note(c, i);
+      c.addEventListener("statechange", () => note(c, i));
+      return c;
+    } });
   }
+  for (const ev of ["pointerdown", "mousedown", "keydown", "touchstart"])
+    addEventListener(ev, (e) => { if (e.isTrusted && log.firstInput === null) log.firstInput = Math.round(performance.now() - t0); }, true);
 })();`;
 
 async function launch(engine) {
@@ -63,14 +78,14 @@ async function launch(engine) {
     const puppeteer = load([process.env.PUPPETEER_CORE, "puppeteer-core"], "puppeteer-core not found: set PUPPETEER_CORE");
     const browser = await puppeteer.launch({ browser: "firefox", protocol: "webDriverBiDi", headless: true,
       executablePath: process.env.FIREFOX || "/usr/bin/firefox", userDataDir: profile, timeout: 120000,
-      // Puppeteer's profile lets every page play sound; put back a release Firefox's blocking.
+      // A release Firefox's autoplay blocking, whatever the automation profile would set.
       extraPrefsFirefox: { "media.autoplay.default": 1, "media.autoplay.block-webaudio": true, "media.autoplay.blocking_policy": 0 } });
     const context = await browser.createBrowserContext();
     return { browser, context, dir, puppet: true };
   }
   const pw = load([process.env.PLAYWRIGHT_CORE, "playwright-core", "playwright"], "playwright-core not found: set PLAYWRIGHT_CORE");
-  // No autoplay override: the page must wait for a real gesture, as it does for a player.
-  const opts = { headless: true, args: ["--use-angle=gl-egl", "--enable-gpu", "--ignore-gpu-blocklist"] };
+  // Desktop Chrome's own autoplay policy: the page must wait for a real gesture, as it does for a player.
+  const opts = { headless: true, args: ["--use-angle=gl-egl", "--enable-gpu", "--ignore-gpu-blocklist", "--autoplay-policy=document-user-activation-required"] };
   let browser;
   try { browser = await pw.chromium.launch(opts); }
   catch (e) {
@@ -114,7 +129,6 @@ async function check(engine) {
     page.on("pageerror", (e) => { append("[pageerror] " + (e.message || e)); errors.push("pageerror: " + (e.message || e)); });
     page.on("response", (res) => { if (res.status() >= 400) { failed.push(`${res.status()} ${res.url()}`); append(`[http ${res.status()}] ${res.url()}`); } });
   }
-  const waitFor = (fn, ms) => puppet ? page.waitForFunction(fn, { timeout: ms }) : page.waitForFunction(fn, null, { timeout: ms });
   const since = (n, re) => lines.slice(n).find((l) => re.test(l));
   async function until(n, re, ms) {
     const end = Date.now() + ms;
@@ -130,22 +144,33 @@ async function check(engine) {
     await page.mouse.up();
     await sleep(settle);
   };
-  const audio = () => page.evaluate(() => (window.alibiAudioContexts || []).map((c) => c.state));
 
-  // Loads the page to its title: the loader gone and the graphics step applied.
+  // Loads the page to its title: the game applies its graphics step there ("[Fidelity] ..."), or the
+  // page reports why it couldn't start ("[Page] ..."). Read from the console alone, without evaluate().
   async function toTitle(what) {
     const n = lines.length;
     const t0 = Date.now();
     await page.goto(url, { waitUntil: "load", timeout: TIMEOUT });
-    try { await waitFor(() => !document.querySelector("#loader") || window.alibiLoadError, TIMEOUT); }
-    catch { r.problems.push(`${what}: the loader was still up after ${TIMEOUT / 1000} s`); return null; }
-    const loadError = await page.evaluate(() => window.alibiLoadError || null);
-    if (loadError) { r.problems.push(`${what}: the page reported "${loadError}"`); return null; }
-    const fid = await until(n, /^\[Fidelity\] (Low|Medium|High|Ultra):/, 30000);
-    if (!fid) { r.problems.push(`${what}: the game never reached its title (no "[Fidelity]" line)`); return null; }
+    const seen = await until(n, /^\[Fidelity\] (Low|Medium|High|Ultra):|^\[Page\] /, TIMEOUT);
+    if (!seen || seen.startsWith("[Page]")) {
+      const why = await page.evaluate(() => window.alibiLoadError || null).catch(() => null);
+      r.problems.push(`${what}: the game didn't reach its title in ${TIMEOUT / 1000} s${why ? ` (the page says "${why}")` : ""}`);
+      return null;
+    }
     await sleep(3000);   // the title settles; errors at startup would show by now
-    return { ms: Date.now() - t0, step: /^\[Fidelity\] (\w+)/.exec(fid)[1] };
+    return { ms: Date.now() - t0, step: /^\[Fidelity\] (\w+)/.exec(seen)[1] };
   }
+  const stats = () => page.evaluate(() => {
+    const res = performance.getEntriesByType("resource");
+    const sum = (k) => res.reduce((s, e) => s + (e[k] || 0), 0);
+    const gl = document.createElement("canvas").getContext("webgl2");
+    const ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
+    const c = document.querySelector("#unity-canvas").getBoundingClientRect();
+    return { loaderGone: !document.querySelector("#loader"), downloadedMB: +(sum("transferSize") / 1048576).toFixed(1),
+      encodedMB: +(sum("encodedBodySize") / 1048576).toFixed(1),
+      renderer: gl ? (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : "no WebGL 2",
+      canvas: `${Math.round(c.width)}x${Math.round(c.height)} of ${innerWidth}x${innerHeight}` };
+  });
 
   let page;
   try {
@@ -155,32 +180,23 @@ async function check(engine) {
     if (first) {
       r.loadSeconds = +(first.ms / 1000).toFixed(1);
       r.graphicsAtLaunch = first.step;
-      Object.assign(r, await page.evaluate(() => {
-        const res = performance.getEntriesByType("resource");
-        const sum = (k) => res.reduce((s, e) => s + (e[k] || 0), 0);
-        const gl = document.createElement("canvas").getContext("webgl2");
-        const ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
-        const c = document.querySelector("#unity-canvas").getBoundingClientRect();
-        return { downloadedMB: +(sum("transferSize") / 1048576).toFixed(1), encodedMB: +(sum("encodedBodySize") / 1048576).toFixed(1),
-          renderer: gl ? (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : "no WebGL 2",
-          canvas: `${Math.round(c.width)}x${Math.round(c.height)} of ${innerWidth}x${innerHeight}` };
-      }));
-      await shot("01-title");
+      // Playwright's screenshot() runs page script as a user gesture too: with --play it waits for the first click.
+      if (!play) { await shot("01-title"); Object.assign(r, await stats()); }
       r.title = true;
     }
 
     if (play && first) {
       const p = r.play = {};
-      // What the browser allows a page's audio before any input ("allowed" in a profile that lets
-      // everything play; a player's browser normally holds it until the first click or key).
-      p.autoplayPolicy = await page.evaluate(() => navigator.getAutoplayPolicy ? navigator.getAutoplayPolicy("audiocontext") : "unknown");
-      p.audioBeforeInput = await audio();
-      // The first click: on empty table, away from every button.
+      // The first click: on empty table, away from every button. Until then the sound must be held.
       await click(W * 0.75, H * 0.12, 1500);
-      p.audioAfterClick = await audio();
-      const held = p.autoplayPolicy === "allowed" || !p.audioBeforeInput.includes("running");
-      p.audioStarted = p.audioAfterClick.length > 0 && p.audioAfterClick.every((st) => st === "running");
-      if (!held || !p.audioStarted) r.problems.push(`audio: ${JSON.stringify(p.audioBeforeInput)} before input (policy ${p.autoplayPolicy}), ${JSON.stringify(p.audioAfterClick)} after a click`);
+      Object.assign(r, await stats());
+      await shot("01-title");
+      const a = await page.evaluate(() => ({ ...window.alibiAudio, contexts: window.alibiAudio.contexts.map((c) => c.state),
+        policy: navigator.getAutoplayPolicy ? navigator.getAutoplayPolicy("audiocontext") : "n/a" }));
+      p.audio = { firstInputMs: a.firstInput, changes: a.changes, nowAfterClick: a.contexts, policyAfterClick: a.policy };
+      p.audioHeldUntilInput = a.firstInput !== null && a.changes.length > 0 && !a.changes.some((c) => !c.call && c.state === "running" && c.at < a.firstInput);
+      p.audioStarted = a.contexts.length > 0 && a.contexts.every((st) => st === "running");
+      if (!p.audioHeldUntilInput || !p.audioStarted) r.problems.push(`audio: ${JSON.stringify(p.audio)}`);
 
       // Settings > Low > Done.
       let n = lines.length;

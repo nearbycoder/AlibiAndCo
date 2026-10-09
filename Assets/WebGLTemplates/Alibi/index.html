@@ -37,6 +37,7 @@
         loader.firstChild.textContent = title;
         status.textContent = detail;
         window.alibiLoadError = title + " " + detail;
+        console.error("[Page] " + window.alibiLoadError);
       }
       function hasWebGL2() {
         try { const c = document.createElement("canvas"); return !!(window.WebGL2RenderingContext && c.getContext("webgl2")); }
